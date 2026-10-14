@@ -1,5 +1,6 @@
 import { fetchJson } from "./http";
 import { getSetting } from "@/lib/settings";
+import { cached } from "@/lib/cache";
 
 const BASE = "https://api.themoviedb.org/3";
 export const TMDB_IMG = "https://image.tmdb.org/t/p";
@@ -69,18 +70,18 @@ export type TmdbMultiResult =
   | (TmdbTv & { media_type: "tv" })
   | { media_type: "person"; id: number; name: string };
 
-async function tmdb<T>(path: string, params: Record<string, string | number> = {}, revalidate = 3600): Promise<T> {
+/** @param ttl seconds to keep the response in memory; 0 = always fetch */
+async function tmdb<T>(path: string, params: Record<string, string | number> = {}, ttl = 3600): Promise<T> {
   const { apiKey } = await getSetting("tmdb");
   if (!apiKey) throw new Error("TMDB API key is not configured");
   const url = new URL(BASE + path);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
+  const key = `tmdb:${url.pathname}${url.search}`; // before the key is added, so it never ends up in cache keys
   // v4 read-access tokens are JWTs; v3 keys are 32 hex chars.
   const isBearer = apiKey.length > 40;
   if (!isBearer) url.searchParams.set("api_key", apiKey);
-  return fetchJson<T>(url.toString(), {
-    revalidate,
-    headers: isBearer ? { Authorization: `Bearer ${apiKey}` } : {},
-  });
+  const get = () => fetchJson<T>(url.toString(), { headers: isBearer ? { Authorization: `Bearer ${apiKey}` } : {} });
+  return ttl > 0 ? cached(key, ttl, get) : get();
 }
 
 export const ANIMATION_GENRE = 16;
@@ -101,8 +102,6 @@ export const tmdbClient = {
   movie: (id: number) => tmdb<TmdbMovieDetails>(`/movie/${id}`, { append_to_response: "external_ids" }),
   tv: (id: number) => tmdb<TmdbTvDetails>(`/tv/${id}`, { append_to_response: "external_ids" }),
   search: (query: string, page = 1) => tmdb<TmdbPage<TmdbMultiResult>>("/search/multi", { query, page }, 600),
-  findByTvdb: (tvdbId: number) =>
-    tmdb<{ tv_results: TmdbTv[] }>(`/find/${tvdbId}`, { external_source: "tvdb_id" }, 86400),
   /** Used by the setup wizard's test button. */
   ping: () => tmdb<unknown>("/configuration", {}, 0),
 };

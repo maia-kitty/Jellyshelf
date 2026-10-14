@@ -1,5 +1,6 @@
 import { getIronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, ensureMigrated, schema } from "@/db";
@@ -49,13 +50,14 @@ export async function destroySession() {
   if (store.has(LEGACY_COOKIE)) store.delete(LEGACY_COOKIE);
 }
 
-export async function currentUser(): Promise<User | null> {
+/** The signed-in user. Memoized per request: the layout and the page both ask. */
+export const currentUser = cache(async (): Promise<User | null> => {
   const session = await getSession();
   if (!session.userId) return null;
   await ensureMigrated();
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, session.userId));
   return user ?? null;
-}
+});
 
 /** For server components/pages: redirect to /login when signed out. */
 export async function requireUser(): Promise<User> {

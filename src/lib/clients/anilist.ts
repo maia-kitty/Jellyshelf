@@ -108,42 +108,78 @@ const CARD = `
   coverImage { large extraLarge color }
 `;
 
-// --- rate limiting: AniList allows 90 req/min (currently degraded to 30). Space requests out and honour Retry-After.
-const g = globalThis as unknown as { __anilistQueue?: Promise<unknown>; __anilistPausedUntil?: number };
-const MIN_GAP_MS = 700;
+// --- rate limiting. AniList counts requests per minute (90, currently degraded to 30) and reports the
+// limit in X-RateLimit-Limit / X-RateLimit-Remaining. Requests go out immediately, a few at a time,
+// while this minute's budget lasts; only when it runs out do we wait. A 429 pauses everything for Retry-After.
+const WINDOW_MS = 60_000;
+const MAX_CONCURRENT = 4;
 
-function schedule<T>(fn: () => Promise<T>): Promise<T> {
-  const run = async () => {
-    const wait = (g.__anilistPausedUntil ?? 0) - Date.now();
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    try {
-      return await fn();
-    } finally {
-      g.__anilistPausedUntil = Math.max(g.__anilistPausedUntil ?? 0, Date.now() + MIN_GAP_MS);
+interface Limiter {
+  /** Start times of requests in the last minute. */
+  sent: number[];
+  limit: number;
+  active: number;
+  pausedUntil: number;
+}
+const g = globalThis as unknown as { __anilistLimiter?: Limiter };
+const limiter = (g.__anilistLimiter ??= { sent: [], limit: 30, active: 0, pausedUntil: 0 });
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function acquire() {
+  for (;;) {
+    const now = Date.now();
+    while (limiter.sent.length && limiter.sent[0] <= now - WINDOW_MS) limiter.sent.shift();
+    if (now < limiter.pausedUntil) {
+      await sleep(limiter.pausedUntil - now);
+    } else if (limiter.active >= MAX_CONCURRENT) {
+      await sleep(50);
+    } else if (limiter.sent.length >= limiter.limit - 1) {
+      await sleep(limiter.sent[0] + WINDOW_MS - now); // keep one request of headroom
+    } else {
+      limiter.sent.push(now);
+      limiter.active++;
+      return;
     }
-  };
-  const p = (g.__anilistQueue ?? Promise.resolve()).then(run, run);
-  g.__anilistQueue = p.catch(() => undefined);
-  return p;
+  }
+}
+
+function learn(res: Response) {
+  const limit = Number(res.headers.get("x-ratelimit-limit"));
+  const remaining = Number(res.headers.get("x-ratelimit-remaining"));
+  if (limit > 0) limiter.limit = limit;
+  // AniList's own count is the truth (other apps may share the IP); back off when it says we're nearly out.
+  if (res.headers.has("x-ratelimit-remaining") && remaining <= 1) {
+    limiter.pausedUntil = Math.max(limiter.pausedUntil, Date.now() + WINDOW_MS / 2);
+  }
+}
+
+async function send(init: RequestInit): Promise<Response> {
+  await acquire();
+  try {
+    const res = await fetch(GRAPHQL, init);
+    learn(res);
+    return res;
+  } finally {
+    limiter.active--;
+  }
 }
 
 export async function anilistQuery<T>(query: string, variables: Record<string, unknown> = {}, token?: string, attempt = 0): Promise<T> {
-  const res = await schedule(() =>
-    fetch(GRAPHQL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ query, variables }),
-      signal: AbortSignal.timeout(20_000),
-      cache: "no-store",
-    }),
-  );
+  const res = await send({
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(20_000),
+    cache: "no-store",
+  });
   if (res.status === 429 && attempt < 3) {
-    const retry = Number(res.headers.get("retry-after") ?? "60");
-    g.__anilistPausedUntil = Date.now() + retry * 1000;
+    const retry = Number(res.headers.get("retry-after") ?? "60") || 60;
+    limiter.pausedUntil = Math.max(limiter.pausedUntil, Date.now() + retry * 1000);
     return anilistQuery(query, variables, token, attempt + 1);
   }
   const json = (await res.json().catch(() => null)) as { data?: T; errors?: { message: string; status?: number }[] } | null;
@@ -163,6 +199,21 @@ export function shiftSeason(s: { season: AniSeason; year: number }, delta: numbe
   const order: AniSeason[] = ["WINTER", "SPRING", "SUMMER", "FALL"];
   const idx = order.indexOf(s.season) + delta + s.year * 4;
   return { season: order[((idx % 4) + 4) % 4], year: Math.floor(idx / 4) };
+}
+
+export const FORMAT_LABEL: Record<AniFormat, string> = {
+  TV: "TV",
+  TV_SHORT: "TV Short",
+  MOVIE: "Movie",
+  SPECIAL: "Special",
+  OVA: "OVA",
+  ONA: "ONA",
+  MUSIC: "Music",
+};
+
+/** "FALL", 2026 → "Fall 2026" */
+export function seasonLabel(s: { season: string; year: number }) {
+  return `${s.season[0]}${s.season.slice(1).toLowerCase()} ${s.year}`;
 }
 
 export function aniTitle(t: AniTitle) {
@@ -277,20 +328,23 @@ export const anilist = {
  * Walk PREQUEL/SEQUEL edges to find the TV-ish entries in the same franchise, oldest first.
  * Only follows formats that live in Sonarr (TV, TV_SHORT, ONA); movies and OVAs break the chain.
  */
-export async function franchiseChain(rootId: number, maxDepth = 12): Promise<AniMediaCard[]> {
-  const seen = new Map<number, AniMediaCard & { start: number }>();
-  const queue: number[] = [rootId];
+export async function franchiseChain(rootId: number, maxEntries = 12): Promise<AniMediaCard[]> {
   const SERIES: (AniFormat | null)[] = ["TV", "TV_SHORT", "ONA"];
-  while (queue.length && seen.size < maxDepth) {
-    const id = queue.shift()!;
-    if (seen.has(id)) continue;
-    const m = await anilist.media(id);
-    if (!m) continue;
-    const start = (m.startDate.year ?? 9999) * 10000 + (m.startDate.month ?? 0) * 100 + (m.startDate.day ?? 0);
-    seen.set(id, { ...m, start });
-    for (const e of m.relations.edges) {
-      if ((e.relationType === "PREQUEL" || e.relationType === "SEQUEL") && e.node.type === "ANIME" && SERIES.includes(e.node.format)) {
-        queue.push(e.node.id);
+  const seen = new Map<number, AniMediaCard & { start: number }>();
+  let frontier = [rootId];
+  // Breadth-first, one ring of prequels/sequels at a time, fetched in parallel.
+  while (frontier.length && seen.size < maxEntries) {
+    const batch = frontier.slice(0, maxEntries - seen.size);
+    frontier = [];
+    for (const m of await Promise.all(batch.map((id) => anilist.media(id)))) {
+      if (!m || seen.has(m.id)) continue;
+      const start = (m.startDate.year ?? 9999) * 10000 + (m.startDate.month ?? 0) * 100 + (m.startDate.day ?? 0);
+      seen.set(m.id, { ...m, start });
+      for (const e of m.relations.edges) {
+        const next = e.node;
+        if ((e.relationType === "PREQUEL" || e.relationType === "SEQUEL") && next.type === "ANIME" && SERIES.includes(next.format) && !seen.has(next.id) && !frontier.includes(next.id)) {
+          frontier.push(next.id);
+        }
       }
     }
   }

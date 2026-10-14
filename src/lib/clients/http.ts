@@ -11,12 +11,10 @@ export class HttpError extends Error {
 export interface FetchJsonOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   timeoutMs?: number;
-  /** Next.js data cache revalidation, in seconds. */
-  revalidate?: number | false;
 }
 
 export async function fetchJson<T>(url: string, opts: FetchJsonOptions = {}): Promise<T> {
-  const { body, timeoutMs = 15_000, revalidate, headers, ...rest } = opts;
+  const { body, timeoutMs = 15_000, headers, ...rest } = opts;
   const res = await fetch(url, {
     ...rest,
     headers: {
@@ -26,8 +24,8 @@ export async function fetchJson<T>(url: string, opts: FetchJsonOptions = {}): Pr
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
-    ...(revalidate !== undefined ? { next: { revalidate } } : { cache: "no-store" }),
-  } as RequestInit);
+    cache: "no-store",
+  });
   if (!res.ok) throw new HttpError(res.status, url, await res.text().catch(() => ""));
   if (res.status === 204) return undefined as T;
   const text = await res.text();

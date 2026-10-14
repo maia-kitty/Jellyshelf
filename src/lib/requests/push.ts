@@ -82,13 +82,22 @@ async function pushSeries(req: Request, media: Media) {
 
   await setMediaStatus(media.id, "processing", { sonarrId: series.id, tvdbId: req.targetId });
 
-  if (episodeLevel) {
-    // Freshly added series need a moment for Sonarr to populate episodes from TVDB.
-    for (let i = 0; i < 6; i++) {
-      if (await syncEpisodeMonitoring(api, series, req)) return;
-      await new Promise((r) => setTimeout(r, 3000));
-    }
+  if (episodeLevel && !(await syncEpisodeMonitoring(api, series, req))) {
+    // A freshly added series has no episodes until Sonarr finishes refreshing it from TVDB. Don't make the
+    // requester wait for that: flag it, retry in the background for a bit, and let the sync job finish it otherwise.
     await db.update(schema.requests).set({ needsEpisodeSync: true }).where(eq(schema.requests.id, req.id));
+    void retryEpisodeSync(api, series, req);
+  }
+}
+
+async function retryEpisodeSync(api: SonarrClient, series: SonarrSeries, req: Request, attempts = 10, delayMs = 3000) {
+  for (let i = 0; i < attempts; i++) {
+    await new Promise((r) => setTimeout(r, delayMs));
+    try {
+      if (await syncEpisodeMonitoring(api, series, req)) return;
+    } catch (e) {
+      console.warn(`[request ${req.id}] episode monitoring retry failed:`, e instanceof Error ? e.message : e);
+    }
   }
 }
 

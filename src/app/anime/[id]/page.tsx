@@ -12,7 +12,7 @@ import { JarLoader } from "@/components/AppIcon";
 import { movieInfo, seriesEpisodes } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
 import { LIST_LABEL } from "@/components/StatusBadge";
-import { anilist, aniTitle, franchiseChain, type AniMediaCard } from "@/lib/clients/anilist";
+import { anilist, aniTitle, FORMAT_LABEL, franchiseChain, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
 import { animeCard, decorate } from "@/lib/cards";
 import { getMapping, resolveAnime } from "@/lib/mapping";
@@ -30,8 +30,6 @@ function stripHtml(s: string | null) {
     .trim();
 }
 
-const FORMAT: Record<string, string> = { TV: "TV", TV_SHORT: "TV Short", MOVIE: "Movie", SPECIAL: "Special", OVA: "OVA", ONA: "ONA", MUSIC: "Music" };
-
 async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
   const token = anilistToken(user);
   const [mediaMap, list] = await Promise.all([
@@ -46,7 +44,7 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
       return {
         id: e.id,
         title: aniTitle(e.title),
-        sub: [e.seasonYear, e.format && FORMAT[e.format], e.episodes && `${e.episodes} eps`].filter(Boolean).join(" · "),
+        sub: [e.seasonYear, e.format && FORMAT_LABEL[e.format], e.episodes && `${e.episodes} eps`].filter(Boolean).join(" · "),
         target: describeTarget(target),
         mapped: target.service !== "unmapped",
         status: m?.status,
@@ -122,8 +120,8 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         backdrop={a.bannerImage}
         accentColor={a.coverImage.color}
         facts={[
-          a.season && a.seasonYear ? `${a.season[0]}${a.season.slice(1).toLowerCase()} ${a.seasonYear}` : a.seasonYear?.toString(),
-          a.format && FORMAT[a.format],
+          a.season && a.seasonYear ? seasonLabel({ season: a.season, year: a.seasonYear }) : a.seasonYear?.toString(),
+          a.format && FORMAT_LABEL[a.format],
           a.episodes && a.format !== "MOVIE" ? `${a.episodes} episodes` : null,
           a.duration ? `${a.duration} min` : null,
           a.studios.nodes.map((s) => s.name).join(", "),

@@ -68,6 +68,8 @@ async function syncAvailability(): Promise<SyncReport> {
   const patch = (id: number, p: Partial<Media>) => extra.set(id, { ...extra.get(id), ...p });
   const newAnime: (typeof schema.media.$inferInsert)[] = [];
   const knownAnime = new Set(allMedia.filter((m) => m.anilistId).map((m) => m.anilistId!));
+  /** If any service couldn't be read, its titles weren't observed; don't mistake that for "gone". */
+  let incomplete = false;
 
   // ---------- Radarr ----------
   let movies = new Map<number, RadarrMovie>();
@@ -77,6 +79,7 @@ async function syncAvailability(): Promise<SyncReport> {
       report.radarr = `${movies.size} movies`;
     } catch (e) {
       report.radarr = `error: ${(e as Error).message}`;
+      incomplete = true;
     }
   }
   for (const m of allMedia) {
@@ -110,6 +113,7 @@ async function syncAvailability(): Promise<SyncReport> {
       await syncSonarr(api, series, allMedia, activeReqs, { upgrade, patch, completed, newAnime, knownAnime });
     } catch (e) {
       report.sonarr = `error: ${(e as Error).message}`;
+      incomplete = true;
     }
   }
 
@@ -157,35 +161,40 @@ async function syncAvailability(): Promise<SyncReport> {
       report.updatedMedia += fresh.length;
     } catch (e) {
       report.jellyfin = `error: ${(e as Error).message}`;
+      incomplete = true;
     }
   }
 
-  // ---------- write back ----------
+  // ---------- write back (one transaction: a first sync of a big library touches hundreds of rows) ----------
   const reqsByMedia = new Map<number, Request[]>();
   for (const r of activeReqs) reqsByMedia.set(r.mediaId, [...(reqsByMedia.get(r.mediaId) ?? []), r]);
-  for (const m of allMedia) {
-    const reqs = (reqsByMedia.get(m.id) ?? []).filter((r) => !completed.has(r.id));
-    const fallback: MediaStatus = reqs.some((r) => r.status === "approved")
-      ? "processing"
-      : reqs.some((r) => r.status === "pending")
-        ? "pending"
-        : "unknown";
-    const obs = observed.get(m.id);
-    const status = obs && RANK[obs] >= RANK.partially_available ? obs : fallback;
-    const p = extra.get(m.id) ?? {};
-    const changed = status !== m.status || Object.entries(p).some(([k, v]) => JSON.stringify((m as Record<string, unknown>)[k]) !== JSON.stringify(v));
-    if (!changed) continue;
-    await db.update(schema.media).set({ ...p, status, lastSynced: new Date(), updatedAt: new Date() }).where(eq(schema.media.id, m.id));
-    report.updatedMedia++;
-  }
-  for (let i = 0; i < newAnime.length; i += 200) {
-    await db.insert(schema.media).values(newAnime.slice(i, i + 200)).onConflictDoNothing();
-  }
-  report.updatedMedia += newAnime.length;
-  if (completed.size) {
-    await db.update(schema.requests).set({ status: "completed", updatedAt: new Date() }).where(inArray(schema.requests.id, [...completed]));
-    report.completedRequests = completed.size;
-  }
+  await db.transaction(async (tx) => {
+    for (const m of allMedia) {
+      const reqs = (reqsByMedia.get(m.id) ?? []).filter((r) => !completed.has(r.id));
+      const fallback: MediaStatus = reqs.some((r) => r.status === "approved")
+        ? "processing"
+        : reqs.some((r) => r.status === "pending")
+          ? "pending"
+          : "unknown";
+      const obs = observed.get(m.id);
+      let status = obs && RANK[obs] >= RANK.partially_available ? obs : fallback;
+      // A service was down this run: only let statuses go up, so a restart doesn't blank out the library.
+      if (incomplete && RANK[m.status] > RANK[status]) status = m.status;
+      const p = extra.get(m.id) ?? {};
+      const changed = status !== m.status || Object.entries(p).some(([k, v]) => JSON.stringify((m as Record<string, unknown>)[k]) !== JSON.stringify(v));
+      if (!changed) continue;
+      await tx.update(schema.media).set({ ...p, status, lastSynced: new Date(), updatedAt: new Date() }).where(eq(schema.media.id, m.id));
+      report.updatedMedia++;
+    }
+    for (let i = 0; i < newAnime.length; i += 200) {
+      await tx.insert(schema.media).values(newAnime.slice(i, i + 200)).onConflictDoNothing();
+    }
+    report.updatedMedia += newAnime.length;
+    if (completed.size) {
+      await tx.update(schema.requests).set({ status: "completed", updatedAt: new Date() }).where(inArray(schema.requests.id, [...completed]));
+      report.completedRequests = completed.size;
+    }
+  });
   return report;
 }
 

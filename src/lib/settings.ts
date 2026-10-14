@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { db, ensureMigrated, schema } from "@/db";
 
 const arrBase = z.object({
@@ -97,7 +96,3 @@ export async function getSetting<K extends SettingsSection>(section: K): Promise
   return (await getSettings())[section];
 }
 
-export async function deleteSetting(section: SettingsSection) {
-  await db.delete(schema.settings).where(eq(schema.settings.key, section));
-  g.__jellyshelfSettings = undefined;
-}

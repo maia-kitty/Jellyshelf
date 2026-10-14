@@ -1,6 +1,6 @@
 import type { MediaKind, MediaStatus, User } from "@/db/schema";
 import type { AniListStatus, AniMediaCard } from "@/lib/clients/anilist";
-import { anilist, aniTitle } from "@/lib/clients/anilist";
+import { anilist, aniTitle, FORMAT_LABEL } from "@/lib/clients/anilist";
 import { looksLikeAnime, tmdbImage, type TmdbMovie, type TmdbTv } from "@/lib/clients/tmdb";
 import { anilistToken } from "@/lib/auth";
 import { statusMap } from "@/lib/media";
@@ -47,15 +47,6 @@ export function tvCard(t: TmdbTv): Card {
   };
 }
 
-const FORMAT_LABEL: Record<string, string> = {
-  TV: "TV",
-  TV_SHORT: "TV Short",
-  MOVIE: "Movie",
-  SPECIAL: "Special",
-  OVA: "OVA",
-  ONA: "ONA",
-  MUSIC: "Music",
-};
 
 export function animeCard(a: AniMediaCard): Card {
   const fmt = a.format ? FORMAT_LABEL[a.format] : "Anime";
@@ -87,6 +78,13 @@ export async function decorate(cards: Card[], user: User | null): Promise<Card[]
       ...(entry ? { list: { status: entry.status, progress: entry.progress } } : {}),
     };
   });
+}
+
+/** decorate() several card lists with one availability lookup; returns them in the same shape. */
+export async function decorateGroups(groups: Card[][], user: User | null): Promise<Card[][]> {
+  const flat = await decorate(groups.flat(), user);
+  let i = 0;
+  return groups.map((g) => flat.slice(i, (i += g.length)));
 }
 
 /** Discovery rows shouldn't take a whole page down when one upstream API hiccups. */

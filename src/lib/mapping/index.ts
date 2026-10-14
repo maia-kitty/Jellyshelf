@@ -1,4 +1,4 @@
-import { eq, inArray, or } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { db, ensureMigrated, schema } from "@/db";
 import type { IdMapping } from "@/db/schema";
 import { fetchJson } from "@/lib/clients/http";
@@ -69,8 +69,3 @@ export async function anilistIdsFor(opts: { tvdbId?: number | null; tmdbMovieId?
   return db.select().from(schema.idMapping).where(or(...conds));
 }
 
-export async function mappingsFor(anilistIds: number[]) {
-  if (!anilistIds.length) return [];
-  await ensureMigrated();
-  return db.select().from(schema.idMapping).where(inArray(schema.idMapping.anilistId, anilistIds));
-}

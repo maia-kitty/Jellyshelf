@@ -1,6 +1,6 @@
 import { CardGrid } from "@/components/MediaCard";
 import { Pager, Tabs } from "@/components/Tabs";
-import { anilist, currentSeason, shiftSeason, type AniSeason } from "@/lib/clients/anilist";
+import { anilist, currentSeason, seasonLabel, shiftSeason, type AniSeason } from "@/lib/clients/anilist";
 import { animeCard, decorate } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
 
@@ -25,7 +25,6 @@ export default async function AnimeDiscover({ searchParams }: { searchParams: Se
 
   const prev = shiftSeason({ season, year }, -1);
   const next = shiftSeason({ season, year }, 1);
-  const label = (s: { season: string; year: number }) => `${s.season[0]}${s.season.slice(1).toLowerCase()} ${s.year}`;
   const href = (p: number) =>
     `/discover/anime?list=${list}${list === "seasonal" ? `&season=${season}&year=${year}` : ""}&page=${p}`;
 
@@ -43,11 +42,11 @@ export default async function AnimeDiscover({ searchParams }: { searchParams: Se
       {list === "seasonal" && (
         <div className="mb-6 flex items-center gap-3">
           <a className="btn-ghost" href={`/discover/anime?list=seasonal&season=${prev.season}&year=${prev.year}`}>
-            ← {label(prev)}
+            ← {seasonLabel(prev)}
           </a>
-          <span className="font-semibold">{label({ season, year })}</span>
+          <span className="font-semibold">{seasonLabel({ season, year })}</span>
           <a className="btn-ghost" href={`/discover/anime?list=seasonal&season=${next.season}&year=${next.year}`}>
-            {label(next)} →
+            {seasonLabel(next)} →
           </a>
         </div>
       )}

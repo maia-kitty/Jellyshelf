@@ -1,7 +1,7 @@
 import { CardRow } from "@/components/MediaCard";
-import { anilist, currentSeason, shiftSeason } from "@/lib/clients/anilist";
+import { anilist, currentSeason, seasonLabel, shiftSeason } from "@/lib/clients/anilist";
 import { tmdbClient } from "@/lib/clients/tmdb";
-import { animeCard, decorate, movieCard, soft, tvCard } from "@/lib/cards";
+import { animeCard, decorateGroups, movieCard, soft, tvCard } from "@/lib/cards";
 import { anilistToken } from "@/lib/auth";
 import { pageUser } from "@/lib/page";
 
@@ -23,24 +23,26 @@ export default async function Home() {
   const watching = list ? [...list.values()].filter((e) => e.status === "CURRENT").map((e) => animeCard(e.media)) : [];
   const planning = list ? [...list.values()].filter((e) => e.status === "PLANNING").map((e) => animeCard(e.media)) : [];
 
-  const [rWatching, rPlanning, rSeasonal, rTrending, rUpcoming, rMovies, rTv] = await Promise.all([
-    decorate(watching.slice(0, 30), user),
-    decorate(planning.slice(0, 30), user),
-    decorate(seasonal?.media.map(animeCard) ?? [], user),
-    decorate(trendingAnime?.media.map(animeCard) ?? [], user),
-    decorate(upcoming?.media.map(animeCard) ?? [], user),
-    decorate(movies?.results.map(movieCard) ?? [], user),
-    decorate(tv?.results.map(tvCard) ?? [], user),
-  ]);
+  const [rWatching, rPlanning, rSeasonal, rTrending, rUpcoming, rMovies, rTv] = await decorateGroups(
+    [
+      watching.slice(0, 30),
+      planning.slice(0, 30),
+      seasonal?.media.map(animeCard) ?? [],
+      trendingAnime?.media.map(animeCard) ?? [],
+      upcoming?.media.map(animeCard) ?? [],
+      movies?.results.map(movieCard) ?? [],
+      tv?.results.map(tvCard) ?? [],
+    ],
+    user,
+  );
 
-  const season = (s: { season: string; year: number }) => `${s.season[0]}${s.season.slice(1).toLowerCase()} ${s.year}`;
   return (
     <>
       <CardRow title="Continue watching (AniList)" href="/my-lists?status=CURRENT" cards={rWatching} />
       <CardRow title="Your AniList planning" href="/my-lists?status=PLANNING" cards={rPlanning} />
-      <CardRow title={`Airing this season · ${season(now)}`} href="/discover/anime?list=seasonal" cards={rSeasonal} />
+      <CardRow title={`Airing this season · ${seasonLabel(now)}`} href="/discover/anime?list=seasonal" cards={rSeasonal} />
       <CardRow title="Trending anime" href="/discover/anime" cards={rTrending} />
-      <CardRow title={`Next season · ${season(next)}`} href={`/discover/anime?list=seasonal&season=${next.season}&year=${next.year}`} cards={rUpcoming} />
+      <CardRow title={`Next season · ${seasonLabel(next)}`} href={`/discover/anime?list=seasonal&season=${next.season}&year=${next.year}`} cards={rUpcoming} />
       <CardRow title="Trending movies" href="/discover/movies" cards={rMovies} />
       <CardRow title="Trending series" href="/discover/tv" cards={rTv} />
     </>
