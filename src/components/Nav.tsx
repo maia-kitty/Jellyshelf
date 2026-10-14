@@ -3,63 +3,171 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 
+type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean };
+
+const ICON: Record<string, React.ReactNode> = {
+  discover: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3.5 5.5-2 5-5 2 2-5 5-2Z" />,
+  anime: <path d="M4 7h16v10H4zM9 4l3 3 3-3M10 10.5v3l2.5-1.5z" />,
+  movies: <path d="M4 5h16v14H4zM4 9h16M4 15h16M8 5v4M16 5v4M8 15v4M16 15v4" />,
+  series: <path d="M3 6h18v11H3zM8 20h8M12 17v3" />,
+  requests: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+};
+
 const LINKS = [
-  { href: "/", label: "Discover" },
-  { href: "/discover/anime", label: "Anime" },
-  { href: "/discover/movies", label: "Movies" },
-  { href: "/discover/tv", label: "Series" },
+  { href: "/", label: "Discover", icon: "discover" },
+  { href: "/discover/anime", label: "Anime", icon: "anime" },
+  { href: "/discover/movies", label: "Movies", icon: "movies" },
+  { href: "/discover/tv", label: "Series", icon: "series" },
   { href: "/my-lists", label: "My AniList", anilist: true },
   { href: "/ratings", label: "Ratings" },
-  { href: "/requests", label: "Requests" },
+  { href: "/requests", label: "Requests", icon: "requests" },
 ];
 
-export function Nav({ user }: { user: { displayName: string; avatar: string | null; role: string; hasAnilist: boolean } }) {
+const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+
+export function Nav({ user }: { user: NavUser }) {
   const path = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
-  const links = [...LINKS.filter((l) => !l.anilist || user.hasAnilist), ...(user.role === "admin" ? [{ href: "/settings", label: "Settings" }] : [])];
+  const search = useRef<HTMLInputElement>(null);
+  const links = LINKS.filter((l) => !l.anilist || user.hasAnilist);
+
+  // "/" jumps to search from anywhere that isn't already a text field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || t.closest("input, textarea, select, [contenteditable]")) return;
+      e.preventDefault();
+      search.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-        <Link href="/" className="jar-trigger flex items-center gap-2 text-lg font-bold">
-          <AppIcon size={28} animate="hover" /> Jellyshelf
-        </Link>
-        <nav className="order-3 flex w-full gap-1 overflow-x-auto sm:order-none sm:w-auto">
-          {links.map((l) => {
-            const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
-            return (
+    <>
+      <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6">
+          <Link href="/" className="jar-trigger flex shrink-0 items-center gap-2 text-lg font-bold">
+            <AppIcon size={28} animate="hover" /> <span className="hidden sm:inline">Jellyshelf</span>
+          </Link>
+          <nav className="hidden gap-1 lg:flex">
+            {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className={clsx("whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition", active ? "bg-panel-2 text-fg" : "text-muted hover:text-fg")}
+                className={clsx(
+                  "whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition",
+                  isActive(path, l.href) ? "bg-panel-2 text-fg" : "text-muted hover:text-fg",
+                )}
               >
                 {l.label}
               </Link>
-            );
-          })}
+            ))}
+          </nav>
+          <form
+            className="relative ml-auto min-w-0 flex-1 lg:max-w-xs"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
+              search.current?.blur();
+            }}
+          >
+            <input ref={search} className="input pr-8" placeholder="Search anime, movies, series…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line px-1.5 text-[11px] text-muted sm:block">
+              /
+            </kbd>
+          </form>
+          <UserMenu user={user} links={links} path={path} />
+        </div>
+        {/* Tablet: the links get their own scrolling row. */}
+        <nav className="mx-auto hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-2 sm:flex sm:px-6 lg:hidden">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={clsx("whitespace-nowrap rounded-lg px-3 py-1.5 text-sm", isActive(path, l.href) ? "bg-panel-2 text-fg" : "text-muted")}
+            >
+              {l.label}
+            </Link>
+          ))}
         </nav>
-        <form
-          className="ml-auto flex-1 sm:max-w-xs"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (q.trim()) router.push(`/search?q=${encodeURIComponent(q.trim())}`);
-          }}
-        >
-          <input className="input" placeholder="Search anime, movies, series…" value={q} onChange={(e) => setQ(e.target.value)} />
-        </form>
-        <div className="flex items-center gap-2">
-          {user.avatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{user.displayName[0]}</div>
+      </header>
+
+      {/* Phone: a bottom tab bar for the main sections; the rest lives in the avatar menu. */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
+        {LINKS.filter((l) => l.icon).map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className={clsx("flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px]", isActive(path, l.href) ? "text-accent" : "text-muted")}
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              {ICON[l.icon!]}
+            </svg>
+            {l.label}
+          </Link>
+        ))}
+      </nav>
+    </>
+  );
+}
+
+function UserMenu({ user, links, path }: { user: NavUser; links: typeof LINKS; path: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setOpen(false), [path]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
+  const item = "block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-2";
+  return (
+    <div ref={box} className="relative shrink-0">
+      <button onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open} className="block rounded-full ring-accent focus-visible:ring-2">
+        {user.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{user.displayName[0]}</div>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-line bg-panel p-1.5 shadow-2xl">
+          <div className="px-3 pb-2 pt-1.5">
+            <div className="truncate text-sm font-semibold">{user.displayName}</div>
+            <div className="text-xs text-muted">{user.role === "admin" ? "Admin" : "Member"}</div>
+          </div>
+          <div className="my-1 border-t border-line" />
+          {/* On phones these aren't in the tab bar. */}
+          {links
+            .filter((l) => !l.icon)
+            .map((l) => (
+              <Link key={l.href} href={l.href} className={clsx(item, "sm:hidden")}>
+                {l.label}
+              </Link>
+            ))}
+          {user.role === "admin" && (
+            <Link href="/settings" className={item}>
+              Settings
+            </Link>
           )}
           <button
-            className="text-xs text-muted hover:text-fg"
+            className={clsx(item, "text-muted")}
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });
               router.push("/login");
@@ -69,7 +177,7 @@ export function Nav({ user }: { user: { displayName: string; avatar: string | nu
             Sign out
           </button>
         </div>
-      </div>
-    </header>
+      )}
+    </div>
   );
 }
