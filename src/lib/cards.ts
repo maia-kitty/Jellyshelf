@@ -17,6 +17,9 @@ export interface Card {
   isAnime?: boolean;
   status?: MediaStatus;
   list?: { status: AniListStatus; progress: number };
+  /** 0–100 */
+  score?: number | null;
+  genres?: string[];
 }
 
 const year = (d?: string | null) => (d ? Number(d.slice(0, 4)) || null : null);
@@ -31,6 +34,7 @@ export function movieCard(m: TmdbMovie): Card {
     href: `/movie/${m.id}`,
     sub: "Movie",
     isAnime: looksLikeAnime(m),
+    score: m.vote_average ? Math.round(m.vote_average * 10) : null,
   };
 }
 
@@ -44,6 +48,7 @@ export function tvCard(t: TmdbTv): Card {
     href: `/tv/${t.id}`,
     sub: "Series",
     isAnime: looksLikeAnime(t),
+    score: t.vote_average ? Math.round(t.vote_average * 10) : null,
   };
 }
 
@@ -59,6 +64,8 @@ export function animeCard(a: AniMediaCard): Card {
     href: `/anime/${a.id}`,
     sub: a.episodes && a.format !== "MOVIE" ? `${fmt} · ${a.episodes} eps` : fmt,
     isAnime: true,
+    score: a.averageScore,
+    genres: a.genres?.slice(0, 3),
   };
 }
 

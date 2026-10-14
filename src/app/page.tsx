@@ -1,9 +1,21 @@
 import { CardRow } from "@/components/MediaCard";
+import { Spotlight } from "@/components/Spotlight";
 import { anilist, currentSeason, seasonLabel, shiftSeason } from "@/lib/clients/anilist";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { animeCard, decorateGroups, movieCard, soft, tvCard } from "@/lib/cards";
 import { anilistToken } from "@/lib/auth";
 import { pageUser } from "@/lib/page";
+
+/** AniList synopses carry <br>/<i> tags and "(Source: …)" credits; the banner wants one plain paragraph. */
+function plainText(html: string | null) {
+  return (html ?? "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\(Source:[^)]*\)/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([.,!?])/g, "$1")
+    .trim();
+}
 
 export default async function Home() {
   const user = await pageUser();
@@ -11,7 +23,8 @@ export default async function Home() {
   const next = shiftSeason(now, 1);
   const token = anilistToken(user);
 
-  const [seasonal, trendingAnime, upcoming, movies, tv, list] = await Promise.all([
+  const [spotlight, seasonal, trendingAnime, upcoming, movies, tv, list] = await Promise.all([
+    soft(anilist.spotlight(), [], "spotlight"),
     soft(anilist.seasonal(now.season, now.year, { perPage: 20 }), null, "seasonal"),
     soft(anilist.trending({ perPage: 20 }), null, "anime trending"),
     soft(anilist.seasonal(next.season, next.year, { perPage: 20 }), null, "next season"),
@@ -23,8 +36,9 @@ export default async function Home() {
   const watching = list ? [...list.values()].filter((e) => e.status === "CURRENT").map((e) => animeCard(e.media)) : [];
   const planning = list ? [...list.values()].filter((e) => e.status === "PLANNING").map((e) => animeCard(e.media)) : [];
 
-  const [rWatching, rPlanning, rSeasonal, rTrending, rUpcoming, rMovies, rTv] = await decorateGroups(
+  const [rSpotlight, rWatching, rPlanning, rSeasonal, rTrending, rUpcoming, rMovies, rTv] = await decorateGroups(
     [
+      spotlight.map(animeCard),
       watching.slice(0, 30),
       planning.slice(0, 30),
       seasonal?.media.map(animeCard) ?? [],
@@ -38,6 +52,7 @@ export default async function Home() {
 
   return (
     <>
+      <Spotlight items={rSpotlight.map((card, n) => ({ card, banner: spotlight[n].bannerImage!, description: plainText(spotlight[n].description) }))} />
       <CardRow title="Continue watching (AniList)" href="/my-lists?status=CURRENT" cards={rWatching} />
       <CardRow title="Your AniList planning" href="/my-lists?status=PLANNING" cards={rPlanning} />
       <CardRow title={`Airing this season · ${seasonLabel(now)}`} href="/discover/anime?list=seasonal" cards={rSeasonal} />

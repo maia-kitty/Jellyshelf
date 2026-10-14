@@ -240,6 +240,14 @@ async function page(key: string, filter: string, varDefs: string, vars: Record<s
 
 export const anilist = {
   trending: (p: PageArgs = {}) => page("trending", "sort: TRENDING_DESC", "", {}, p),
+  /** Trending titles with banner art and a synopsis, for the home page spotlight. */
+  spotlight: () =>
+    cached("anilist:spotlight", 900, async () => {
+      const data = await anilistQuery<{ Page: AniPage<AniMediaCard & { bannerImage: string | null; description: string | null }> }>(
+        `query { Page(perPage: 12) { pageInfo { currentPage hasNextPage total } media(type: ANIME, isAdult: false, sort: TRENDING_DESC) { ${CARD} bannerImage description(asHtml: false) } } }`,
+      );
+      return data.Page.media.filter((m) => m.bannerImage).slice(0, 6);
+    }),
   popular: (p: PageArgs = {}) => page("popular", "sort: POPULARITY_DESC", "", {}, p, 3600),
   seasonal: (season: AniSeason, year: number, p: PageArgs = {}) =>
     page("seasonal", "season: $season, seasonYear: $year, sort: POPULARITY_DESC", "$season: MediaSeason, $year: Int, ", { season, year }, p),

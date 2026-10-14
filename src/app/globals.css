@@ -172,6 +172,12 @@ body {
   50% { transform: scale(1.12, 1.08); }
 }
 
+/* Spotlight slide content fading in on change. */
+@keyframes spotlight-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+.spotlight-in { animation: spotlight-in 0.6s ease-out both; }
+
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
 .simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(78.9px); }
@@ -192,7 +198,8 @@ body {
   .spill .spill-puddle { animation: none !important; }
   .jar .jar-lid,
   .jar .jar-play,
-  .jar .jar-sparks circle {
+  .jar .jar-sparks circle,
+  .spotlight-in {
     animation: none !important;
   }
 }
