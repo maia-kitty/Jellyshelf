@@ -6,7 +6,6 @@ import { pageUser, param, type SearchParams } from "@/lib/page";
 
 export default async function RequestsPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await pageUser();
-  const filter = param(await searchParams, "filter") ?? (user.role === "admin" ? "pending" : "all");
   const rows = await db
     .select({ request: schema.requests, media: schema.media, user: { id: schema.users.id, displayName: schema.users.displayName } })
     .from(schema.requests)
@@ -15,6 +14,9 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
     .where(user.role === "admin" ? undefined : eq(schema.requests.userId, user.id))
     .orderBy(desc(schema.requests.createdAt))
     .limit(300);
+  // Admins land on whatever needs them (pending, then failed); otherwise everything.
+  const needsAdmin = user.role === "admin" ? (["pending", "failed"] as const).find((s) => rows.some((r) => r.request.status === s)) : undefined;
+  const filter = param(await searchParams, "filter") ?? needsAdmin ?? "all";
   const visible = rows.filter((r) => filter === "all" || r.request.status === filter);
   const count = (s: string) => rows.filter((r) => r.request.status === s).length;
 

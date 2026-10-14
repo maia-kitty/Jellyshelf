@@ -1,3 +1,4 @@
+import { Overview } from "./Overview";
 import { StatusBadge, ListBadge } from "./StatusBadge";
 import type { MediaStatus } from "@/db/schema";
 import type { AniListStatus } from "@/lib/clients/anilist";
@@ -52,7 +53,7 @@ export function Hero(props: {
               ))}
             </div>
           )}
-          {props.overview && <p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-fg/85">{props.overview}</p>}
+          {props.overview && <Overview text={props.overview} />}
           {props.children && <div className="mt-5">{props.children}</div>}
         </div>
       </div>

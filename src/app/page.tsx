@@ -1,3 +1,4 @@
+import { aniDescription } from "@/lib/text";
 import { CardRow } from "@/components/MediaCard";
 import { Spotlight } from "@/components/Spotlight";
 import { anilist, currentSeason, seasonLabel, shiftSeason } from "@/lib/clients/anilist";
@@ -5,17 +6,6 @@ import { tmdbClient } from "@/lib/clients/tmdb";
 import { animeCard, decorateGroups, movieCard, soft, tvCard } from "@/lib/cards";
 import { anilistToken } from "@/lib/auth";
 import { pageUser } from "@/lib/page";
-
-/** AniList synopses carry <br>/<i> tags and "(Source: …)" credits; the banner wants one plain paragraph. */
-function plainText(html: string | null) {
-  return (html ?? "")
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\(Source:[^)]*\)/gi, "")
-    .replace(/\s+/g, " ")
-    .replace(/\s+([.,!?])/g, "$1")
-    .trim();
-}
 
 export default async function Home() {
   const user = await pageUser();
@@ -52,7 +42,7 @@ export default async function Home() {
 
   return (
     <>
-      <Spotlight items={rSpotlight.map((card, n) => ({ card, banner: spotlight[n].bannerImage!, description: plainText(spotlight[n].description) }))} />
+      <Spotlight items={rSpotlight.map((card, n) => ({ card, banner: spotlight[n].bannerImage!, description: aniDescription(spotlight[n].description, { oneParagraph: true }) }))} />
       <CardRow title="Continue watching (AniList)" href="/my-lists?status=CURRENT" cards={rWatching} />
       <CardRow title="Your AniList planning" href="/my-lists?status=PLANNING" cards={rPlanning} />
       <CardRow title={`Airing this season · ${seasonLabel(now)}`} href="/discover/anime?list=seasonal" cards={rSeasonal} />

@@ -27,6 +27,24 @@ const STATUS_CLS: Record<RequestStatus, string> = {
   completed: "text-ok",
 };
 
+const STATUS_BAR: Record<RequestStatus, string> = {
+  pending: "before:bg-warn",
+  approved: "before:bg-accent",
+  declined: "before:bg-line",
+  failed: "before:bg-bad",
+  completed: "before:bg-ok",
+};
+
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+/** "3 hours ago", "yesterday", … */
+function ago(iso: string) {
+  const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  for (const [unit, size] of [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]] as const) {
+    if (Math.abs(s) >= size) return rtf.format(Math.round(s / size), unit);
+  }
+  return "just now";
+}
+
 function scope(r: RequestRow) {
   if (r.target === "radarr") return "Movie";
   const eps = r.episodeRanges?.map((x) => `ep ${x.from}–${x.to ?? "…"}`).join(", ");
@@ -53,55 +71,65 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
     router.refresh();
   };
 
-  if (!rows.length) return <p className="py-16 text-center text-muted">No requests.</p>;
+  if (!rows.length) return <p className="py-16 text-center text-muted">Nothing here.</p>;
   return (
     <>
       {err && <p className="mb-3 text-sm text-bad">{err}</p>}
-      <ul className="space-y-3">
+      <ul className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {rows.map((r) => (
-          <li key={r.id} className="card flex flex-wrap items-center gap-4 p-3">
-            <a href={r.media.href} className="h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-panel-2">
+          <li key={r.id} className={clsx("card relative flex gap-4 overflow-hidden p-3 pl-4", "before:absolute before:inset-y-0 before:left-0 before:w-1", STATUS_BAR[r.status])}>
+            <a href={r.media.href} className="h-28 w-[4.7rem] shrink-0 overflow-hidden rounded-lg bg-panel-2">
               {r.media.poster && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={r.media.poster} alt="" className="h-full w-full object-cover" />
               )}
             </a>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <a href={r.media.href} className="font-medium hover:underline">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="flex items-start justify-between gap-2">
+                <a href={r.media.href} className="line-clamp-2 font-medium leading-snug hover:underline">
                   {r.media.title}
                 </a>
-                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] uppercase text-muted">{r.media.kind}</span>
-                <StatusBadge status={r.media.status} />
+                <span className={clsx("shrink-0 text-xs font-semibold uppercase tracking-wide", STATUS_CLS[r.status])}>
+                  {r.status === "approved" ? "processing" : r.status}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] uppercase">{r.media.kind}</span>
+                <span>
+                  {scope(r)} → {r.target === "sonarr" ? "Sonarr" : "Radarr"}
+                </span>
+                {/* The request's own status already says pending/processing; only show the library state when it adds something. */}
+                {(r.media.status === "available" || r.media.status === "partially_available") && <StatusBadge status={r.media.status} />}
               </div>
               <div className="mt-0.5 text-xs text-muted">
-                {scope(r)} → {r.target === "sonarr" ? "Sonarr" : "Radarr"} · by {r.user.displayName} ·{" "}
-                {new Date(r.createdAt).toLocaleString()}
+                {r.user.displayName} ·{" "}
+                <time dateTime={r.createdAt} title={new Date(r.createdAt).toLocaleString()} suppressHydrationWarning>
+                  {ago(r.createdAt)}
+                </time>
               </div>
-              {r.error && <div className="mt-1 text-xs text-bad">{r.error}</div>}
-            </div>
-            <span className={clsx("text-sm font-medium capitalize", STATUS_CLS[r.status])}>{r.status === "approved" ? "processing" : r.status}</span>
-            <div className="flex gap-2">
-              {isAdmin && r.status === "pending" && (
-                <>
-                  <button className="btn-primary" disabled={busy === r.id} onClick={() => act(r.id, "approve")}>
-                    Approve
+              {r.error && <div className="mt-1 line-clamp-2 text-xs text-bad">{r.error}</div>}
+              <div className="mt-auto flex flex-wrap justify-end gap-2 pt-2">
+                {isAdmin && r.status === "pending" && (
+                  <>
+                    <button className="btn-primary px-3 py-1" disabled={busy === r.id} onClick={() => act(r.id, "approve")}>
+                      Approve
+                    </button>
+                    <button className="btn-ghost px-3 py-1" disabled={busy === r.id} onClick={() => act(r.id, "decline")}>
+                      Decline
+                    </button>
+                  </>
+                )}
+                {isAdmin && r.status === "failed" && (
+                  <button className="btn-primary px-3 py-1" disabled={busy === r.id} onClick={() => act(r.id, "retry")}>
+                    Retry
                   </button>
-                  <button className="btn-ghost" disabled={busy === r.id} onClick={() => act(r.id, "decline")}>
-                    Decline
+                )}
+                {(isAdmin || (r.user.id === userId && r.status === "pending")) && (
+                  <button className="btn-danger px-3 py-1" disabled={busy === r.id} onClick={() => act(r.id, "delete")}>
+                    {isAdmin ? "Delete" : "Cancel"}
                   </button>
-                </>
-              )}
-              {isAdmin && r.status === "failed" && (
-                <button className="btn-primary" disabled={busy === r.id} onClick={() => act(r.id, "retry")}>
-                  Retry
-                </button>
-              )}
-              {(isAdmin || (r.user.id === userId && r.status === "pending")) && (
-                <button className="btn-danger" disabled={busy === r.id} onClick={() => act(r.id, "delete")}>
-                  {isAdmin ? "Delete" : "Cancel"}
-                </button>
-              )}
+                )}
+              </div>
             </div>
           </li>
         ))}

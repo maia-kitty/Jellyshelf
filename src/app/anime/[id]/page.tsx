@@ -1,3 +1,4 @@
+import { aniDescription } from "@/lib/text";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import type { User } from "@/db/schema";
@@ -21,14 +22,6 @@ import { animeMediaMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
-
-function stripHtml(s: string | null) {
-  return s
-    ?.replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
 
 async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
   const token = anilistToken(user);
@@ -129,7 +122,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           airing,
         ]}
         genres={a.genres}
-        overview={stripHtml(a.description)}
+        overview={aniDescription(a.description)}
         status={decorated.status}
         list={entry ? { status: entry.status, progress: entry.progress, total: a.episodes } : undefined}
       >
