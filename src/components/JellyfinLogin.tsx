@@ -31,7 +31,7 @@ export function JellyfinLogin() {
       <input className="input" placeholder="Jellyfin username" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
       <input className="input" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       {err && <p className="text-sm text-bad">{err}</p>}
-      <button className="btn-ghost w-full" disabled={busy || !username}>
+      <button className="btn-primary w-full" disabled={busy || !username}>
         {busy ? "Signing in…" : "Sign in with Jellyfin"}
       </button>
     </form>
