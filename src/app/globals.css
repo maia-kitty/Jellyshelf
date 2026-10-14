@@ -20,8 +20,6 @@ html {
   color-scheme: dark;
 }
 body {
-  /* .bleed reaches 100vw, which includes the scrollbar; don't let that add a sideways scroll. */
-  overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-sans);

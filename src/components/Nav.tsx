@@ -98,7 +98,7 @@ export function Nav({ user }: { user: NavUser }) {
       </header>
 
       {/* Phone: a bottom tab bar for the main sections; the rest lives in the avatar menu. */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex transform-gpu border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
         {LINKS.filter((l) => l.icon).map((l) => (
           <Link
             key={l.href}

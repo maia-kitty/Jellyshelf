@@ -20,7 +20,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {user && (
           <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId }} />
         )}
-        <main className="mx-auto max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 sm:pb-6">{children}</main>
+        {/* Full-bleed banners reach 100vw, which includes the scrollbar; clip that here rather than on <body>, whose
+            overflow the browser applies to the whole viewport (and which knocks out fixed bars like the phone dock). */}
+        <div className="overflow-x-clip">
+          <main className="mx-auto max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 sm:pb-6">{children}</main>
+        </div>
       </body>
     </html>
   );
