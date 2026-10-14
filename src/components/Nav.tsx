@@ -161,6 +161,12 @@ function UserMenu({ user, links, path }: { user: NavUser; links: typeof LINKS; p
                 {l.label}
               </Link>
             ))}
+          {!user.hasAnilist && (
+            // A plain link: the OAuth round-trip is a full navigation.
+            <a href="/api/auth/anilist" className={clsx(item, "text-anilist")}>
+              Link AniList
+            </a>
+          )}
           {user.role === "admin" && (
             <Link href="/settings" className={item}>
               Settings

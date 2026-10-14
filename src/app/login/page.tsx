@@ -10,6 +10,7 @@ const ERRORS: Record<string, string> = {
   oauth_exchange: "AniList rejected the sign-in. Check the client ID, secret and redirect URL in settings.",
   anilist_not_configured: "AniList sign-in isn't configured yet.",
   anilist_already_linked: "That AniList account is already linked to another user.",
+  anilist_needs_jellyfin: "No account is linked to that AniList user yet. Sign in with Jellyfin, then link AniList from your account menu.",
 };
 
 export default async function Login({ searchParams }: { searchParams: SearchParams }) {
@@ -17,6 +18,8 @@ export default async function Login({ searchParams }: { searchParams: SearchPara
   const s = await getSettings();
   if (!s.general.setupComplete && (await isFirstUser())) redirect("/setup");
   const error = param(await searchParams, "error");
+  // Jellyfin is the account; AniList is an add-on linked to it (and a sign-in shortcut once linked).
+  const jellyfinLogin = !!(s.jellyfin.url && s.jellyfin.allowLogin);
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
@@ -27,17 +30,23 @@ export default async function Login({ searchParams }: { searchParams: SearchPara
       </div>
       <div className="card space-y-5 p-6">
         {error && <p className="text-sm text-bad">{ERRORS[error] ?? error}</p>}
-        {s.anilist.clientId && (
-          <a href="/api/auth/anilist" className="btn w-full bg-anilist text-white hover:brightness-110">
-            Sign in with AniList
-          </a>
-        )}
-        {s.anilist.clientId && s.jellyfin.url && s.jellyfin.allowLogin && (
+        {jellyfinLogin && <JellyfinLogin />}
+        {s.anilist.clientId && jellyfinLogin && (
           <div className="flex items-center gap-3 text-xs text-muted">
             <div className="h-px flex-1 bg-line" /> or <div className="h-px flex-1 bg-line" />
           </div>
         )}
-        {s.jellyfin.url && s.jellyfin.allowLogin && <JellyfinLogin />}
+        {s.anilist.clientId && (
+          <div>
+            <a
+              href="/api/auth/anilist"
+              className={jellyfinLogin ? "btn w-full border border-anilist/50 text-anilist hover:bg-anilist/10" : "btn w-full bg-anilist text-white hover:brightness-110"}
+            >
+              Sign in with AniList
+            </a>
+            {jellyfinLogin && <p className="mt-2 text-center text-xs text-muted">Works once you&apos;ve linked AniList to your Jellyfin account.</p>}
+          </div>
+        )}
       </div>
     </div>
   );

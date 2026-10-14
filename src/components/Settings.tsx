@@ -19,6 +19,7 @@ async function save(section: keyof Settings, values: Record<string, unknown>) {
 }
 
 function useSection<K extends keyof Settings>(section: K, initial: Settings[K]) {
+  const router = useRouter();
   const [v, setV] = useState<Settings[K]>(initial);
   const [state, setState] = useState<{ busy: boolean; msg: string; ok: boolean }>({ busy: false, msg: "", ok: true });
   const set = <F extends keyof Settings[K]>(field: F, value: Settings[K][F]) => setV((p) => ({ ...p, [field]: value }));
@@ -28,6 +29,7 @@ function useSection<K extends keyof Settings>(section: K, initial: Settings[K]) 
       const next = await save(section, v as Record<string, unknown>);
       setV(next[section]);
       setState({ busy: false, msg: "Saved", ok: true });
+      router.refresh(); // e.g. setup offers Jellyfin sign-in once Jellyfin is saved
       return true;
     } catch (e) {
       setState({ busy: false, msg: (e as Error).message, ok: false });
