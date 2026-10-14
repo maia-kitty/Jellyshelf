@@ -9,6 +9,15 @@ import { animeCard, decorate } from "@/lib/cards";
 import { anilistIdsFor } from "@/lib/mapping";
 import { findMedia, requestedSeasons } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { Suspense } from "react";
+import { EpisodeList } from "@/components/Episodes";
+import { seriesEpisodes } from "@/lib/episodes";
+
+async function TvEpisodes(props: { tvdbId: number; tmdbId: number; jellyfinItemId: string | null }) {
+  const info = await seriesEpisodes({ ...props, target: null }).catch(() => null);
+  if (!info || (!info.episodes.length && !info.playUrl)) return null;
+  return <EpisodeList info={info} anilist={null} groupBySeason />;
+}
 
 export default async function TvPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
@@ -56,6 +65,11 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         </div>
       )}
       <CardRow title="AniList entries" cards={animeCards} />
+      {tv.external_ids?.tvdb_id && (
+        <Suspense fallback={<div className="card mb-10 p-4 text-sm text-muted">Loading episodes…</div>}>
+          <TvEpisodes tvdbId={tv.external_ids.tvdb_id} tmdbId={id} jellyfinItemId={media?.jellyfinItemId ?? null} />
+        </Suspense>
+      )}
       <div className="max-w-2xl">
         {tv.external_ids?.tvdb_id ? (
           <TvRequest tmdbId={id} seasons={seasons} />

@@ -315,6 +315,9 @@ export function JellyfinSettings({ initial }: { initial: Settings["jellyfin"] })
         <Field label="API key" hint="Dashboard → API Keys">
           <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
         </Field>
+        <Field label="Public URL (optional)" hint="Address your browser uses for Jellyfin, for Play links. Leave empty if it's the same as the URL above.">
+          <input className="input" value={v.publicUrl} onChange={(e) => set("publicUrl", e.target.value)} placeholder="https://jellyfin.example.com" />
+        </Field>
       </div>
       <Toggle label="Allow signing in with Jellyfin accounts" checked={v.allowLogin} onChange={(x) => set("allowLogin", x)} />
       <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("jellyfin", v.url, v.apiKey)} />} />

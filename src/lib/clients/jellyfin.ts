@@ -12,6 +12,7 @@ export interface JellyfinItem {
   Type: "Movie" | "Series" | "Season" | "Episode";
   ProductionYear?: number;
   ProviderIds?: Record<string, string>;
+  Path?: string;
   IndexNumber?: number;
   ParentIndexNumber?: number;
   SeriesId?: string;
@@ -27,7 +28,7 @@ export function jellyfin(cfg: { url: string; apiKey: string }) {
       headers: { Authorization: authHeader(init.token ?? cfg.apiKey) },
     });
   return {
-    info: () => call<{ ServerName: string; Version: string }>("/System/Info"),
+    info: () => call<{ Id: string; ServerName: string; Version: string }>("/System/Info"),
     authenticate: (username: string, password: string) =>
       call<{ User: { Id: string; Name: string; Policy: { IsAdministrator: boolean } }; AccessToken: string }>(
         "/Users/AuthenticateByName",
@@ -36,7 +37,7 @@ export function jellyfin(cfg: { url: string; apiKey: string }) {
     /** Every movie and series in the library with provider ids. */
     libraryItems: async () => {
       const res = await call<{ Items: JellyfinItem[] }>(
-        "/Items?Recursive=true&IncludeItemTypes=Movie,Series&Fields=ProviderIds&EnableImages=false&EnableUserData=false",
+        "/Items?Recursive=true&IncludeItemTypes=Movie,Series&Fields=ProviderIds,Path&EnableImages=false&EnableUserData=false",
         { timeoutMs: 120_000 },
       );
       return res.Items;
@@ -49,7 +50,11 @@ export function jellyfin(cfg: { url: string; apiKey: string }) {
       );
       return res.Items;
     },
-    itemUrl: (id: string) => joinUrl(cfg.url, `/web/index.html#/details?id=${id}`),
   };
 }
 export type JellyfinClient = ReturnType<typeof jellyfin>;
+
+/** Link into the Jellyfin web app (10.9+ hash routes). serverId keeps it working with several servers saved in the browser. */
+export function jellyfinWebUrl(base: string, itemId: string, serverId?: string) {
+  return joinUrl(base, `/web/#/details?id=${itemId}${serverId ? `&serverId=${serverId}` : ""}`);
+}

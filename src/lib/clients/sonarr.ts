@@ -44,6 +44,9 @@ export interface SonarrEpisode {
   monitored: boolean;
   hasFile: boolean;
   title: string;
+  airDateUtc?: string;
+  /** Present when requested with includeEpisodeFile=true. */
+  episodeFile?: { size: number; quality?: { quality?: { name: string } } };
 }
 
 export function sonarr(cfg: ArrConfig) {
@@ -66,7 +69,8 @@ export function sonarr(cfg: ArrConfig) {
     lookupTvdb: async (tvdbId: number) => (await api.call<SonarrSeries[]>(`/series/lookup?term=tvdb:${tvdbId}`))[0] ?? null,
     addSeries: (s: SonarrSeries) => api.call<SonarrSeries>("/series", { method: "POST", body: s }),
     updateSeries: (s: SonarrSeries) => api.call<SonarrSeries>(`/series/${s.id}`, { method: "PUT", body: s }),
-    episodes: (seriesId: number) => api.call<SonarrEpisode[]>(`/episode?seriesId=${seriesId}`),
+    episodes: (seriesId: number, withFiles = false) =>
+      api.call<SonarrEpisode[]>(`/episode?seriesId=${seriesId}${withFiles ? "&includeEpisodeFile=true" : ""}`),
     monitorEpisodes: (episodeIds: number[], monitored = true) =>
       api.call<unknown>("/episode/monitor", { method: "PUT", body: { episodeIds, monitored } }),
     seasonSearch: (seriesId: number, seasonNumber: number) => api.command({ name: "SeasonSearch", seriesId, seasonNumber }),

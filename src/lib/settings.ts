@@ -46,6 +46,8 @@ export const settingsSchema = z.object({
     .object({
       url: z.string().default(""),
       apiKey: z.string().default(""),
+      /** Address your browser uses for Jellyfin (for "Play" links), if different from the URL Kitsune uses. */
+      publicUrl: z.string().default(""),
       /** Allow logging in with Jellyfin credentials. */
       allowLogin: z.boolean().default(true),
     })

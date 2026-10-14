@@ -9,6 +9,14 @@ import { animeCard, decorate } from "@/lib/cards";
 import { anilistIdsFor } from "@/lib/mapping";
 import { findMedia } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { Suspense } from "react";
+import { JellyfinButton } from "@/components/Episodes";
+import { movieInfo } from "@/lib/episodes";
+
+async function PlayMovie({ tmdbId, itemId }: { tmdbId: number; itemId: string | null }) {
+  const info = await movieInfo({ tmdbId, itemId }).catch(() => null);
+  return <JellyfinButton href={info?.playUrl ?? null} />;
+}
 import { db, schema } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -52,8 +60,11 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
             to keep your list in sync, or request it here directly.
           </p>
         ) : null}
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-start gap-3">
           <MovieRequest tmdbId={id} status={media?.status ?? "unknown"} requested={active.length > 0} />
+          <Suspense fallback={null}>
+            <PlayMovie tmdbId={id} itemId={media?.jellyfinItemId ?? null} />
+          </Suspense>
         </div>
       </Hero>
       <CardRow title="On AniList" cards={animeCards} />
