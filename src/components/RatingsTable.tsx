@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import clsx from "clsx";
 import type { RatingRow } from "@/lib/ratings";
+import { scoreOf, sortRatings, type RatingSort as Sort, type RatingSortKey as SortKey } from "@/lib/ratingSort";
 
 interface Unlinked {
   id: number;
@@ -12,9 +13,6 @@ interface Unlinked {
   ratedOn: string;
 }
 
-type Sort = "date" | "score" | "title";
-
-const scoreOf = (r: RatingRow) => r.anilistScore ?? r.rubric?.total ?? 0;
 
 function tone(v: number, max: number) {
   const r = v / max;
@@ -31,7 +29,8 @@ async function send(url: string, init: RequestInit) {
 export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; categories: { name: string; max: number }[]; canPush: boolean }) {
   const { rows, categories, canPush } = props;
   const router = useRouter();
-  const [sort, setSort] = useState<Sort>("date");
+  const [sort, setSort] = useState<Sort>({ key: "date", dir: 1 });
+  const sortBy = (key: SortKey) => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }));
   const [rubricOnly, setRubricOnly] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,11 +51,9 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
 
   const visible = useMemo(() => {
     const r = rubricOnly ? rows.filter((x) => x.rubric) : [...rows];
-    if (sort === "score") r.sort((a, b) => scoreOf(b) - scoreOf(a));
-    else if (sort === "title") r.sort((a, b) => a.title.localeCompare(b.title));
-    else r.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    sortRatings(r, sort, categories);
     return r;
-  }, [rows, sort, rubricOnly]);
+  }, [rows, sort, rubricOnly, categories]);
 
   return (
     <>
@@ -69,10 +66,17 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
             <input type="checkbox" className="accent-accent" checked={rubricOnly} onChange={(e) => setRubricOnly(e.target.checked)} />
             only with rubric
           </label>
-          <select className="input w-auto" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          <select className="input w-auto" value={sort.key} onChange={(e) => setSort({ key: e.target.value, dir: 1 })}>
             <option value="date">Newest</option>
             <option value="score">Highest score</option>
             <option value="title">Title</option>
+            <optgroup label="Highest in category">
+              {categories.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </span>
       </div>
@@ -85,14 +89,12 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase text-muted">
               <tr className="border-b border-line">
-                <th className="p-3">Anime</th>
-                <th className="p-3 text-right">Score</th>
+                <SortTh label="Anime" k="title" sort={sort} onSort={sortBy} />
+                <SortTh label="Score" k="score" sort={sort} onSort={sortBy} right />
                 {categories.map((c) => (
-                  <th key={c.name} className="whitespace-nowrap p-3 text-right" title={`out of ${c.max}`}>
-                    {c.name.split("/")[0]}
-                  </th>
+                  <SortTh key={c.name} label={c.name.split("/")[0]} title={`${c.name}, out of ${c.max}`} k={c.name} sort={sort} onSort={sortBy} right />
                 ))}
-                <th className="p-3">Rated</th>
+                <SortTh label="Rated" k="date" sort={sort} onSort={sortBy} />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -142,7 +144,15 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                     {categories.map((c) => {
                       const v = r.rubric?.scores[c.name];
                       return (
-                        <td key={c.name} className={clsx("p-3 text-right tabular-nums", v === undefined ? "text-line" : tone(v, c.max), differs && "opacity-60")}>
+                        <td
+                          key={c.name}
+                          className={clsx(
+                            "p-3 text-right tabular-nums",
+                            v === undefined ? "text-line" : tone(v, c.max),
+                            differs && "opacity-60",
+                            sort.key === c.name && "bg-accent/10 font-semibold",
+                          )}
+                        >
                           {v ?? "—"}
                         </td>
                       );
@@ -161,6 +171,22 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
 
       <CsvTools unlinked={props.unlinked} run={run} busy={busy} />
     </>
+  );
+}
+
+function SortTh(props: { label: string; k: SortKey; sort: Sort; onSort: (k: SortKey) => void; right?: boolean; title?: string }) {
+  const active = props.sort.key === props.k;
+  return (
+    <th className={clsx("whitespace-nowrap p-0", props.right && "text-right", active && "bg-accent/10")} aria-sort={active ? ((props.sort.dir === 1) === (props.k === "title") ? "ascending" : "descending") : undefined}>
+      <button
+        className={clsx("w-full p-3 uppercase hover:text-fg", props.right && "text-right", active ? "text-fg" : "text-muted")}
+        title={props.title ? `${props.title}. Click to sort` : "Click to sort"}
+        onClick={() => props.onSort(props.k)}
+      >
+        {props.label}
+        <span className="ml-1 inline-block w-2">{active ? (props.sort.dir === 1 ? "↓" : "↑") : ""}</span>
+      </button>
+    </th>
   );
 }
 
