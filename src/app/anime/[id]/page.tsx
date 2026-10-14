@@ -93,6 +93,9 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   const [decorated] = await decorate([animeCard(a)], user);
   const isSeries = a.format !== "MOVIE";
 
+  // Direct prequels/sequels hint that a franchise list is coming; reserve rows for it so the page doesn't jump.
+  const neighbours = a.relations.edges.filter((e) => e.node.type === "ANIME" && ["PREQUEL", "SEQUEL"].includes(e.relationType)).length;
+  const franchiseGuess = neighbours ? Math.max(2, neighbours) : 0;
   const related = a.relations.edges
     .filter((e) => e.node.type === "ANIME" && !(isSeries && ["PREQUEL", "SEQUEL"].includes(e.relationType) && e.node.format !== "MOVIE"))
     .map((e) => ({ ...animeCard(e.node), sub: `${e.relationType.replace("_", " ").toLowerCase()} · ${e.node.format ?? ""}` }));
@@ -132,7 +135,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
       </Hero>
 
       <div className="mb-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Suspense fallback={<AnimeRequest entries={await entryOptions([a], a.id, user)} />}>
+        <Suspense fallback={<AnimeRequest entries={await entryOptions([a], a.id, user)} placeholders={franchiseGuess} />}>
           <Franchise entry={a} user={user} />
         </Suspense>
         <div className="space-y-6">

@@ -118,7 +118,8 @@ export interface AnimeEntryOption {
 }
 
 /** Pick one or more AniList entries (e.g. every season in a franchise) and request them. */
-export function AnimeRequest({ entries }: { entries: AnimeEntryOption[] }) {
+/** `placeholders`: while the rest of the franchise is still loading, hold its space with that many skeleton rows. */
+export function AnimeRequest({ entries, placeholders = 0 }: { entries: AnimeEntryOption[]; placeholders?: number }) {
   const { busy, msg, run } = useSubmit();
   const selectable = (e: AnimeEntryOption) => e.mapped && !e.requested && e.status !== "available";
   const [picked, setPicked] = useState<Set<number>>(new Set(entries.filter((e) => e.current && selectable(e)).map((e) => e.id)));
@@ -128,7 +129,7 @@ export function AnimeRequest({ entries }: { entries: AnimeEntryOption[] }) {
   return (
     <div className="card p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="font-semibold">{entries.length > 1 ? "Seasons in this franchise" : "Request"}</h3>
+        <h3 className="font-semibold">{entries.length > 1 || placeholders ? "Seasons in this franchise" : "Request"}</h3>
         {allOpen.length > 1 && (
           <button className="text-sm text-accent hover:underline" onClick={() => setPicked(new Set(allOpen))}>
             Select all missing
@@ -139,7 +140,7 @@ export function AnimeRequest({ entries }: { entries: AnimeEntryOption[] }) {
         {entries.map((e) => {
           const locked = !selectable(e);
           return (
-            <li key={e.id} className={clsx("flex items-start gap-3 py-2.5", e.current && "rounded-lg")}>
+            <li key={e.id} className={clsx("flex items-start gap-3 py-2.5", e.current ? "rounded-lg" : "rise-in")}>
               <input
                 type="checkbox"
                 className="mt-1 accent-accent"
@@ -163,6 +164,16 @@ export function AnimeRequest({ entries }: { entries: AnimeEntryOption[] }) {
             </li>
           );
         })}
+        {Array.from({ length: placeholders }, (_, n) => (
+          <li key={`ph${n}`} aria-hidden className="flex animate-pulse items-start gap-3 py-2.5">
+            <div className="mt-1 h-3.5 w-3.5 rounded bg-panel-2" />
+            <div className="flex-1 space-y-1.5 py-0.5">
+              <div className="h-3.5 w-2/5 rounded bg-panel-2" />
+              <div className="h-3 w-1/4 rounded bg-panel-2" />
+              <div className="h-3 w-1/3 rounded bg-panel-2" />
+            </div>
+          </li>
+        ))}
       </ul>
       <button className="btn-primary mt-4" disabled={busy || picked.size === 0} onClick={() => run({ kind: "anime", anilistIds: [...picked] })}>
         {busy ? "Requesting…" : picked.size > 1 ? `Request ${picked.size} entries` : "Request"}

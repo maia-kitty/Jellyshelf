@@ -20,7 +20,7 @@ html {
   color-scheme: dark;
 }
 body {
-  /* Full-bleed banners span 100vw, which includes the scrollbar; don't let that add a sideways scroll. */
+  /* .bleed reaches 100vw, which includes the scrollbar; don't let that add a sideways scroll. */
   overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-fg);
@@ -50,9 +50,11 @@ body {
 @utility label {
   @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted;
 }
-/* Break out of the centred page column to the full window width; put a max-w container inside to re-centre content. */
+/* Background reaches the window edges while the content box stays exactly on the page column: the padding gives back
+   what the margin takes, so content lines up with the rest of the page whatever the scrollbar is doing. */
 @utility bleed {
   margin-inline: calc(50% - 50vw);
+  padding-inline: calc(50vw - 50%);
 }
 
 @utility card {
@@ -184,11 +186,6 @@ body {
   from { opacity: 0; transform: translateY(8px); }
 }
 .rise-in { animation: rise-in 0.6s ease-out both; }
-/* Detail-page backdrop eases in rather than popping. */
-@keyframes hero-fade {
-  from { opacity: 0; }
-}
-.hero-fade { animation: hero-fade 0.8s ease-out both; }
 @keyframes spotlight-progress {
   from { width: 0; }
   to { width: 100%; }
@@ -217,11 +214,11 @@ body {
   .jar .jar-play,
   .jar .jar-sparks circle,
   .rise-in,
-  .spotlight-progress,
-  .hero-fade {
+  .spotlight-progress {
     animation: none !important;
   }
-  .overview-body { transition: none; }
+  .overview-body,
+  .fade-img { transition: none; }
 }
 
 /* Folded text fades out instead of ending on a hard cut. */

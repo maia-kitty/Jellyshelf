@@ -389,6 +389,23 @@ export interface UserRow {
   autoApproveAnime: boolean;
 }
 
+/** A pill toggle: ✓ and accent when on. */
+function Chip({ on, children, ...props }: { on: boolean; children: React.ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      {...props}
+      aria-pressed={on}
+      className={clsx(
+        "rounded-full border px-3 py-1 text-xs transition disabled:cursor-not-allowed disabled:opacity-60",
+        on ? "border-accent bg-accent/15 text-fg" : "border-line text-muted enabled:hover:text-fg",
+      )}
+    >
+      {on ? "✓ " : ""}
+      {children}
+    </button>
+  );
+}
+
 export function UsersTable({ users, selfId }: { users: UserRow[]; selfId: number }) {
   const router = useRouter();
   const patch = async (id: number, body: Partial<UserRow>) => {
@@ -407,7 +424,7 @@ export function UsersTable({ users, selfId }: { users: UserRow[]; selfId: number
           <tr className="[&>th]:px-3 [&>th]:pb-2 [&>th]:font-medium">
             <th>User</th>
             <th>Signs in with</th>
-            <th className="text-center">Admin</th>
+            <th className="text-center">Role</th>
             <th>Auto-approve</th>
           </tr>
         </thead>
@@ -433,30 +450,21 @@ export function UsersTable({ users, selfId }: { users: UserRow[]; selfId: number
                 </div>
               </td>
               <td className="text-center">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-accent"
+                <Chip
+                  on={u.role === "admin"}
                   disabled={u.id === selfId}
                   title={u.id === selfId ? "You can't remove your own admin role" : undefined}
-                  checked={u.role === "admin"}
-                  onChange={(e) => patch(u.id, { role: e.target.checked ? "admin" : "user" })}
-                />
+                  onClick={() => patch(u.id, { role: u.role === "admin" ? "user" : "admin" })}
+                >
+                  Admin
+                </Chip>
               </td>
               <td>
                 <div className="flex flex-wrap gap-1.5">
                   {kinds.map(([k, label]) => (
-                    <button
-                      key={k}
-                      aria-pressed={u[k]}
-                      onClick={() => patch(u.id, { [k]: !u[k] })}
-                      className={clsx(
-                        "rounded-full border px-3 py-1 text-xs transition",
-                        u[k] ? "border-accent bg-accent/15 text-fg" : "border-line text-muted hover:text-fg",
-                      )}
-                    >
-                      {u[k] ? "✓ " : ""}
+                    <Chip key={k} on={u[k]} onClick={() => patch(u.id, { [k]: !u[k] })}>
                       {label}
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               </td>

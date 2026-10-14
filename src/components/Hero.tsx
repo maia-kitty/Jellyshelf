@@ -1,3 +1,4 @@
+import { FadeImg } from "./FadeImg";
 import { Overview } from "./Overview";
 import { StatusBadge, ListBadge } from "./StatusBadge";
 import type { MediaStatus } from "@/db/schema";
@@ -18,15 +19,15 @@ export function Hero(props: {
 }) {
   return (
     <div className="bleed relative -mt-6 mb-8 overflow-hidden">
-      {/* Fixed-height backdrop: it stays put while the content below it grows (synopsis expanding, images loading). */}
-      <div className="absolute inset-x-0 top-0 h-[480px]">
+      {/* At most 480px, but never taller than the hero, so its fade to the page background always finishes inside it (a
+          fixed 480px strip got cut off mid-fade under short heroes). Past 480px it stays put while content grows. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-full max-h-[480px]">
         {props.backdrop && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={props.backdrop} alt="" className="hero-fade h-full w-full object-cover opacity-25" />
+          <FadeImg src={props.backdrop} alt="" className="h-full w-full object-cover opacity-25" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/30" />
       </div>
-      <div className="rise-in relative mx-auto flex max-w-[1600px] flex-col gap-6 px-4 pb-6 pt-10 sm:flex-row sm:px-6">
+      <div className="rise-in relative flex flex-col gap-6 pb-6 pt-10 sm:flex-row">
         <div className="w-40 shrink-0 sm:w-52">
           {props.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
