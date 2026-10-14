@@ -77,6 +77,9 @@ export function JarLoader({ label, width = 240, className }: { label?: string; w
           <circle className="spill-head-wobble" cx="58" cy="52" r="4" fill="#00a4dc" />
         </g>
 
+        {/* puddle under the mouth, drawn behind the jar so it runs back under the neck as well as forward */}
+        <path className="spill-puddle" d="M41 56 C42 53 45 51.5 50 51.5 L62 51.5 L62 56 Z" fill="#aa5cc3" />
+
         {/* the jar, tipped over to the right and resting on the shelf. Everything on it is turned a quarter
             clockwise with it: the play arrow points down, the glass highlight runs along the top. */}
         <rect x="14" y="22" width="38" height="34" rx="9" fill="url(#spill-jar)" />
@@ -84,8 +87,8 @@ export function JarLoader({ label, width = 240, className }: { label?: string; w
         <rect x="31" y="27" width="15" height="4" rx="2" fill="#fff" opacity=".35" />
         <path d="M27.5 34 L38.5 34 L33 44.5 Z" fill="#fff" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
 
-        {/* jelly oozing out of the mouth down to the shelf, glugging; starts at the mouth so it never covers the jar */}
-        <path className="spill-glug" d="M55 43 C60 43 63 46 64 51 L64 56 L55 56 Z" fill="#aa5cc3" />
+        {/* jelly hanging off the lip of the mouth into the puddle, glugging */}
+        <path className="spill-glug" d="M54.5 43 C57.5 43 59.5 45 59.5 48 C59.5 50.5 58.5 51.5 58.5 53.5 L58.5 56 L54.5 56 Z" fill="#aa5cc3" />
 
       </svg>
       {label && <span>{label}</span>}

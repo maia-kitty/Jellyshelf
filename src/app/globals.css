@@ -118,8 +118,14 @@ body {
 /* ---------- Spilled-jar loader (JarLoader) ---------- */
 .spill .spill-bar,
 .spill .spill-head-wobble,
-.spill .spill-glug {
+.spill .spill-glug,
+.spill .spill-puddle {
   transform-box: fill-box;
+}
+/* the puddle creeps back under the jar a little as the jelly keeps coming */
+.spill .spill-puddle {
+  transform-origin: 100% 100%;
+  animation: spill-puddle 1.2s ease-in-out infinite;
 }
 .spill .spill-bar {
   transform-origin: left center;
@@ -157,16 +163,75 @@ body {
   0%, 100% { transform: scale(1, 1); }
   50% { transform: scale(1.18, 0.88); }
 }
+@keyframes spill-puddle {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.1, 1.12); }
+}
 @keyframes spill-glug {
   0%, 100% { transform: scale(1, 1); }
   50% { transform: scale(1.12, 1.08); }
 }
+
+/* ---------- Login splash (JellySplash) ---------- */
+.jelly-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  overflow: hidden;
+  animation: jelly-fade 0.8s ease-in 1.45s forwards;
+}
+.jelly-blob {
+  --s: 10vmax;
+  position: absolute;
+  left: var(--ox);
+  top: var(--oy);
+  width: var(--s);
+  height: var(--s);
+  margin-left: calc(var(--s) / -2);
+  margin-top: calc(var(--s) / -2);
+  background:
+    radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.38), transparent 32%),
+    linear-gradient(135deg, #aa5cc3, #00a4dc);
+  transform: scale(0);
+}
+.jelly-light {
+  background:
+    radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.5), transparent 34%),
+    linear-gradient(135deg, #c48ad6, #3dbbe6);
+}
+/* the flood: one blob that grows from the jar until it covers the whole page */
+.jelly-flood {
+  border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%;
+  animation: jelly-flood 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) 0.55s forwards;
+}
+.jelly-splat {
+  animation: jelly-splat 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) var(--d) forwards;
+}
+@keyframes jelly-flood {
+  from { transform: scale(0); }
+  to { transform: scale(32); }
+}
+/* fly out, land with a squish, settle */
+@keyframes jelly-splat {
+  0% { transform: translate(0, 0) rotate(var(--r)) scale(0); }
+  70% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1.15, 0.85); }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1); }
+}
+@keyframes jelly-fade {
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jelly-splash { display: none; }
+}
+.simulate-reduced-motion .jelly-splash { display: none; }
 
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
 .simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(75.9px); }
 .simulate-reduced-motion .spill .spill-head-wobble,
 .simulate-reduced-motion .spill .spill-glug,
+.simulate-reduced-motion .spill .spill-puddle,
 .simulate-reduced-motion .jar .jar-lid,
 .simulate-reduced-motion .jar .jar-play,
 .simulate-reduced-motion .jar .jar-sparks circle {
@@ -177,7 +242,8 @@ body {
   .spill .spill-bar { animation: none; transform: scaleX(0.55); }
   .spill .spill-head { animation: none; transform: translateX(75.9px); }
   .spill .spill-head-wobble,
-  .spill .spill-glug { animation: none !important; }
+  .spill .spill-glug,
+  .spill .spill-puddle { animation: none !important; }
   .jar .jar-lid,
   .jar .jar-play,
   .jar .jar-sparks circle {

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { currentUser, isFirstUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { JellyfinLogin } from "@/components/JellyfinLogin";
-import { AppIcon } from "@/components/AppIcon";
+import { IntroJar } from "@/components/JellySplash";
 import { param, type SearchParams } from "@/lib/page";
 
 const ERRORS: Record<string, string> = {
@@ -21,7 +21,7 @@ export default async function Login({ searchParams }: { searchParams: SearchPara
   return (
     <div className="mx-auto mt-16 max-w-sm">
       <div className="mb-8 text-center">
-        <AppIcon size={64} animate="intro" className="mx-auto" />
+        <IntroJar size={64} />
         <h1 className="mt-3 text-2xl font-bold">Jellyshelf</h1>
         <p className="text-sm text-muted">Request anime, movies and series</p>
       </div>
