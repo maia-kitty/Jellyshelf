@@ -117,7 +117,6 @@ body {
 
 /* ---------- Spilled-jar loader (JarLoader) ---------- */
 .spill .spill-bar,
-.spill .spill-jar,
 .spill .spill-head-wobble,
 .spill .spill-glug {
   transform-box: fill-box;
@@ -134,10 +133,6 @@ body {
 .spill .spill-head-wobble {
   transform-origin: center;
   animation: spill-wobble 0.9s ease-in-out infinite;
-}
-.spill .spill-jar {
-  transform-origin: 0% 100%;
-  animation: spill-rock 2.4s ease-in-out infinite;
 }
 .spill .spill-glug {
   transform-origin: 0% 100%;
@@ -162,10 +157,6 @@ body {
   0%, 100% { transform: scale(1, 1); }
   50% { transform: scale(1.18, 0.88); }
 }
-@keyframes spill-rock {
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-2.5deg); }
-}
 @keyframes spill-glug {
   0%, 100% { transform: scale(1, 1); }
   50% { transform: scale(1.12, 1.08); }
@@ -175,7 +166,6 @@ body {
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
 .simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(75.9px); }
 .simulate-reduced-motion .spill .spill-head-wobble,
-.simulate-reduced-motion .spill .spill-jar,
 .simulate-reduced-motion .spill .spill-glug,
 .simulate-reduced-motion .jar .jar-lid,
 .simulate-reduced-motion .jar .jar-play,
@@ -187,7 +177,6 @@ body {
   .spill .spill-bar { animation: none; transform: scaleX(0.55); }
   .spill .spill-head { animation: none; transform: translateX(75.9px); }
   .spill .spill-head-wobble,
-  .spill .spill-jar,
   .spill .spill-glug { animation: none !important; }
   .jar .jar-lid,
   .jar .jar-play,

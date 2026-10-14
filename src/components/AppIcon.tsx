@@ -65,8 +65,8 @@ export function JarLoader({ label, width = 240, className }: { label?: string; w
           </linearGradient>
         </defs>
 
-        {/* shelf */}
-        <rect x="0" y="56" width="200" height="4" rx="2" fill="currentColor" opacity=".25" />
+        {/* shelf: same colour and thickness as in the icon */}
+        <rect x="0" y="56" width="200" height="4" rx="2" fill="currentColor" />
 
         {/* lid, standing on its edge behind the jar */}
         <rect x="2" y="30" width="8" height="26" rx="2.5" fill="currentColor" />
@@ -77,15 +77,15 @@ export function JarLoader({ label, width = 240, className }: { label?: string; w
           <circle className="spill-head-wobble" cx="58" cy="52" r="4" fill="#00a4dc" />
         </g>
 
-        {/* the jar on its side, mouth to the right, rocking a little as it pours */}
-        <g className="spill-jar">
-          <rect x="14" y="22" width="38" height="34" rx="9" fill="url(#spill-jar)" />
-          <rect x="49" y="27" width="6" height="24" rx="2" fill="url(#spill-jar)" />
-          <rect x="21" y="27" width="15" height="4" rx="2" fill="#fff" opacity=".35" />
-          <path d="M29 33 L29 45 L40 39 Z" fill="#fff" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
-          {/* jelly oozing over the lip down to the shelf, glugging */}
-          <path className="spill-glug" d="M52 44 C58 43 62 45 63 50 C63.5 53 63 56 63 56 L52 56 Z" fill="#aa5cc3" />
-        </g>
+        {/* the jar, tipped over to the right and resting on the shelf. Everything on it is turned a quarter
+            clockwise with it: the play arrow points down, the glass highlight runs along the top. */}
+        <rect x="14" y="22" width="38" height="34" rx="9" fill="url(#spill-jar)" />
+        <rect x="49" y="27" width="6" height="24" rx="2" fill="url(#spill-jar)" />
+        <rect x="31" y="27" width="15" height="4" rx="2" fill="#fff" opacity=".35" />
+        <path d="M27.5 34 L38.5 34 L33 44.5 Z" fill="#fff" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
+
+        {/* jelly oozing out of the mouth down to the shelf, glugging; starts at the mouth so it never covers the jar */}
+        <path className="spill-glug" d="M55 43 C60 43 63 46 64 51 L64 56 L55 56 Z" fill="#aa5cc3" />
 
       </svg>
       {label && <span>{label}</span>}
