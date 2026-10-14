@@ -5,6 +5,8 @@ import { Hero } from "@/components/Hero";
 import { CardRow } from "@/components/MediaCard";
 import { AnimeRequest, type AnimeEntryOption } from "@/components/RequestButtons";
 import { MappingOverride } from "@/components/MappingOverride";
+import { ListEditor } from "@/components/ListEditor";
+import { RatingForm } from "@/components/RatingForm";
 import { LIST_LABEL } from "@/components/StatusBadge";
 import { anilist, aniTitle, franchiseChain, type AniMediaCard } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
@@ -13,6 +15,7 @@ import { getMapping, resolveAnime } from "@/lib/mapping";
 import { describeTarget } from "@/lib/mapping/resolve";
 import { animeMediaMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { latestRating } from "@/lib/ratings";
 
 function stripHtml(s: string | null) {
   return s
@@ -74,6 +77,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   const relatedCards = await decorate(related, user);
 
   const mapping = user.role === "admin" ? await getMapping(id) : undefined;
+  const rating = await latestRating(user.id, id);
   const airing = a.nextAiringEpisode
     ? `Ep ${a.nextAiringEpisode.episode} airs ${new Date(a.nextAiringEpisode.airingAt * 1000).toLocaleDateString()}`
     : null;
@@ -109,17 +113,39 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         <Suspense fallback={<AnimeRequest entries={await entryOptions([a], a.id, user)} />}>
           <Franchise entry={a} user={user} />
         </Suspense>
-        {user.role === "admin" && (
-          <MappingOverride
+        <div className="space-y-6">
+          {token ? (
+            <ListEditor
+              mediaId={a.id}
+              episodes={a.episodes}
+              aired={a.nextAiringEpisode ? a.nextAiringEpisode.episode - 1 : null}
+              entry={entry ? { status: entry.status, progress: entry.progress, score: entry.score } : null}
+            />
+          ) : (
+            <div className="card p-4 text-sm text-muted">
+              <a className="text-anilist hover:underline" href="/api/auth/anilist">
+                Link AniList
+              </a>{" "}
+              to track episodes and status here.
+            </div>
+          )}
+          <RatingForm
             anilistId={a.id}
-            initial={{
-              tvdbId: mapping?.tvdbId ?? null,
-              tmdbMovieId: mapping?.tmdbMovieId ?? null,
-              tvdbSeason: mapping?.tvdbSeason ?? null,
-              episodeOffset: mapping?.episodeOffset ?? 0,
-            }}
+            canPush={!!token}
+            previous={rating ? { scores: rating.scores, total: rating.total, ratedOn: rating.ratedOn } : null}
           />
-        )}
+          {user.role === "admin" && (
+            <MappingOverride
+              anilistId={a.id}
+              initial={{
+                tvdbId: mapping?.tvdbId ?? null,
+                tmdbMovieId: mapping?.tmdbMovieId ?? null,
+                tvdbSeason: mapping?.tvdbSeason ?? null,
+                episodeOffset: mapping?.episodeOffset ?? 0,
+              }}
+            />
+          )}
+        </div>
       </div>
       <CardRow title="Related" cards={relatedCards} />
     </>

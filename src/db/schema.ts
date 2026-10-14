@@ -128,3 +128,26 @@ export type User = typeof users.$inferSelect;
 export type Media = typeof media.$inferSelect;
 export type Request = typeof requests.$inferSelect;
 export type IdMapping = typeof idMapping.$inferSelect;
+
+/** Personal rubric ratings (see lib/rating.ts). Several rows per anime = re-ratings; latest wins. */
+export const ratings = sqliteTable(
+  "ratings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    anilistId: integer("anilist_id"),
+    title: text("title").notNull(),
+    /** category name → points */
+    scores: text("scores", { mode: "json" }).notNull().$type<Record<string, number>>(),
+    total: integer("total").notNull(),
+    /** ISO date (YYYY-MM-DD), as in the CSV log. */
+    ratedOn: text("rated_on").notNull(),
+    pushedToAnilist: integer("pushed_to_anilist", { mode: "boolean" }).notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index("ratings_user").on(t.userId), index("ratings_anilist").on(t.anilistId)],
+);
+
+export type Rating = typeof ratings.$inferSelect;

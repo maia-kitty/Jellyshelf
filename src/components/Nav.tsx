@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/discover/movies", label: "Movies" },
   { href: "/discover/tv", label: "Series" },
   { href: "/my-lists", label: "My AniList", anilist: true },
+  { href: "/ratings", label: "Ratings" },
   { href: "/requests", label: "Requests" },
 ];
 

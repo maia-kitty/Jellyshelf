@@ -1,0 +1,45 @@
+import { z } from "zod";
+import { ApiError, handle } from "@/lib/api";
+import { apiUser } from "@/lib/auth";
+import { anilist } from "@/lib/clients/anilist";
+import { listPatch } from "@/lib/listEntry";
+import { requireAnilist } from "@/lib/ratings";
+
+const STATUS = z.enum(["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]);
+const body = z.object({
+  mediaId: z.number().int().positive(),
+  change: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("progress"), value: z.number().int().min(0).max(10000) }),
+    z.object({ kind: z.literal("status"), value: STATUS }),
+    z.object({ kind: z.literal("score"), value: z.number().min(0).max(100) }),
+  ]),
+});
+
+/** Edit the viewer's own AniList entry: progress, status or score. */
+export function PATCH(req: Request) {
+  return handle(async () => {
+    const user = await apiUser();
+    const { token, anilistId } = requireAnilist(user);
+    const { mediaId, change } = body.parse(await req.json());
+    const [list, media] = await Promise.all([anilist.userList(anilistId, token), anilist.media(mediaId)]);
+    if (!media) throw new ApiError(404, "Anime not found");
+    // For airing shows, cap progress at what has actually aired.
+    const aired = media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : null;
+    const episodes = media.episodes ?? aired;
+    const patch = listPatch(list.get(mediaId), media.episodes ?? null, change);
+    if (patch.progress !== undefined && episodes) patch.progress = Math.min(patch.progress, episodes);
+    return anilist.updateListEntry(anilistId, token, mediaId, patch);
+  });
+}
+
+export function DELETE(req: Request) {
+  return handle(async () => {
+    const user = await apiUser();
+    const { token, anilistId } = requireAnilist(user);
+    const mediaId = Number(new URL(req.url).searchParams.get("mediaId"));
+    const entry = (await anilist.userList(anilistId, token)).get(mediaId);
+    if (!entry) throw new ApiError(404, "Not on your list");
+    await anilist.deleteListEntry(anilistId, token, entry.id);
+    return { ok: true };
+  });
+}

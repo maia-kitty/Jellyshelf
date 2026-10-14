@@ -69,12 +69,38 @@ export interface AniPage<T> {
   media: T[];
 }
 
+export interface FuzzyDate {
+  year: number | null;
+  month: number | null;
+  day: number | null;
+}
+
 export interface AniListEntry {
+  id: number;
   mediaId: number;
   status: AniListStatus;
   progress: number;
+  /** Always 0-100 (queried with format: POINT_100), regardless of the user's score format. */
   score: number;
+  repeat: number;
+  startedAt: FuzzyDate;
+  completedAt: FuzzyDate;
 }
+
+export type ScoreFormat = "POINT_100" | "POINT_10_DECIMAL" | "POINT_10" | "POINT_5" | "POINT_3";
+
+export interface ListEntryPatch {
+  status?: AniListStatus;
+  progress?: number;
+  /** 0-100, independent of the user's score format. */
+  scoreRaw?: number;
+  repeat?: number;
+  startedAt?: FuzzyDate;
+  completedAt?: FuzzyDate;
+}
+
+const ENTRY = `id mediaId status progress repeat score(format: POINT_100)
+  startedAt { year month day } completedAt { year month day }`;
 
 const CARD = `
   id idMal format status season seasonYear episodes averageScore genres
@@ -209,7 +235,7 @@ export const anilist = {
         MediaListCollection: { lists: { entries: (AniListEntry & { media: AniMediaCard })[] }[] };
       }>(
         `query ($userId: Int) { MediaListCollection(userId: $userId, type: ANIME) {
-          lists { entries { mediaId status progress score media { ${CARD} } } }
+          lists { entries { ${ENTRY} media { ${CARD} } } }
         } }`,
         { userId },
         token,
@@ -219,17 +245,41 @@ export const anilist = {
       return map;
     }),
 
-  saveListEntry: async (userId: number, token: string, mediaId: number, status: AniListStatus) => {
+  saveListEntry: (userId: number, token: string, mediaId: number, status: AniListStatus) =>
+    anilist.updateListEntry(userId, token, mediaId, { status }),
+
+  updateListEntry: async (userId: number, token: string, mediaId: number, patch: ListEntryPatch) => {
     const data = await anilistQuery<{ SaveMediaListEntry: AniListEntry }>(
-      `mutation ($mediaId: Int, $status: MediaListStatus) {
-        SaveMediaListEntry(mediaId: $mediaId, status: $status) { mediaId status progress score }
+      `mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int, $scoreRaw: Int, $repeat: Int,
+                 $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) {
+        SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress, scoreRaw: $scoreRaw,
+                           repeat: $repeat, startedAt: $startedAt, completedAt: $completedAt) { ${ENTRY} }
       }`,
-      { mediaId, status },
+      { mediaId, ...patch },
       token,
     );
     invalidate(`anilist:list:${userId}`);
     return data.SaveMediaListEntry;
   },
+
+  deleteListEntry: async (userId: number, token: string, entryId: number) => {
+    await anilistQuery<{ DeleteMediaListEntry: { deleted: boolean } }>(
+      `mutation ($id: Int) { DeleteMediaListEntry(id: $id) { deleted } }`,
+      { id: entryId },
+      token,
+    );
+    invalidate(`anilist:list:${userId}`);
+  },
+
+  scoreFormat: (userId: number, token: string) =>
+    cached(`anilist:scoreformat:${userId}`, 3600, async () => {
+      const d = await anilistQuery<{ Viewer: { mediaListOptions: { scoreFormat: ScoreFormat } } }>(
+        `query { Viewer { mediaListOptions { scoreFormat } } }`,
+        {},
+        token,
+      );
+      return d.Viewer.mediaListOptions.scoreFormat;
+    }),
 };
 
 /**

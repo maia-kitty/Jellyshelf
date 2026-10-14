@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CardGrid } from "@/components/MediaCard";
+import { CardGrid, MediaCard } from "@/components/MediaCard";
+import { ProgressBump } from "@/components/ListEditor";
 import { Tabs } from "@/components/Tabs";
 import { anilist, type AniListStatus } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
@@ -10,6 +11,7 @@ const STATUSES: { key: AniListStatus; label: string }[] = [
   { key: "CURRENT", label: "Watching" },
   { key: "PLANNING", label: "Planning" },
   { key: "PAUSED", label: "Paused" },
+  { key: "REPEATING", label: "Rewatching" },
   { key: "COMPLETED", label: "Completed" },
   { key: "DROPPED", label: "Dropped" },
 ];
@@ -52,7 +54,21 @@ export default async function MyLists({ searchParams }: { searchParams: SearchPa
           {missingOnly ? "✓ " : ""}Only show what&apos;s not in the library or requested
         </Link>
       </div>
-      <CardGrid cards={cards} />
+      {status === "CURRENT" || status === "REPEATING" || status === "PAUSED" ? (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
+          {cards.map((c) => {
+            const e = list.get(c.id)!;
+            return (
+              <div key={c.id}>
+                <MediaCard card={c} />
+                <ProgressBump mediaId={c.id} progress={e.progress} episodes={e.media.episodes} />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <CardGrid cards={cards} />
+      )}
     </>
   );
 }
