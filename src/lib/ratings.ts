@@ -4,6 +4,7 @@ import type { User } from "@/db/schema";
 import { ApiError } from "./api";
 import { anilistToken } from "./auth";
 import { anilist, aniTitle } from "./clients/anilist";
+import { matchTitle } from "./titleMatch";
 import { fuzzyToday, listPatch } from "./listEntry";
 import { total, validateScores, type ImportedRating } from "./rating";
 
@@ -81,27 +82,19 @@ export async function createRating(
   return { rating: row, pushError };
 }
 
-const top = async (q: string) => (await anilist.search(q, { perPage: 1 }).catch(() => null))?.media[0]?.id ?? null;
-
-/** Best-effort AniList match for a hand-typed title. AniList search chokes on "S1" / "season 1" suffixes. */
-async function matchTitle(title: string): Promise<number | null> {
-  const hit = await top(title);
-  if (hit) return hit;
-  const stripped = title.replace(/\s*[-:]?\s*(s\d+|season\s*\d+|part\s*\d+|cour\s*\d+)\s*$/i, "").trim();
-  return stripped && stripped !== title ? top(stripped) : null;
-}
-
 /**
  * Import rows from the script's CSV log. Rows without an AniList id can be matched by
  * searching the title and taking the top hit (shown on the ratings page so mismatches can be fixed).
  */
 export async function importRatings(user: User, rows: ImportedRating[], autoMatch: boolean) {
   const matches = new Map<string, number | null>();
+  const token = anilistToken(user);
+  const list = autoMatch && token && user.anilistId ? await anilist.userList(user.anilistId, token).catch(() => null) : null;
   let matched = 0;
   for (const r of rows) {
     if (r.anilistId || !autoMatch) continue;
-    const key = r.title.toLowerCase();
-    if (!matches.has(key)) matches.set(key, await matchTitle(r.title));
+    const key = `${r.title.toLowerCase()}|${r.total}`;
+    if (!matches.has(key)) matches.set(key, await matchTitle(r.title, r.total, list, async (q) => (await anilist.search(q, { perPage: 1 }).catch(() => null))?.media[0]?.id ?? null));
     r.anilistId = matches.get(key) ?? null;
     if (r.anilistId) matched++;
   }
@@ -112,4 +105,77 @@ export async function importRatings(user: User, rows: ImportedRating[], autoMatc
     await db.insert(schema.ratings).values(fresh.map((r) => ({ ...r, userId: user.id })));
   }
   return { imported: fresh.length, duplicates: rows.length - fresh.length, autoMatched: matched };
+}
+
+export interface RatingRow {
+  anilistId: number;
+  title: string;
+  cover: string | null;
+  sub: string;
+  /** Score on AniList (0-100); null when it isn't scored there. */
+  anilistScore: number | null;
+  /** Latest rubric breakdown for this anime, from Kitsune or a CSV import. */
+  rubric: { id: number; scores: Record<string, number>; total: number; ratedOn: string; count: number } | null;
+  /** When it was rated: the rubric date, else the AniList completion/update date. */
+  date: string | null;
+}
+
+const iso = (d: { year: number | null; month: number | null; day: number | null }) =>
+  d.year ? `${d.year}-${String(d.month ?? 1).padStart(2, "0")}-${String(d.day ?? 1).padStart(2, "0")}` : null;
+
+/**
+ * One row per rated anime. AniList is the source of truth for scores (one cached list request, shared with
+ * the rest of the app); local rubric ratings add the per-category breakdown.
+ * Local ratings that never reached AniList (e.g. no AniList account) are included too.
+ */
+export async function ratingsOverview(user: User): Promise<{ rows: RatingRow[]; unlinked: Awaited<ReturnType<typeof listRatings>> }> {
+  const local = await listRatings(user.id); // newest first
+  const latest = new Map<number, (typeof local)[number] & { count: number }>();
+  for (const r of local) {
+    if (!r.anilistId) continue;
+    const seen = latest.get(r.anilistId);
+    if (seen) seen.count++;
+    else latest.set(r.anilistId, { ...r, count: 1 });
+  }
+  const rubricOf = (id: number) => {
+    const r = latest.get(id);
+    return r ? { id: r.id, scores: r.scores, total: r.total, ratedOn: r.ratedOn, count: r.count } : null;
+  };
+
+  const rows: RatingRow[] = [];
+  const token = anilistToken(user);
+  const list = token && user.anilistId ? await anilist.userList(user.anilistId, token) : null;
+  for (const e of list?.values() ?? []) {
+    if (!e.score && !latest.has(e.mediaId)) continue;
+    const m = e.media;
+    rows.push({
+      anilistId: e.mediaId,
+      title: aniTitle(m.title),
+      cover: m.coverImage.large,
+      sub: [m.seasonYear, m.format].filter(Boolean).join(" · "),
+      anilistScore: e.score || null,
+      rubric: rubricOf(e.mediaId),
+      date: latest.get(e.mediaId)?.ratedOn ?? iso(e.completedAt) ?? new Date(e.updatedAt * 1000).toISOString().slice(0, 10),
+    });
+  }
+
+  // Rubric ratings for anime that aren't on the AniList list at all.
+  const missing = [...latest.keys()].filter((id) => !list?.has(id));
+  for (let i = 0; i < missing.length; i += 50) {
+    const media = new Map((await anilist.byIds(missing.slice(i, i + 50)).catch(() => [])).map((m) => [m.id, m]));
+    for (const id of missing.slice(i, i + 50)) {
+      const r = latest.get(id)!;
+      const m = media.get(id);
+      rows.push({
+        anilistId: id,
+        title: m ? aniTitle(m.title) : r.title,
+        cover: m?.coverImage.large ?? null,
+        sub: m ? [m.seasonYear, m.format].filter(Boolean).join(" · ") : "",
+        anilistScore: null,
+        rubric: rubricOf(id),
+        date: r.ratedOn,
+      });
+    }
+  }
+  return { rows, unlinked: local.filter((r) => !r.anilistId) };
 }

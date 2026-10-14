@@ -85,6 +85,8 @@ export interface AniListEntry {
   repeat: number;
   startedAt: FuzzyDate;
   completedAt: FuzzyDate;
+  /** Unix seconds of the last change to this entry. */
+  updatedAt: number;
 }
 
 export interface ListEntryPatch {
@@ -97,7 +99,7 @@ export interface ListEntryPatch {
   completedAt?: FuzzyDate;
 }
 
-const ENTRY = `id mediaId status progress repeat score(format: POINT_100)
+const ENTRY = `id mediaId status progress repeat score(format: POINT_100) updatedAt
   startedAt { year month day } completedAt { year month day }`;
 
 const CARD = `
