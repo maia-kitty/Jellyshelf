@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { RequestList } from "@/components/RequestList";
+import { downloadQueues, progressFor } from "@/lib/downloads";
 import { Tabs } from "@/components/Tabs";
 import { pageUser, param, type SearchParams } from "@/lib/page";
 
@@ -17,6 +18,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
   // Admins land on whatever needs them (pending, then failed); otherwise everything.
   const needsAdmin = user.role === "admin" ? (["pending", "failed"] as const).find((s) => rows.some((r) => r.request.status === s)) : undefined;
   const filter = param(await searchParams, "filter") ?? needsAdmin ?? "all";
+  const queues = rows.some((r) => r.request.status === "approved") ? await downloadQueues() : null;
   const visible = rows.filter((r) => filter === "all" || r.request.status === filter);
   const count = (s: string) => rows.filter((r) => r.request.status === s).length;
 
@@ -45,6 +47,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
           seasons: r.request.seasons,
           episodeRanges: r.request.episodeRanges,
           absolute: r.request.absolute,
+          download: queues && r.request.status === "approved" ? progressFor(r.request, r.media, queues) : null,
           media: {
             kind: r.media.kind,
             title: r.media.title,

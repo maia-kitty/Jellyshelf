@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import type { MediaStatus, RequestStatus } from "@/db/schema";
+import type { DownloadProgress } from "@/lib/downloads";
 import { StatusBadge } from "./StatusBadge";
 
 export interface RequestRow {
@@ -15,6 +16,7 @@ export interface RequestRow {
   seasons: number[] | null;
   episodeRanges: { from: number; to: number | null }[] | null;
   absolute: boolean;
+  download: DownloadProgress | null;
   media: { kind: string; title: string; poster: string | null; status: MediaStatus; href: string };
   user: { id: number; displayName: string };
 }
@@ -57,6 +59,14 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
   const router = useRouter();
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // Keep download bars moving while anything is in a queue.
+  const active = rows.some((r) => r.download && r.download.state !== "stuck");
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => router.refresh(), 10_000);
+    return () => clearInterval(t);
+  }, [active, router]);
 
   const act = async (id: number, action: "approve" | "decline" | "retry" | "delete") => {
     setBusy(id);
@@ -108,6 +118,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
                 </time>
               </div>
               {r.error && <div className="mt-1 line-clamp-2 text-xs text-bad">{r.error}</div>}
+              {r.download && <Download d={r.download} />}
               <div className="mt-auto flex flex-wrap justify-end gap-2 pt-2">
                 {isAdmin && r.status === "pending" && (
                   <>
@@ -135,5 +146,46 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
         ))}
       </ul>
     </>
+  );
+}
+
+const STATE_LABEL: Record<DownloadProgress["state"], string> = {
+  downloading: "Downloading",
+  queued: "Queued",
+  importing: "Importing",
+  stuck: "Stuck",
+};
+
+function duration(s: number) {
+  if (s < 60) return "under a minute";
+  const h = Math.floor(s / 3600);
+  const m = Math.round((s % 3600) / 60);
+  return h ? `${h} h ${m} min` : `${m} min`;
+}
+
+function Download({ d }: { d: DownloadProgress }) {
+  const pct = Math.round(d.progress * 100);
+  return (
+    <div className="mt-2">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className={d.state === "stuck" ? "text-warn" : "text-fg/80"}>
+          {STATE_LABEL[d.state]}
+          {d.state !== "importing" && !(d.state === "queued" && pct === 0) && ` ${pct}%`}
+          {d.items > 1 && <span className="text-muted"> · {d.items} episodes</span>}
+        </span>
+        {d.secondsLeft !== null && d.state === "downloading" && <span className="text-muted">{duration(d.secondsLeft)} left</span>}
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel-2">
+        <div
+          className={clsx("h-full rounded-full transition-[width] duration-700", d.state === "queued" && "opacity-50", d.state === "importing" && "animate-pulse")}
+          style={{
+            width: `${d.state === "importing" ? 100 : Math.max(pct, 2)}%`,
+            backgroundImage: d.state === "stuck" ? undefined : "linear-gradient(90deg, #aa5cc3, #00a4dc)",
+            backgroundColor: d.state === "stuck" ? "var(--color-warn)" : undefined,
+          }}
+        />
+      </div>
+      {d.message && <div className="mt-1 line-clamp-2 text-xs text-warn">{d.message}</div>}
+    </div>
   );
 }
