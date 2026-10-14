@@ -176,7 +176,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
-      <Suspense fallback={<div className="card mb-10 p-6"><JarLoader size={32} label="Loading episodes…" /></div>}>
+      <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
         <AnimeEpisodes entry={a} progress={token ? (entry?.progress ?? 0) : null} />
       </Suspense>
       <CardRow title="Related" cards={relatedCards} />

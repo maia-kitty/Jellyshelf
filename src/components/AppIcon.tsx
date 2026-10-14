@@ -43,11 +43,51 @@ export function AppIcon({ size = 28, className, animate }: { size?: number; clas
   );
 }
 
-/** Centered loading state: the jar with its lid bobbing, plus an optional caption. */
-export function JarLoader({ label, size = 40, className }: { label?: string; size?: number; className?: string }) {
+/**
+ * Loading state: the jar lies on its side and the jelly pouring out of it is the progress bar.
+ * There's no real progress to report (route/data loading), so the bar fills fast, then slows and
+ * settles around 90%, like a browser's own loading bar; the loader unmounts when content arrives.
+ * Bar and its rounded front are animated with transforms only (keyframes in globals.css).
+ */
+export function JarLoader({ label, width = 240, className }: { label?: string; width?: number; className?: string }) {
   return (
-    <div className={clsx("flex flex-col items-center justify-center gap-3 text-sm text-muted", className)} role="status">
-      <AppIcon size={size} animate="loading" />
+    <div className={clsx("flex flex-col items-center justify-center gap-3 text-sm text-muted", className)} role="status" aria-label={label ?? "Loading"}>
+      <svg width={width} height={(width * 64) / 200} viewBox="0 0 200 64" overflow="visible" className="spill text-fg" aria-hidden="true">
+        <defs>
+          <linearGradient id="spill-jar" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#aa5cc3" />
+            <stop offset="1" stopColor="#00a4dc" />
+          </linearGradient>
+          {/* relative to the bar itself, so it stays purple at the jar and blue at the tip however far it has run */}
+          <linearGradient id="spill-jelly" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#aa5cc3" />
+            <stop offset="1" stopColor="#00a4dc" />
+          </linearGradient>
+        </defs>
+
+        {/* shelf */}
+        <rect x="0" y="56" width="200" height="4" rx="2" fill="currentColor" opacity=".25" />
+
+        {/* lid, standing on its edge behind the jar */}
+        <rect x="2" y="30" width="8" height="26" rx="2.5" fill="currentColor" />
+
+        {/* the jelly bar: body scales out from the mouth, the round front edge travels with it */}
+        <rect className="spill-bar" x="58" y="48" width="138" height="8" fill="url(#spill-jelly)" />
+        <g className="spill-head">
+          <circle className="spill-head-wobble" cx="58" cy="52" r="4" fill="#00a4dc" />
+        </g>
+
+        {/* the jar on its side, mouth to the right, rocking a little as it pours */}
+        <g className="spill-jar">
+          <rect x="14" y="22" width="38" height="34" rx="9" fill="url(#spill-jar)" />
+          <rect x="49" y="27" width="6" height="24" rx="2" fill="url(#spill-jar)" />
+          <rect x="21" y="27" width="15" height="4" rx="2" fill="#fff" opacity=".35" />
+          <path d="M29 33 L29 45 L40 39 Z" fill="#fff" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
+          {/* jelly oozing over the lip down to the shelf, glugging */}
+          <path className="spill-glug" d="M52 44 C58 43 62 45 63 50 C63.5 53 63 56 63 56 L52 56 Z" fill="#aa5cc3" />
+        </g>
+
+      </svg>
       {label && <span>{label}</span>}
     </div>
   );

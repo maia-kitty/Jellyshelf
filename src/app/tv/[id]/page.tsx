@@ -67,7 +67,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
       )}
       <CardRow title="AniList entries" cards={animeCards} />
       {tv.external_ids?.tvdb_id && (
-        <Suspense fallback={<div className="card mb-10 p-6"><JarLoader size={32} label="Loading episodes…" /></div>}>
+        <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
           <TvEpisodes tvdbId={tv.external_ids.tvdb_id} tmdbId={id} jellyfinItemId={media?.jellyfinItemId ?? null} />
         </Suspense>
       )}

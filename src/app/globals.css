@@ -112,7 +112,68 @@ body {
   animation: jar-spark 0.8s ease-out 0.12s both;
 }
 
+/* ---------- Spilled-jar loader (JarLoader) ---------- */
+.spill .spill-bar,
+.spill .spill-jar,
+.spill .spill-head-wobble,
+.spill .spill-glug {
+  transform-box: fill-box;
+}
+.spill .spill-bar {
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: spill-fill 9s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+/* travels the same distance the bar grows: 138 units × the same fractions, same timing */
+.spill .spill-head {
+  animation: spill-head 9s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.spill .spill-head-wobble {
+  transform-origin: center;
+  animation: spill-wobble 0.9s ease-in-out infinite;
+}
+.spill .spill-jar {
+  transform-origin: 0% 100%;
+  animation: spill-rock 2.4s ease-in-out infinite;
+}
+.spill .spill-glug {
+  transform-origin: 0% 100%;
+  animation: spill-glug 1.2s ease-in-out infinite;
+}
+
+@keyframes spill-fill {
+  0% { transform: scaleX(0); }
+  12% { transform: scaleX(0.3); }
+  35% { transform: scaleX(0.55); }
+  65% { transform: scaleX(0.75); }
+  100% { transform: scaleX(0.9); }
+}
+@keyframes spill-head {
+  0% { transform: translateX(0); }
+  12% { transform: translateX(41.4px); }
+  35% { transform: translateX(75.9px); }
+  65% { transform: translateX(103.5px); }
+  100% { transform: translateX(124.2px); }
+}
+@keyframes spill-wobble {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.18, 0.88); }
+}
+@keyframes spill-rock {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-2.5deg); }
+}
+@keyframes spill-glug {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.12, 1.08); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .spill .spill-bar { animation: none; transform: scaleX(0.55); }
+  .spill .spill-head { animation: none; transform: translateX(75.9px); }
+  .spill .spill-head-wobble,
+  .spill .spill-jar,
+  .spill .spill-glug { animation: none !important; }
   .jar .jar-lid,
   .jar .jar-play,
   .jar .jar-sparks circle {
