@@ -26,9 +26,22 @@ function open() {
   return drizzle(client, { schema });
 }
 
+type Db = ReturnType<typeof open>;
+
 // Survive Next.js dev hot reloads without opening a new connection each time.
-const g = globalThis as unknown as { __jellyshelfDb?: ReturnType<typeof open>; __jellyshelfMigrated?: Promise<void> };
-export const db = (g.__jellyshelfDb ??= open());
+const g = globalThis as unknown as { __jellyshelfDb?: Db; __jellyshelfMigrated?: Promise<void> };
+
+/**
+ * Opened on first use, never at import: `next build` imports server modules to collect page data,
+ * and opening here would create (or rename) database files in ./config at build time.
+ */
+export const db = new Proxy({} as Db, {
+  get(_, key) {
+    const real = (g.__jellyshelfDb ??= open());
+    const value = Reflect.get(real, key, real);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
 
 export function ensureMigrated() {
   return (g.__jellyshelfMigrated ??= (async () => {

@@ -3,6 +3,10 @@ import "./globals.css";
 import { currentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 
+// Every page depends on who's signed in and on runtime settings; never prerender at build time
+// (which would also open the database during `next build`).
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Jellyshelf",
   description: "Request movies, series and anime",
