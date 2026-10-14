@@ -19,6 +19,7 @@ import { getMapping, resolveAnime } from "@/lib/mapping";
 import { describeTarget } from "@/lib/mapping/resolve";
 import { animeMediaMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
 
 function stripHtml(s: string | null) {
@@ -65,6 +66,7 @@ async function Franchise({ entry, user }: { entry: AniMediaCard; user: User }) {
 
 /** Downloaded episodes of this entry (or the Jellyfin link for a film). Renders nothing if it's in neither Sonarr nor Jellyfin. */
 async function AnimeEpisodes({ entry, progress }: { entry: AniMediaCard; progress: number | null }) {
+  await debugSleep("episodes");
   const [{ target }, media] = await Promise.all([
     resolveAnime({ id: entry.id, format: entry.format, episodes: entry.episodes }),
     findMedia({ kind: "anime", anilistId: entry.id }),

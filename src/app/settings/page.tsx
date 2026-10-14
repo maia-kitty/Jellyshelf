@@ -33,6 +33,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           { key: "general", label: "General & sign-in", href: "/settings?tab=general" },
           { key: "users", label: "Users", href: "/settings?tab=users" },
           { key: "system", label: "Jobs & webhooks", href: "/settings?tab=system" },
+          { key: "debug", label: "Debug", href: "/debug" },
         ]}
       />
       {tab === "services" && (

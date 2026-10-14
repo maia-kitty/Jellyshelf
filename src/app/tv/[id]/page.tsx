@@ -13,8 +13,10 @@ import { Suspense } from "react";
 import { EpisodeList } from "@/components/Episodes";
 import { JarLoader } from "@/components/AppIcon";
 import { seriesEpisodes } from "@/lib/episodes";
+import { debugSleep } from "@/lib/debug";
 
 async function TvEpisodes(props: { tvdbId: number; tmdbId: number; jellyfinItemId: string | null }) {
+  await debugSleep("episodes");
   const info = await seriesEpisodes({ ...props, target: null }).catch(() => null);
   if (!info || (!info.episodes.length && !info.playUrl)) return null;
   return <EpisodeList info={info} anilist={null} groupBySeason />;

@@ -95,6 +95,9 @@ body {
 .jar-trigger:hover .jar-hover .jar-lid {
   animation: jar-lid-open 0.9s ease-in-out;
 }
+.jar-play-open .jar-lid {
+  animation: jar-lid-open 0.9s ease-in-out both;
+}
 .jar-intro .jar-lid {
   animation: jar-lid-open 1s ease-in-out 0.35s both;
 }
@@ -166,6 +169,18 @@ body {
 @keyframes spill-glug {
   0%, 100% { transform: scale(1, 1); }
   50% { transform: scale(1.12, 1.08); }
+}
+
+/* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
+.simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
+.simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(75.9px); }
+.simulate-reduced-motion .spill .spill-head-wobble,
+.simulate-reduced-motion .spill .spill-jar,
+.simulate-reduced-motion .spill .spill-glug,
+.simulate-reduced-motion .jar .jar-lid,
+.simulate-reduced-motion .jar .jar-play,
+.simulate-reduced-motion .jar .jar-sparks circle {
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
