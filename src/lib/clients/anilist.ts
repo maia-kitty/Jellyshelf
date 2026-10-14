@@ -87,8 +87,6 @@ export interface AniListEntry {
   completedAt: FuzzyDate;
 }
 
-export type ScoreFormat = "POINT_100" | "POINT_10_DECIMAL" | "POINT_10" | "POINT_5" | "POINT_3";
-
 export interface ListEntryPatch {
   status?: AniListStatus;
   progress?: number;
@@ -271,15 +269,6 @@ export const anilist = {
     invalidate(`anilist:list:${userId}`);
   },
 
-  scoreFormat: (userId: number, token: string) =>
-    cached(`anilist:scoreformat:${userId}`, 3600, async () => {
-      const d = await anilistQuery<{ Viewer: { mediaListOptions: { scoreFormat: ScoreFormat } } }>(
-        `query { Viewer { mediaListOptions { scoreFormat } } }`,
-        {},
-        token,
-      );
-      return d.Viewer.mediaListOptions.scoreFormat;
-    }),
 };
 
 /**
