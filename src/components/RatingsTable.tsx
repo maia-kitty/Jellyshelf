@@ -86,15 +86,24 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
         <p className="py-16 text-center text-muted">Nothing rated yet. Rate something from its anime page.</p>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-muted">
+          {/* Fixed layout: every category column has the same width, numbers centred under their headers. */}
+          <table className="w-full min-w-[860px] table-fixed text-sm">
+            <colgroup>
+              <col />
+              <col className="w-20" />
+              {categories.map((c) => (
+                <col key={c.name} className="w-[4.25rem]" />
+              ))}
+              <col className="w-28" />
+            </colgroup>
+            <thead className="text-xs uppercase text-muted">
               <tr className="border-b border-line">
-                <SortTh label="Anime" k="title" sort={sort} onSort={sortBy} />
-                <SortTh label="Score" k="score" sort={sort} onSort={sortBy} right />
+                <SortTh label="Anime" k="title" sort={sort} onSort={sortBy} align="left" />
+                <SortTh label="Score" sub="/100" k="score" sort={sort} onSort={sortBy} />
                 {categories.map((c) => (
-                  <SortTh key={c.name} label={c.name.split("/")[0]} title={`${c.name}, out of ${c.max}`} k={c.name} sort={sort} onSort={sortBy} right />
+                  <SortTh key={c.name} label={SHORT[c.name] ?? c.name} sub={`/${c.max}`} title={c.name} k={c.name} sort={sort} onSort={sortBy} />
                 ))}
-                <SortTh label="Rated" k="date" sort={sort} onSort={sortBy} />
+                <SortTh label="Rated" k="date" sort={sort} onSort={sortBy} align="left" />
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -102,24 +111,26 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                 const differs = r.rubric && r.anilistScore !== null && r.rubric.total !== r.anilistScore;
                 return (
                   <tr key={r.anilistId} className="hover:bg-panel-2/50">
-                    <td className="p-3">
-                      <a href={`/anime/${r.anilistId}`} className="flex items-center gap-3">
+                    <td className="px-3 py-2">
+                      <a href={`/anime/${r.anilistId}`} className="flex min-w-0 items-center gap-3">
                         {r.cover ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={r.cover} alt="" className="h-12 w-8 shrink-0 rounded object-cover" loading="lazy" />
                         ) : (
                           <div className="h-12 w-8 shrink-0 rounded bg-panel-2" />
                         )}
-                        <span>
-                          <span className="font-medium hover:underline">{r.title}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium hover:underline" title={r.title}>
+                            {r.title}
+                          </span>
                           <span className="block text-xs text-muted">{r.sub}</span>
                         </span>
                       </a>
                     </td>
-                    <td className="whitespace-nowrap p-3 text-right">
+                    <td className={clsx("px-1 py-2 text-center", sort.key === "score" && "bg-accent/10")}>
                       <span className="text-base font-semibold tabular-nums">{scoreOf(r)}</span>
                       {r.anilistScore === null && (
-                        <span className="block text-xs">
+                        <span className="block text-[11px] leading-tight">
                           {canPush ? (
                             <button
                               className="text-anilist hover:underline"
@@ -128,15 +139,15 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                                 run(`push${r.anilistId}`, () => send(`/api/ratings/${r.rubric!.id}`, { method: "PATCH", body: JSON.stringify({ push: true }) }), `Pushed ${r.rubric!.total} to AniList`)
                               }
                             >
-                              {busy === `push${r.anilistId}` ? "…" : "not on AniList · push"}
+                              {busy === `push${r.anilistId}` ? "…" : "push"}
                             </button>
                           ) : (
-                            <span className="text-muted">rubric only</span>
+                            <span className="text-muted">local</span>
                           )}
                         </span>
                       )}
                       {differs && (
-                        <span className="block text-xs text-warn" title="Your AniList score was changed after this rubric rating">
+                        <span className="block text-[11px] leading-tight text-warn" title="Your AniList score was changed after this rubric rating">
                           rubric {r.rubric!.total}
                         </span>
                       )}
@@ -147,7 +158,7 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                         <td
                           key={c.name}
                           className={clsx(
-                            "p-3 text-right tabular-nums",
+                            "px-1 py-2 text-center tabular-nums",
                             v === undefined ? "text-line" : tone(v, c.max),
                             differs && "opacity-60",
                             sort.key === c.name && "bg-accent/10 font-semibold",
@@ -157,7 +168,7 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                         </td>
                       );
                     })}
-                    <td className="whitespace-nowrap p-3 text-muted">
+                    <td className={clsx("whitespace-nowrap px-3 py-2 text-muted tabular-nums", sort.key === "date" && "bg-accent/10")}>
                       {r.date}
                       {r.rubric && r.rubric.count > 1 && <span className="block text-xs">rated {r.rubric.count}×</span>}
                     </td>
@@ -174,17 +185,44 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
   );
 }
 
-function SortTh(props: { label: string; k: SortKey; sort: Sort; onSort: (k: SortKey) => void; right?: boolean; title?: string }) {
+const SHORT: Record<string, string> = {
+  Characters: "Chars",
+  Enjoyment: "Enjoy",
+  "Animation/Art": "Art",
+  "Ending/Impact": "Ending",
+  Originality: "Orig",
+};
+
+function SortTh(props: {
+  label: string;
+  /** Small second line, e.g. the category maximum. */
+  sub?: string;
+  k: SortKey;
+  sort: Sort;
+  onSort: (k: SortKey) => void;
+  align?: "left" | "center";
+  title?: string;
+}) {
   const active = props.sort.key === props.k;
+  const left = props.align === "left";
   return (
-    <th className={clsx("whitespace-nowrap p-0", props.right && "text-right", active && "bg-accent/10")} aria-sort={active ? ((props.sort.dir === 1) === (props.k === "title") ? "ascending" : "descending") : undefined}>
+    <th
+      className={clsx("relative p-0 align-bottom font-medium", active && "bg-accent/10")}
+      aria-sort={active ? ((props.sort.dir === 1) === (props.k === "title") ? "ascending" : "descending") : undefined}
+    >
       <button
-        className={clsx("w-full p-3 uppercase hover:text-fg", props.right && "text-right", active ? "text-fg" : "text-muted")}
-        title={props.title ? `${props.title}. Click to sort` : "Click to sort"}
+        className={clsx("w-full py-2 uppercase tracking-wide hover:text-fg", left ? "px-3 text-left" : "px-1 text-center", active ? "text-fg" : "text-muted")}
+        title={`${props.title ?? props.label}. Click to sort`}
         onClick={() => props.onSort(props.k)}
       >
         {props.label}
-        <span className="ml-1 inline-block w-2">{active ? (props.sort.dir === 1 ? "↓" : "↑") : ""}</span>
+        <span className="block text-[10px] normal-case tabular-nums">
+          <span className={clsx("relative", props.sub ? "opacity-60" : "invisible")}>{props.sub ?? "-"}</span>
+          {/* Absolutely placed so the arrow never shifts the centred text. */}
+          {active && (
+            <span className={clsx("absolute text-accent", left ? "ml-1" : "ml-0.5")}>{props.sort.dir === 1 ? "↓" : "↑"}</span>
+          )}
+        </span>
       </button>
     </th>
   );
