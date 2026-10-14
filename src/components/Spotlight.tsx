@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import type { Card } from "@/lib/cards";
 import { ListBadge, StatusBadge } from "./StatusBadge";
 
@@ -10,34 +10,41 @@ export interface SpotlightItem {
   card: Card;
   banner: string;
   description: string;
+  /** e.g. "Trending anime" */
+  label: string;
 }
 
 const ROTATE_MS = 8000;
 
-/** Full-bleed banner of trending titles at the top of Discover; rotates until you hover it. */
+/** Full-bleed banner of trending titles at the top of Discover; rotates on its own, pausing while hovered. */
 export function Spotlight({ items }: { items: SpotlightItem[] }) {
   const [i, setI] = useState(0);
   const [hold, setHold] = useState(false);
+  const touchX = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (hold || items.length < 2) return;
-    const t = setTimeout(() => setI((n) => (n + 1) % items.length), ROTATE_MS);
-    return () => clearTimeout(t);
-  }, [i, hold, items.length]);
+  const go = (delta: number) => setI((n) => (n + delta + items.length) % items.length);
 
   if (!items.length) return null;
-  const { card } = items[i];
+  const { card, label, description } = items[i];
+  const arrow =
+    "absolute top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-xl text-white/80 opacity-0 backdrop-blur transition hover:bg-black/60 hover:text-white group-hover/spot:opacity-100 focus-visible:opacity-100 sm:flex";
 
   return (
     <section
-      className="relative -mx-4 -mt-6 mb-10 overflow-hidden sm:-mx-6"
+      className="group/spot relative -mx-4 -mt-6 mb-10 overflow-hidden sm:-mx-6"
       onMouseEnter={() => setHold(true)}
       onMouseLeave={() => setHold(false)}
+      onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
+      onTouchEnd={(e) => {
+        const dx = e.changedTouches[0].clientX - (touchX.current ?? e.changedTouches[0].clientX);
+        if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+        touchX.current = null;
+      }}
     >
       {items.map((it, n) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={it.card.id}
+          key={`${it.card.kind}:${it.card.id}`}
           src={it.banner}
           alt=""
           className={clsx("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000", n === i ? "opacity-80" : "opacity-0")}
@@ -46,16 +53,16 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
       <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-bg/85 via-bg/30 to-transparent" />
 
-      <div className="relative flex min-h-[340px] items-end gap-6 px-4 pb-8 pt-16 sm:min-h-[400px] sm:px-6">
+      <div className="relative flex min-h-[340px] items-end gap-6 px-4 pb-8 pt-16 sm:min-h-[400px] sm:px-14">
         <Link href={card.href} className="hidden w-36 shrink-0 md:block">
           {card.poster && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={card.id} src={card.poster} alt="" className="spotlight-in w-full rounded-xl border border-line shadow-2xl" />
+            <img key={`${card.kind}:${card.id}`} src={card.poster} alt="" className="rise-in aspect-[2/3] w-full rounded-xl border border-line object-cover shadow-2xl" />
           )}
         </Link>
-        <div key={card.id} className="spotlight-in min-w-0 max-w-2xl flex-1">
+        <div key={`${card.kind}:${card.id}`} className="rise-in min-w-0 max-w-2xl flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-semibold uppercase tracking-widest text-accent">#{i + 1} trending</span>
+            <span className="font-semibold uppercase tracking-widest text-accent">{label}</span>
             <StatusBadge status={card.status} />
             {card.list && <ListBadge status={card.list.status} progress={card.list.progress} />}
           </div>
@@ -74,7 +81,7 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
               </span>
             ))}
           </div>
-          {items[i].description && <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-fg/80">{items[i].description}</p>}
+          {description && <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-fg/80">{description}</p>}
           <div className="mt-5 flex items-center gap-3">
             <Link href={card.href} className="btn-primary">
               View &amp; request
@@ -84,16 +91,35 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
       </div>
 
       {items.length > 1 && (
-        <div className="absolute bottom-4 right-4 flex gap-1.5 sm:right-6">
-          {items.map((it, n) => (
-            <button
-              key={it.card.id}
-              aria-label={`Show ${it.card.title}`}
-              onClick={() => setI(n)}
-              className={clsx("h-1.5 rounded-full transition-all", n === i ? "w-6 bg-fg" : "w-1.5 bg-fg/40 hover:bg-fg/70")}
-            />
-          ))}
-        </div>
+        <>
+          <button aria-label="Previous" onClick={() => go(-1)} className={clsx(arrow, "left-3")}>
+            ‹
+          </button>
+          <button aria-label="Next" onClick={() => go(1)} className={clsx(arrow, "right-3")}>
+            ›
+          </button>
+          <div className="absolute bottom-4 right-4 flex items-center gap-1.5 sm:right-6">
+            {items.map((it, n) => (
+              <button
+                key={`${it.card.kind}:${it.card.id}`}
+                aria-label={`Show ${it.card.title}`}
+                onClick={() => setI(n)}
+                className={clsx("relative h-1.5 overflow-hidden rounded-full transition-all", n === i ? "w-8 bg-fg/30" : "w-1.5 bg-fg/40 hover:bg-fg/70")}
+              >
+                {n === i && (
+                  // The fill is the timer: when it finishes, advance. Pauses with it while hovered; with reduced motion it
+                  // never runs, so slides only change by hand.
+                  <span
+                    key={i}
+                    onAnimationEnd={() => go(1)}
+                    className="spotlight-progress absolute inset-y-0 left-0 bg-fg"
+                    style={{ animationDuration: `${ROTATE_MS}ms`, animationPlayState: hold ? "paused" : "running" }}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

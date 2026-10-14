@@ -18,16 +18,19 @@ export function Hero(props: {
 }) {
   return (
     <div className="relative -mx-4 -mt-6 mb-8 overflow-hidden sm:-mx-6">
-      {props.backdrop && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={props.backdrop} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/80 to-bg/30" />
-      <div className="relative flex flex-col gap-6 px-4 pb-6 pt-10 sm:flex-row sm:px-6">
+      {/* Fixed-height backdrop: it stays put while the content below it grows (synopsis expanding, images loading). */}
+      <div className="absolute inset-x-0 top-0 h-[480px]">
+        {props.backdrop && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={props.backdrop} alt="" className="hero-fade h-full w-full object-cover opacity-25" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/30" />
+      </div>
+      <div className="rise-in relative flex flex-col gap-6 px-4 pb-6 pt-10 sm:flex-row sm:px-6">
         <div className="w-40 shrink-0 sm:w-52">
           {props.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={props.poster} alt="" className="w-full rounded-xl border border-line shadow-2xl" style={{ borderColor: props.accentColor ?? undefined }} />
+            <img src={props.poster} alt="" className="aspect-[2/3] w-full rounded-xl border border-line bg-panel-2 object-cover shadow-2xl" style={{ borderColor: props.accentColor ?? undefined }} />
           ) : (
             <div className="aspect-[2/3] rounded-xl border border-line bg-panel-2" />
           )}

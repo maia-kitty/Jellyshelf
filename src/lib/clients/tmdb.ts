@@ -106,6 +106,6 @@ export const tmdbClient = {
   ping: () => tmdb<unknown>("/configuration", {}, 0),
 };
 
-export function tmdbImage(path: string | null | undefined, size: "w342" | "w500" | "w780" | "original" = "w342") {
+export function tmdbImage(path: string | null | undefined, size: "w342" | "w500" | "w780" | "w1280" | "original" = "w342") {
   return path ? `${TMDB_IMG}/${size}${path}` : null;
 }

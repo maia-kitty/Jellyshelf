@@ -172,11 +172,21 @@ body {
   50% { transform: scale(1.12, 1.08); }
 }
 
-/* Spotlight slide content fading in on change. */
-@keyframes spotlight-in {
+/* Content fading up into place: spotlight slides, detail-page heroes. */
+@keyframes rise-in {
   from { opacity: 0; transform: translateY(8px); }
 }
-.spotlight-in { animation: spotlight-in 0.6s ease-out both; }
+.rise-in { animation: rise-in 0.6s ease-out both; }
+/* Detail-page backdrop eases in rather than popping. */
+@keyframes hero-fade {
+  from { opacity: 0; }
+}
+.hero-fade { animation: hero-fade 0.8s ease-out both; }
+@keyframes spotlight-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.spotlight-progress { animation: spotlight-progress linear both; }
 
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
@@ -199,7 +209,15 @@ body {
   .jar .jar-lid,
   .jar .jar-play,
   .jar .jar-sparks circle,
-  .spotlight-in {
+  .rise-in,
+  .spotlight-progress,
+  .hero-fade {
     animation: none !important;
   }
+  .overview-body { transition: none; }
+}
+
+/* Folded text fades out instead of ending on a hard cut. */
+.fade-bottom {
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
 }
