@@ -22,7 +22,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         )}
         {/* Full-bleed banners reach 100vw, which includes the scrollbar; clip that here rather than on <body>, whose
             overflow the browser applies to the whole viewport (and which knocks out fixed bars like the phone dock). */}
-        <div className="overflow-x-clip">
+        {/* Phones: every page stays taller than the screen even with the browser's toolbar hidden. Firefox for Android
+            loses bottom-fixed bars (the dock) when you arrive at a page too short to scroll while its toolbar is hidden;
+            long pages never trigger it, so short ones (e.g. Requests) are given the same scroll room. */}
+        <div className="min-h-[calc(100lvh+6rem)] overflow-x-clip sm:min-h-0">
           <main className="mx-auto max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 sm:pb-6">{children}</main>
         </div>
       </body>
