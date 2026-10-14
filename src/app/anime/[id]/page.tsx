@@ -8,6 +8,7 @@ import { MappingOverride } from "@/components/MappingOverride";
 import { ListEditor } from "@/components/ListEditor";
 import { RatingForm } from "@/components/RatingForm";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
+import { JarLoader } from "@/components/AppIcon";
 import { movieInfo, seriesEpisodes } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
 import { LIST_LABEL } from "@/components/StatusBadge";
@@ -175,7 +176,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           )}
         </div>
       </div>
-      <Suspense fallback={<div className="card mb-10 p-4 text-sm text-muted">Loading episodes…</div>}>
+      <Suspense fallback={<div className="card mb-10 p-6"><JarLoader size={32} label="Loading episodes…" /></div>}>
         <AnimeEpisodes entry={a} progress={token ? (entry?.progress ?? 0) : null} />
       </Suspense>
       <CardRow title="Related" cards={relatedCards} />

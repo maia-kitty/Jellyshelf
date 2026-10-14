@@ -1,4 +1,6 @@
-# Kitsune 狐
+# Jellyshelf
+
+Formerly Kitsune: an existing `config/kitsune.db`, old sessions and `KITSUNE_*` env vars are picked up automatically.
 
 A Seerr-style request manager where **anime is a first-class citizen**. You sign in with AniList, your list status shows on every
 card, and requesting an anime adds it to your AniList *Planning* list. Every AniList entry (season, cour, "Part 2") is mapped to the exact
@@ -46,4 +48,4 @@ All state lives in `/config` (`CONFIG_DIR`): the SQLite database plus the genera
 - `npm test`: mapping resolver tests against real mapping data fixtures
 - `npm run typecheck`
 - `npm run db:generate`: create a migration after editing `src/db/schema.ts`. Migrations run automatically on boot.
-- `KITSUNE_DISABLE_JOBS=1` disables the background jobs (mapping refresh daily, availability sync every 10 min).
+- `JELLYSHELF_DISABLE_JOBS=1` disables the background jobs (mapping refresh daily, availability sync every 10 min).

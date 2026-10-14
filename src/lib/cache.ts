@@ -3,8 +3,8 @@ interface Entry<T> {
   expires: number;
 }
 
-const g = globalThis as unknown as { __kitsuneCache?: Map<string, Entry<unknown>> };
-const store = (g.__kitsuneCache ??= new Map());
+const g = globalThis as unknown as { __jellyshelfCache?: Map<string, Entry<unknown>> };
+const store = (g.__jellyshelfCache ??= new Map());
 const MAX_ENTRIES = 2000;
 
 /** Memoize an async call for `ttlSeconds`. Concurrent callers share one in-flight promise; failures are not cached. */

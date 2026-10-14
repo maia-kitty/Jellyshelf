@@ -4,7 +4,7 @@ import { currentUser } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 
 export const metadata: Metadata = {
-  title: "Kitsune",
+  title: "Jellyshelf",
   description: "Request movies, series and anime",
 };
 

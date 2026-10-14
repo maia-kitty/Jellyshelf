@@ -23,7 +23,7 @@ export default async function Setup() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="mb-1 text-3xl font-bold">Set up Kitsune</h1>
+      <h1 className="mb-1 text-3xl font-bold">Set up Jellyshelf</h1>
       <p className="mb-8 text-muted">
         {user ? "Step 2 of 2 — connect your downloaders and media server." : "Step 1 of 2 — metadata sources and sign-in, then create the admin account."}
       </p>

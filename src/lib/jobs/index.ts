@@ -2,7 +2,7 @@ import { Cron } from "croner";
 import { refreshMappings, mappingCount } from "@/lib/mapping";
 import { runAvailabilitySync } from "./availability";
 
-const g = globalThis as unknown as { __kitsuneJobs?: Cron[] };
+const g = globalThis as unknown as { __jellyshelfJobs?: Cron[] };
 
 async function safe(name: string, fn: () => Promise<unknown>) {
   const t = Date.now();
@@ -20,8 +20,8 @@ export const jobs = {
 };
 
 export function startJobs() {
-  if (g.__kitsuneJobs) return;
-  g.__kitsuneJobs = [
+  if (g.__jellyshelfJobs) return;
+  g.__jellyshelfJobs = [
     new Cron("17 4 * * *", jobs.mappings), // daily
     new Cron("*/10 * * * *", jobs.availability, { protect: true }),
   ];

@@ -8,7 +8,8 @@ let cached: string | undefined;
 /** 64-hex-char secret persisted in the config dir; generated on first boot. */
 export function appSecret(): string {
   if (cached) return cached;
-  if (process.env.KITSUNE_SECRET) return (cached = process.env.KITSUNE_SECRET);
+  const fromEnv = process.env.JELLYSHELF_SECRET ?? process.env.KITSUNE_SECRET;
+  if (fromEnv) return (cached = fromEnv);
   const file = path.join(CONFIG_DIR, "secret.key");
   try {
     cached = fs.readFileSync(file, "utf8").trim();

@@ -5,7 +5,7 @@ import { webhookToken } from "@/lib/webhooks";
 
 type Ctx = { params: Promise<{ service: string }> };
 
-const g = globalThis as unknown as { __kitsuneWebhookTimer?: ReturnType<typeof setTimeout> };
+const g = globalThis as unknown as { __jellyshelfWebhookTimer?: ReturnType<typeof setTimeout> };
 
 /**
  * Sonarr/Radarr "Connect → Webhook" and Jellyfin webhook plugin target.
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
   const event = (await req.json().catch(() => ({}))) as { eventType?: string; NotificationType?: string };
   console.info(`[webhook:${service}] ${event.eventType ?? event.NotificationType ?? "event"}`);
-  clearTimeout(g.__kitsuneWebhookTimer);
-  g.__kitsuneWebhookTimer = setTimeout(() => void runAvailabilitySync().catch(console.error), 15_000);
+  clearTimeout(g.__jellyshelfWebhookTimer);
+  g.__jellyshelfWebhookTimer = setTimeout(() => void runAvailabilitySync().catch(console.error), 15_000);
   return NextResponse.json({ ok: true });
 }

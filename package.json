@@ -1,5 +1,5 @@
 {
-  "name": "kitsune",
+  "name": "jellyshelf",
   "version": "1.0.0",
   "private": true,
   "description": "Seerr-style request manager with first-class AniList anime support",

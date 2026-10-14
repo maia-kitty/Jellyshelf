@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { useState } from "react";
+import { AppIcon } from "./AppIcon";
 
 const LINKS = [
   { href: "/", label: "Discover" },
@@ -24,8 +25,8 @@ export function Nav({ user }: { user: { displayName: string; avatar: string | nu
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold">
-          <span className="text-accent">狐</span> Kitsune
+        <Link href="/" className="jar-trigger flex items-center gap-2 text-lg font-bold">
+          <AppIcon size={28} animate="hover" /> Jellyshelf
         </Link>
         <nav className="order-3 flex w-full gap-1 overflow-x-auto sm:order-none sm:w-auto">
           {links.map((l) => {

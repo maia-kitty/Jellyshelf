@@ -1,6 +1,6 @@
 import { fetchJson, joinUrl } from "./http";
 
-const CLIENT = 'MediaBrowser Client="Kitsune", Device="Server", DeviceId="kitsune-server", Version="0.1.0"';
+const CLIENT = 'MediaBrowser Client="Jellyshelf", Device="Server", DeviceId="jellyshelf-server", Version="0.1.0"';
 
 function authHeader(token: string | undefined) {
   return token ? `${CLIENT}, Token="${token}"` : CLIENT;

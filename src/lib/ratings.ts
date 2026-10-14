@@ -114,7 +114,7 @@ export interface RatingRow {
   sub: string;
   /** Score on AniList (0-100); null when it isn't scored there. */
   anilistScore: number | null;
-  /** Latest rubric breakdown for this anime, from Kitsune or a CSV import. */
+  /** Latest rubric breakdown for this anime, from Jellyshelf or a CSV import. */
   rubric: { id: number; scores: Record<string, number>; total: number; ratedOn: string; count: number } | null;
   /** When it was rated: the rubric date, else the AniList completion/update date. */
   date: string | null;

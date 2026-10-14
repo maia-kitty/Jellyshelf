@@ -13,9 +13,13 @@ export interface SessionData {
   oauthState?: string;
 }
 
-function sessionOptions(appUrl: string): SessionOptions {
+const COOKIE = "jellyshelf_session";
+/** Sessions from before the rename (Kitsune) are still read; new logins write COOKIE. */
+const LEGACY_COOKIE = "kitsune_session";
+
+function sessionOptions(appUrl: string, cookieName = COOKIE): SessionOptions {
   return {
-    cookieName: "kitsune_session",
+    cookieName,
     password: appSecret(),
     cookieOptions: {
       // Self-hosted over plain http on a LAN is common; only demand https when that's how we're served.
@@ -29,7 +33,20 @@ function sessionOptions(appUrl: string): SessionOptions {
 
 export async function getSession() {
   const { general } = await getSettings();
-  return getIronSession<SessionData>(await cookies(), sessionOptions(general.appUrl));
+  const store = await cookies();
+  const session = await getIronSession<SessionData>(store, sessionOptions(general.appUrl));
+  if (!session.userId && store.has(LEGACY_COOKIE)) {
+    const legacy = await getIronSession<SessionData>(store, sessionOptions(general.appUrl, LEGACY_COOKIE));
+    if (legacy.userId) session.userId = legacy.userId; // persisted under the new name on the next save()
+  }
+  return session;
+}
+
+/** Sign out, clearing the pre-rename cookie too so it can't sign the user back in. */
+export async function destroySession() {
+  (await getSession()).destroy();
+  const store = await cookies();
+  if (store.has(LEGACY_COOKIE)) store.delete(LEGACY_COOKIE);
 }
 
 export async function currentUser(): Promise<User | null> {

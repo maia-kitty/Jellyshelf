@@ -43,12 +43,12 @@ export interface SyncReport {
   completedRequests: number;
 }
 
-const g = globalThis as unknown as { __kitsuneSyncing?: Promise<SyncReport> };
+const g = globalThis as unknown as { __jellyshelfSyncing?: Promise<SyncReport> };
 
 /** Single-flight wrapper: concurrent triggers (cron + webhooks) share one run. */
 export function runAvailabilitySync(): Promise<SyncReport> {
-  return (g.__kitsuneSyncing ??= syncAvailability().finally(() => {
-    g.__kitsuneSyncing = undefined;
+  return (g.__jellyshelfSyncing ??= syncAvailability().finally(() => {
+    g.__jellyshelfSyncing = undefined;
   }));
 }
 

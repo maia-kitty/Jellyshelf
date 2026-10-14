@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
 import type { MediaStatus } from "@/db/schema";
+import { AppIcon } from "./AppIcon";
 
 async function postRequest(body: unknown) {
   const res = await fetch("/api/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -42,7 +43,13 @@ function useSubmit() {
 
 function Message({ msg }: { msg: { ok: boolean; text: string } | null }) {
   if (!msg) return null;
-  return <p className={clsx("mt-2 text-sm", msg.ok ? "text-ok" : "text-bad")}>{msg.text}</p>;
+  return (
+    <p className={clsx("mt-2 flex items-center gap-2 text-sm", msg.ok ? "text-ok" : "text-bad")}>
+      {/* keyed so every new success replays the pop */}
+      {msg.ok && <AppIcon key={msg.text} size={22} animate="pop" className="shrink-0 text-fg" />}
+      {msg.text}
+    </p>
+  );
 }
 
 export function MovieRequest({ tmdbId, status, requested }: { tmdbId: number; status: MediaStatus; requested: boolean }) {

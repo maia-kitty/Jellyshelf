@@ -51,3 +51,71 @@ body {
 @utility card {
   @apply rounded-xl border border-line bg-panel;
 }
+
+/* ---------- Jar mark animations (components/AppIcon.tsx) ---------- */
+.jar .jar-lid,
+.jar .jar-play,
+.jar .jar-sparks circle {
+  transform-box: fill-box;
+}
+.jar .jar-lid {
+  transform-origin: 85% 100%; /* tips up from its right edge, like a lid being pried off */
+}
+.jar .jar-play {
+  transform-origin: center;
+}
+
+@keyframes jar-lid-open {
+  0% { transform: none; }
+  35% { transform: translateY(-7px) rotate(-16deg); }
+  65% { transform: translateY(-6px) rotate(-12deg); }
+  100% { transform: none; }
+}
+@keyframes jar-lid-bob {
+  0%, 100% { transform: none; }
+  45%, 60% { transform: translateY(-6px) rotate(-12deg); }
+}
+@keyframes jar-play-peek {
+  0%, 100% { transform: none; }
+  45%, 60% { transform: translateY(-3px) scale(1.08); }
+}
+@keyframes jar-lid-pop {
+  0% { transform: none; }
+  30% { transform: translateY(-16px) rotate(-28deg); }
+  55% { transform: translateY(-13px) rotate(-22deg); }
+  100% { transform: none; }
+}
+@keyframes jar-spark {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+
+.jar-hover:hover .jar-lid,
+.jar-trigger:hover .jar-hover .jar-lid {
+  animation: jar-lid-open 0.9s ease-in-out;
+}
+.jar-intro .jar-lid {
+  animation: jar-lid-open 1s ease-in-out 0.35s both;
+}
+.jar-loading .jar-lid {
+  animation: jar-lid-bob 1.3s ease-in-out infinite;
+}
+.jar-loading .jar-play {
+  animation: jar-play-peek 1.3s ease-in-out infinite;
+}
+.jar-pop .jar-lid {
+  animation: jar-lid-pop 0.9s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.jar-pop .jar-sparks circle {
+  opacity: 0;
+  animation: jar-spark 0.8s ease-out 0.12s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jar .jar-lid,
+  .jar .jar-play,
+  .jar .jar-sparks circle {
+    animation: none !important;
+  }
+}

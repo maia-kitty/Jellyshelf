@@ -122,7 +122,7 @@ export function GeneralSettings({ initial }: { initial: Settings["general"] }) {
   const { v, set, submit, state } = useSection("general", initial);
   return (
     <Section title="General">
-      <Field label="Public URL" hint="How you reach Kitsune in the browser. Used for the AniList OAuth redirect.">
+      <Field label="Public URL" hint="How you reach Jellyshelf in the browser. Used for the AniList OAuth redirect.">
         <input className="input" value={v.appUrl} onChange={(e) => set("appUrl", e.target.value)} placeholder="http://localhost:3000" />
       </Field>
       <Toggle label="Auto-approve requests from new users" checked={v.defaultAutoApprove} onChange={(x) => set("defaultAutoApprove", x)} />

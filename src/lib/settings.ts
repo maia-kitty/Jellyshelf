@@ -46,7 +46,7 @@ export const settingsSchema = z.object({
     .object({
       url: z.string().default(""),
       apiKey: z.string().default(""),
-      /** Address your browser uses for Jellyfin (for "Play" links), if different from the URL Kitsune uses. */
+      /** Address your browser uses for Jellyfin (for "Play" links), if different from the URL Jellyshelf uses. */
       publicUrl: z.string().default(""),
       /** Allow logging in with Jellyfin credentials. */
       allowLogin: z.boolean().default(true),
@@ -57,14 +57,14 @@ export const settingsSchema = z.object({
 export type Settings = z.infer<typeof settingsSchema>;
 export type SettingsSection = keyof Settings;
 
-const g = globalThis as unknown as { __kitsuneSettings?: Settings };
+const g = globalThis as unknown as { __jellyshelfSettings?: Settings };
 
 export async function getSettings(): Promise<Settings> {
-  if (g.__kitsuneSettings) return g.__kitsuneSettings;
+  if (g.__jellyshelfSettings) return g.__jellyshelfSettings;
   await ensureMigrated();
   const rows = await db.select().from(schema.settings);
   const raw = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return (g.__kitsuneSettings = settingsSchema.parse(raw));
+  return (g.__jellyshelfSettings = settingsSchema.parse(raw));
 }
 
 export async function updateSettings<K extends SettingsSection>(section: K, patch: Partial<Settings[K]>) {
@@ -74,7 +74,7 @@ export async function updateSettings<K extends SettingsSection>(section: K, patc
     .insert(schema.settings)
     .values({ key: section, value: next })
     .onConflictDoUpdate({ target: schema.settings.key, set: { value: next } });
-  g.__kitsuneSettings = { ...current, [section]: next };
+  g.__jellyshelfSettings = { ...current, [section]: next };
   return next;
 }
 
@@ -99,5 +99,5 @@ export async function getSetting<K extends SettingsSection>(section: K): Promise
 
 export async function deleteSetting(section: SettingsSection) {
   await db.delete(schema.settings).where(eq(schema.settings.key, section));
-  g.__kitsuneSettings = undefined;
+  g.__jellyshelfSettings = undefined;
 }

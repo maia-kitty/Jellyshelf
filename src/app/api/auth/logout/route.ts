@@ -1,10 +1,9 @@
 import { handle } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { destroySession } from "@/lib/auth";
 
 export function POST() {
   return handle(async () => {
-    const session = await getSession();
-    session.destroy();
+    await destroySession();
     return { ok: true };
   });
 }

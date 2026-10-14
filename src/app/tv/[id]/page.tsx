@@ -11,6 +11,7 @@ import { findMedia, requestedSeasons } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { Suspense } from "react";
 import { EpisodeList } from "@/components/Episodes";
+import { JarLoader } from "@/components/AppIcon";
 import { seriesEpisodes } from "@/lib/episodes";
 
 async function TvEpisodes(props: { tvdbId: number; tmdbId: number; jellyfinItemId: string | null }) {
@@ -66,7 +67,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
       )}
       <CardRow title="AniList entries" cards={animeCards} />
       {tv.external_ids?.tvdb_id && (
-        <Suspense fallback={<div className="card mb-10 p-4 text-sm text-muted">Loading episodes…</div>}>
+        <Suspense fallback={<div className="card mb-10 p-6"><JarLoader size={32} label="Loading episodes…" /></div>}>
           <TvEpisodes tvdbId={tv.external_ids.tvdb_id} tmdbId={id} jellyfinItemId={media?.jellyfinItemId ?? null} />
         </Suspense>
       )}
