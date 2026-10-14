@@ -20,6 +20,8 @@ html {
   color-scheme: dark;
 }
 body {
+  /* Full-bleed banners span 100vw, which includes the scrollbar; don't let that add a sideways scroll. */
+  overflow-x: clip;
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-sans);
@@ -48,6 +50,11 @@ body {
 @utility label {
   @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted;
 }
+/* Break out of the centred page column to the full window width; put a max-w container inside to re-centre content. */
+@utility bleed {
+  margin-inline: calc(50% - 50vw);
+}
+
 @utility card {
   @apply rounded-xl border border-line bg-panel;
 }

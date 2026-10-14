@@ -31,7 +31,7 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
 
   return (
     <section
-      className="group/spot relative -mx-4 -mt-6 mb-10 overflow-hidden sm:-mx-6"
+      className="group/spot bleed relative -mt-6 mb-10 overflow-hidden"
       onMouseEnter={() => setHold(true)}
       onMouseLeave={() => setHold(false)}
       onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
@@ -53,7 +53,7 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
       <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-bg/85 via-bg/30 to-transparent" />
 
-      <div className="relative flex min-h-[340px] items-end gap-6 px-4 pb-8 pt-16 sm:min-h-[400px] sm:px-14">
+      <div className="relative mx-auto flex min-h-[340px] max-w-[1600px] items-end gap-6 px-4 pb-8 pt-16 sm:min-h-[420px] sm:px-14 min-[1720px]:px-6">
         <Link href={card.href} className="hidden w-36 shrink-0 md:block">
           {card.poster && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -98,26 +98,23 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
           <button aria-label="Next" onClick={() => go(1)} className={clsx(arrow, "right-3")}>
             ›
           </button>
-          <div className="absolute bottom-4 right-4 flex items-center gap-1.5 sm:right-6">
-            {items.map((it, n) => (
-              <button
-                key={`${it.card.kind}:${it.card.id}`}
-                aria-label={`Show ${it.card.title}`}
-                onClick={() => setI(n)}
-                className={clsx("relative h-1.5 overflow-hidden rounded-full transition-all", n === i ? "w-8 bg-fg/30" : "w-1.5 bg-fg/40 hover:bg-fg/70")}
-              >
-                {n === i && (
-                  // The fill is the timer: when it finishes, advance. Pauses with it while hovered; with reduced motion it
-                  // never runs, so slides only change by hand.
-                  <span
-                    key={i}
-                    onAnimationEnd={() => go(1)}
-                    className="spotlight-progress absolute inset-y-0 left-0 bg-fg"
-                    style={{ animationDuration: `${ROTATE_MS}ms`, animationPlayState: hold ? "paused" : "running" }}
-                  />
-                )}
-              </button>
-            ))}
+          <div className="absolute bottom-3 right-4 text-xs tabular-nums text-fg/60 sm:right-6">
+            {i + 1} / {items.length}
+          </div>
+          {/* Jelly filling the bottom edge until the next slide. It is the timer: when it finishes we advance, it pauses with
+              the hover, and with reduced motion it never runs so slides only change by hand. */}
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10">
+            <div
+              key={i}
+              onAnimationEnd={() => go(1)}
+              className="spotlight-progress h-full rounded-r-full shadow-[0_0_12px_#8f7fe0]"
+              style={{
+                backgroundImage: "linear-gradient(90deg, #aa5cc3, #00a4dc)",
+                backgroundSize: "100vw 100%",
+                animationDuration: `${ROTATE_MS}ms`,
+                animationPlayState: hold ? "paused" : "running",
+              }}
+            />
           </div>
         </>
       )}

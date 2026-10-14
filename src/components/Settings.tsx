@@ -395,32 +395,71 @@ export function UsersTable({ users, selfId }: { users: UserRow[]; selfId: number
     await fetch(`/api/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     router.refresh();
   };
+  const kinds = [
+    ["autoApproveMovie", "Movies"],
+    ["autoApproveTv", "Series"],
+    ["autoApproveAnime", "Anime"],
+  ] as const;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="text-left text-xs uppercase text-muted">
-          <tr>
-            <th className="py-2">User</th>
-            <th>Login</th>
-            <th>Admin</th>
-            <th>Auto-approve movies</th>
-            <th>Series</th>
-            <th>Anime</th>
+        <thead className="text-left text-xs uppercase tracking-wide text-muted">
+          <tr className="[&>th]:px-3 [&>th]:pb-2 [&>th]:font-medium">
+            <th>User</th>
+            <th>Signs in with</th>
+            <th className="text-center">Admin</th>
+            <th>Auto-approve</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
           {users.map((u) => (
-            <tr key={u.id}>
-              <td className="py-2 font-medium">{u.displayName}</td>
-              <td className="text-muted">{[u.anilist && "AniList", u.jellyfin && "Jellyfin"].filter(Boolean).join(", ")}</td>
+            <tr key={u.id} className="[&>td]:px-3 [&>td]:py-3 [&>td]:align-middle">
               <td>
-                <input type="checkbox" className="accent-accent" disabled={u.id === selfId} checked={u.role === "admin"} onChange={(e) => patch(u.id, { role: e.target.checked ? "admin" : "user" })} />
+                <div className="flex items-center gap-3">
+                  {u.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={u.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{u.displayName[0]}</div>
+                  )}
+                  <span className="font-medium">{u.displayName}</span>
+                  {u.id === selfId && <span className="text-xs text-muted">(you)</span>}
+                </div>
               </td>
-              {(["autoApproveMovie", "autoApproveTv", "autoApproveAnime"] as const).map((k) => (
-                <td key={k}>
-                  <input type="checkbox" className="accent-accent" checked={u[k]} onChange={(e) => patch(u.id, { [k]: e.target.checked })} />
-                </td>
-              ))}
+              <td>
+                <div className="flex gap-1.5">
+                  {u.jellyfin && <span className="rounded-md bg-[#00a4dc]/15 px-2 py-0.5 text-xs text-[#4cc3ee]">Jellyfin</span>}
+                  {u.anilist && <span className="rounded-md bg-anilist/15 px-2 py-0.5 text-xs text-anilist">AniList</span>}
+                </div>
+              </td>
+              <td className="text-center">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-accent"
+                  disabled={u.id === selfId}
+                  title={u.id === selfId ? "You can't remove your own admin role" : undefined}
+                  checked={u.role === "admin"}
+                  onChange={(e) => patch(u.id, { role: e.target.checked ? "admin" : "user" })}
+                />
+              </td>
+              <td>
+                <div className="flex flex-wrap gap-1.5">
+                  {kinds.map(([k, label]) => (
+                    <button
+                      key={k}
+                      aria-pressed={u[k]}
+                      onClick={() => patch(u.id, { [k]: !u[k] })}
+                      className={clsx(
+                        "rounded-full border px-3 py-1 text-xs transition",
+                        u[k] ? "border-accent bg-accent/15 text-fg" : "border-line text-muted hover:text-fg",
+                      )}
+                    >
+                      {u[k] ? "✓ " : ""}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>

@@ -29,6 +29,11 @@ export function MediaCard({ card }: { card: Card }) {
             )}
           </div>
         )}
+        {card.watched !== undefined && card.watched > 0 && (
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-black/60">
+            <div className="h-full" style={{ width: `${Math.round(card.watched * 100)}%`, backgroundImage: "linear-gradient(90deg, #aa5cc3, #00a4dc)" }} />
+          </div>
+        )}
         {card.isAnime && card.kind !== "anime" && (
           <span className="absolute right-1.5 top-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-anilist">ANIME</span>
         )}

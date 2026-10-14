@@ -6,6 +6,7 @@ import { tmdbClient, tmdbImage } from "@/lib/clients/tmdb";
 import { animeCard, decorateGroups, movieCard, soft, tvCard, type Card } from "@/lib/cards";
 import { anilistToken } from "@/lib/auth";
 import { pageUser } from "@/lib/page";
+import { continueWatching } from "@/lib/continueWatching";
 
 export default async function Home() {
   const user = await pageUser();
@@ -23,7 +24,7 @@ export default async function Home() {
     token && user.anilistId ? soft(anilist.userList(user.anilistId, token), null, "user list") : null,
   ]);
 
-  const watching = list ? [...list.values()].filter((e) => e.status === "CURRENT").map((e) => animeCard(e.media)) : [];
+  const watching = await continueWatching(user, list);
   const planning = list ? [...list.values()].filter((e) => e.status === "PLANNING").map((e) => animeCard(e.media)) : [];
 
   const [rSpotlight, rWatching, rPlanning, rSeasonal, rTrending, rUpcoming, rMovies, rTv] = await decorateGroups(
@@ -63,7 +64,7 @@ export default async function Home() {
   return (
     <>
       <Spotlight items={spotlightItems} />
-      <CardRow title="Continue watching (AniList)" href="/my-lists?status=CURRENT" cards={rWatching} />
+      <CardRow title="Continue watching" cards={rWatching} />
       <CardRow title="Your AniList planning" href="/my-lists?status=PLANNING" cards={rPlanning} />
       <CardRow title={`Airing this season · ${seasonLabel(now)}`} href="/discover/anime?list=seasonal" cards={rSeasonal} />
       <CardRow title="Trending anime" href="/discover/anime" cards={rTrending} />

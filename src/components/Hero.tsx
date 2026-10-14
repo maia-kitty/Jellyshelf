@@ -17,7 +17,7 @@ export function Hero(props: {
   children?: React.ReactNode;
 }) {
   return (
-    <div className="relative -mx-4 -mt-6 mb-8 overflow-hidden sm:-mx-6">
+    <div className="bleed relative -mt-6 mb-8 overflow-hidden">
       {/* Fixed-height backdrop: it stays put while the content below it grows (synopsis expanding, images loading). */}
       <div className="absolute inset-x-0 top-0 h-[480px]">
         {props.backdrop && (
@@ -26,7 +26,7 @@ export function Hero(props: {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/30" />
       </div>
-      <div className="rise-in relative flex flex-col gap-6 px-4 pb-6 pt-10 sm:flex-row sm:px-6">
+      <div className="rise-in relative mx-auto flex max-w-[1600px] flex-col gap-6 px-4 pb-6 pt-10 sm:flex-row sm:px-6">
         <div className="w-40 shrink-0 sm:w-52">
           {props.poster ? (
             // eslint-disable-next-line @next/next/no-img-element

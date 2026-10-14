@@ -16,6 +16,9 @@ export interface JellyfinItem {
   IndexNumber?: number;
   ParentIndexNumber?: number;
   SeriesId?: string;
+  SeriesName?: string;
+  RunTimeTicks?: number;
+  UserData?: { PlaybackPositionTicks?: number; PlayedPercentage?: number | null; LastPlayedDate?: string; Played?: boolean };
 }
 
 export function jellyfin(cfg: { url: string; apiKey: string }) {
@@ -41,6 +44,30 @@ export function jellyfin(cfg: { url: string; apiKey: string }) {
         { timeoutMs: 120_000 },
       );
       return res.Items;
+    },
+    /** A user's partly watched movies and episodes, most recent first. */
+    resume: async (userId: string) => {
+      const q = `Fields=ProviderIds&MediaTypes=Video&Limit=20&EnableImages=false`;
+      // 10.9+ moved this under /UserItems; older servers only have the /Users/{id} form.
+      const res = await call<{ Items: JellyfinItem[] }>(`/UserItems/Resume?userId=${userId}&${q}`).catch(() =>
+        call<{ Items: JellyfinItem[] }>(`/Users/${userId}/Items/Resume?${q}`),
+      );
+      return res.Items;
+    },
+    /** The next episode of each series the user is part-way through, most recently watched series first. */
+    nextUp: async (userId: string) =>
+      (await call<{ Items: JellyfinItem[] }>(`/Shows/NextUp?userId=${userId}&Fields=ProviderIds&Limit=20&EnableImages=false`)).Items,
+    /** Items by id, with this user's play data. */
+    items: async (userId: string, ids: string[]) =>
+      ids.length
+        ? (await call<{ Items: JellyfinItem[] }>(`/Items?userId=${userId}&Ids=${ids.join(",")}&Fields=ProviderIds&EnableImages=false`)).Items
+        : [],
+    /** When the user last played anything in a series (series themselves carry no play date). */
+    lastPlayedIn: async (userId: string, seriesId: string) => {
+      const res = await call<{ Items: JellyfinItem[] }>(
+        `/Items?userId=${userId}&ParentId=${seriesId}&Recursive=true&IncludeItemTypes=Episode&SortBy=DatePlayed&SortOrder=Descending&Limit=1&EnableImages=false`,
+      );
+      return res.Items[0]?.UserData?.LastPlayedDate ?? null;
     },
     /** Episodes present for a series (only physically present ones are returned by default). */
     episodes: async (seriesId: string) => {
