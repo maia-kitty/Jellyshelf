@@ -41,6 +41,7 @@ export interface SyncReport {
   jellyfin?: string;
   updatedMedia: number;
   completedRequests: number;
+  removedRequests: number;
 }
 
 const g = globalThis as unknown as { __jellyshelfSyncing?: Promise<SyncReport> };
@@ -55,13 +56,15 @@ export function runAvailabilitySync(): Promise<SyncReport> {
 async function syncAvailability(): Promise<SyncReport> {
   await ensureMigrated();
   const settings = await getSettings();
-  const report: SyncReport = { updatedMedia: 0, completedRequests: 0 };
+  const report: SyncReport = { updatedMedia: 0, completedRequests: 0, removedRequests: 0 };
 
   const allMedia = await db.select().from(schema.media);
   const activeReqs = await db.select().from(schema.requests).where(inArray(schema.requests.status, ["pending", "approved"]));
   const observed = new Map<number, MediaStatus>();
   const extra = new Map<number, Partial<Media>>();
   const completed = new Set<number>();
+  /** Approved requests whose movie/series has since been deleted from the *arr (only judged when it was read). */
+  const removed = new Map<number, string>();
   const upgrade = (id: number, s: MediaStatus | null) => {
     if (s && RANK[s] > RANK[observed.get(id) ?? "unknown"]) observed.set(id, s);
   };
@@ -77,6 +80,9 @@ async function syncAvailability(): Promise<SyncReport> {
     try {
       movies = new Map((await radarr(settings.radarr).allMovies()).map((m) => [m.tmdbId, m]));
       report.radarr = `${movies.size} movies`;
+      for (const r of activeReqs) {
+        if (r.status === "approved" && r.target === "radarr" && !movies.has(r.targetId)) removed.set(r.id, "Removed from Radarr");
+      }
     } catch (e) {
       report.radarr = `error: ${(e as Error).message}`;
       incomplete = true;
@@ -110,6 +116,9 @@ async function syncAvailability(): Promise<SyncReport> {
       const api = sonarr(settings.sonarr);
       const series = new Map((await api.allSeries()).map((s) => [s.tvdbId, s]));
       report.sonarr = `${series.size} series`;
+      for (const r of activeReqs) {
+        if (r.status === "approved" && r.target === "sonarr" && !series.has(r.targetId)) removed.set(r.id, "Removed from Sonarr");
+      }
       await syncSonarr(api, series, allMedia, activeReqs, { upgrade, patch, completed, newAnime, knownAnime });
     } catch (e) {
       report.sonarr = `error: ${(e as Error).message}`;
@@ -170,7 +179,7 @@ async function syncAvailability(): Promise<SyncReport> {
   for (const r of activeReqs) reqsByMedia.set(r.mediaId, [...(reqsByMedia.get(r.mediaId) ?? []), r]);
   await db.transaction(async (tx) => {
     for (const m of allMedia) {
-      const reqs = (reqsByMedia.get(m.id) ?? []).filter((r) => !completed.has(r.id));
+      const reqs = (reqsByMedia.get(m.id) ?? []).filter((r) => !completed.has(r.id) && !removed.has(r.id));
       const fallback: MediaStatus = reqs.some((r) => r.status === "approved")
         ? "processing"
         : reqs.some((r) => r.status === "pending")
@@ -194,6 +203,11 @@ async function syncAvailability(): Promise<SyncReport> {
       await tx.update(schema.requests).set({ status: "completed", updatedAt: new Date() }).where(inArray(schema.requests.id, [...completed]));
       report.completedRequests = completed.size;
     }
+    // Shown as failed with the reason, so an admin can Retry (re-add) or delete it, and it can be requested again.
+    for (const [id, error] of removed) {
+      await tx.update(schema.requests).set({ status: "failed", error, updatedAt: new Date() }).where(eq(schema.requests.id, id));
+    }
+    report.removedRequests = removed.size;
   });
   return report;
 }
