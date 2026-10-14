@@ -71,14 +71,15 @@ export function JarLoader({ label, width = 240, className }: { label?: string; w
         {/* lid, standing on its edge behind the jar */}
         <rect x="2" y="30" width="8" height="26" rx="2.5" fill="currentColor" />
 
-        {/* the jelly bar: body scales out from the mouth, the round front edge travels with it */}
+        {/* the jelly bar: body scales out from the mouth, the round front edge travels with it. The front starts
+            3 units behind the bar (hidden under the puddle) and its keyframes add those 3 back, so they meet. */}
         <rect className="spill-bar" x="58" y="48" width="138" height="8" fill="url(#spill-jelly)" />
         <g className="spill-head">
-          <circle className="spill-head-wobble" cx="58" cy="52" r="4" fill="#00a4dc" />
+          <circle className="spill-head-wobble" cx="55" cy="52" r="4" fill="#00a4dc" />
         </g>
 
         {/* puddle under the mouth, drawn behind the jar so it runs back under the neck as well as forward */}
-        <path className="spill-puddle" d="M41 56 C42 53 45 51.5 50 51.5 L62 51.5 L62 56 Z" fill="#aa5cc3" />
+        <path className="spill-puddle" d="M41 56 C42 52.5 45 48.5 50 47.5 L57 47.5 C60 47.5 62.5 50.5 62.5 56 Z" fill="#aa5cc3" />
 
         {/* the jar, tipped over to the right and resting on the shelf. Everything on it is turned a quarter
             clockwise with it: the play arrow points down, the glass highlight runs along the top. */}

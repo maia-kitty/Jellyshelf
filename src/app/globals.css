@@ -132,7 +132,7 @@ body {
   transform: scaleX(0);
   animation: spill-fill 9s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
-/* travels the same distance the bar grows: 138 units × the same fractions, same timing */
+/* ends where the bar ends: starts 3 units behind it (under the puddle), then 3 + 138 units × the same fractions, same timing */
 .spill .spill-head {
   animation: spill-head 9s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
@@ -154,10 +154,10 @@ body {
 }
 @keyframes spill-head {
   0% { transform: translateX(0); }
-  12% { transform: translateX(41.4px); }
-  35% { transform: translateX(75.9px); }
-  65% { transform: translateX(103.5px); }
-  100% { transform: translateX(124.2px); }
+  12% { transform: translateX(44.4px); }
+  35% { transform: translateX(78.9px); }
+  65% { transform: translateX(106.5px); }
+  100% { transform: translateX(127.2px); }
 }
 @keyframes spill-wobble {
   0%, 100% { transform: scale(1, 1); }
@@ -172,63 +172,9 @@ body {
   50% { transform: scale(1.12, 1.08); }
 }
 
-/* ---------- Login splash (JellySplash) ---------- */
-.jelly-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  overflow: hidden;
-  animation: jelly-fade 0.8s ease-in 1.45s forwards;
-}
-.jelly-blob {
-  --s: 10vmax;
-  position: absolute;
-  left: var(--ox);
-  top: var(--oy);
-  width: var(--s);
-  height: var(--s);
-  margin-left: calc(var(--s) / -2);
-  margin-top: calc(var(--s) / -2);
-  background:
-    radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.38), transparent 32%),
-    linear-gradient(135deg, #aa5cc3, #00a4dc);
-  transform: scale(0);
-}
-.jelly-light {
-  background:
-    radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.5), transparent 34%),
-    linear-gradient(135deg, #c48ad6, #3dbbe6);
-}
-/* the flood: one blob that grows from the jar until it covers the whole page */
-.jelly-flood {
-  border-radius: 47% 53% 50% 50% / 52% 48% 52% 48%;
-  animation: jelly-flood 0.9s cubic-bezier(0.3, 0.7, 0.2, 1) 0.55s forwards;
-}
-.jelly-splat {
-  animation: jelly-splat 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) var(--d) forwards;
-}
-@keyframes jelly-flood {
-  from { transform: scale(0); }
-  to { transform: scale(32); }
-}
-/* fly out, land with a squish, settle */
-@keyframes jelly-splat {
-  0% { transform: translate(0, 0) rotate(var(--r)) scale(0); }
-  70% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1.15, 0.85); }
-  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1); }
-}
-@keyframes jelly-fade {
-  to { opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .jelly-splash { display: none; }
-}
-.simulate-reduced-motion .jelly-splash { display: none; }
-
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
-.simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(75.9px); }
+.simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(78.9px); }
 .simulate-reduced-motion .spill .spill-head-wobble,
 .simulate-reduced-motion .spill .spill-glug,
 .simulate-reduced-motion .spill .spill-puddle,
@@ -240,7 +186,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .spill .spill-bar { animation: none; transform: scaleX(0.55); }
-  .spill .spill-head { animation: none; transform: translateX(75.9px); }
+  .spill .spill-head { animation: none; transform: translateX(78.9px); }
   .spill .spill-head-wobble,
   .spill .spill-glug,
   .spill .spill-puddle { animation: none !important; }

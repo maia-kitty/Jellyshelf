@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { AppIcon, JarLoader } from "./AppIcon";
-import { JellySplash } from "./JellySplash";
 import { DEBUG_COOKIE, MAX_DEBUG_DELAY, type DebugOptions } from "@/lib/debugShared";
 
 const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
@@ -38,13 +37,6 @@ const DEMOS: Demo[] = [
     where: "The jar on the sign-in page",
     duration: 1400,
     render: () => <AppIcon size={96} animate="intro" className="text-fg" />,
-  },
-  {
-    id: "splash",
-    title: "Login splash",
-    where: "Sign-in page: the jar opens and jelly bursts over the whole screen, then fades",
-    duration: 2300,
-    render: ({ run }) => <SplashDemo run={run} />,
   },
   {
     id: "hover",
@@ -112,8 +104,8 @@ function DemoCard({ demo, speed, loaderWidth }: { demo: Demo; speed: number; loa
 
   const animations = useCallback(() => stage.current?.getAnimations({ subtree: true }) ?? [], []);
 
-  // Apply speed / pause to whatever is on stage, including animations that start late (the splash
-  // measures the page before it renders), so this runs every frame rather than once per replay.
+  // Apply speed / pause to whatever is on stage, including animations that start after a replay,
+  // so this runs every frame rather than once per replay.
   const speedRef = useRef(speed);
   const pausedRef = useRef(paused);
   speedRef.current = speed;
@@ -184,24 +176,6 @@ function DemoCard({ demo, speed, loaderWidth }: { demo: Demo; speed: number; loa
         />
       </div>
     </section>
-  );
-}
-
-/** The splash covers the whole screen, so it only plays when asked (Replay), never on page load. */
-function SplashDemo({ run }: { run: number }) {
-  const anchor = useRef<HTMLDivElement>(null);
-  const [done, setDone] = useState(false);
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div ref={anchor} className="text-fg">
-        <AppIcon size={96} animate={run > 0 ? "intro" : undefined} />
-      </div>
-      {run > 0 && !done ? (
-        <JellySplash anchor={anchor} onDone={() => setDone(true)} />
-      ) : (
-        <span className="text-xs text-muted">{run > 0 ? "Done. Replay to see it again." : "Press Replay to play it full-screen"}</span>
-      )}
-    </div>
   );
 }
 
