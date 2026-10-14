@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<anime-list>
+  <anime anidbid="69" tvdbid="81797" defaulttvdbseason="a" tmdbtv="37854" tmdbseason="a" />
+  <anime anidbid="411" tvdbid="81797" defaulttvdbseason="0" episodeoffset="1" tmdbid="19576" imdbid="tt0814243" />
+  <anime anidbid="893" tvdbid="81797" defaulttvdbseason="0" tmdbid="23446" imdbid="tt0832449" />
+  <anime anidbid="1253" tvdbid="81797" defaulttvdbseason="0" tmdbid="44725" imdbid="tt0997084" />
+  <anime anidbid="1254" tvdbid="81797" defaulttvdbseason="0" tmdbid="44727" imdbid="tt1006926" />
+  <anime anidbid="2036" tvdbid="81797" defaulttvdbseason="0" tmdbid="44728" imdbid="tt1010435" />
+  <anime anidbid="2644" tvdbid="81797" defaulttvdbseason="0" episodeoffset="12" tmdbid="44729" imdbid="tt1018764" />
+  <anime anidbid="2736" tvdbid="81797" defaulttvdbseason="0" episodeoffset="0" tmdbid="116315" imdbid="tt1012788" />
+  <anime anidbid="4097" tvdbid="81797" defaulttvdbseason="0" episodeoffset="14" tmdbid="44730" imdbid="tt1059950" />
+  <anime anidbid="4851" tvdbid="81797" defaulttvdbseason="0" episodeoffset="15" tmdbid="25278" imdbid="tt1037116" />
+  <anime anidbid="5691" tvdbid="81797" defaulttvdbseason="0" episodeoffset="16" tmdbid="44731" imdbid="tt1206326" />
+  <anime anidbid="6199" tvdbid="81797" defaulttvdbseason="0" episodeoffset="17" tmdbid="422807" />
+  <anime anidbid="6537" tvdbid="81797" defaulttvdbseason="0" episodeoffset="18" tmdbid="41498" imdbid="tt1485763" />
+  <anime anidbid="7538" tvdbid="81797" defaulttvdbseason="0" episodeoffset="19" tmdbid="270413" />
+  <anime anidbid="8010" tvdbid="81797" defaulttvdbseason="0" episodeoffset="20" tmdbid="79082" imdbid="tt1865467" />
+  <anime anidbid="8762" tvdbid="81797" defaulttvdbseason="0" episodeoffset="21" tmdbid="462387" imdbid="tt27639430" />
+  <anime anidbid="8940" tvdbid="81797" defaulttvdbseason="0" tmdbid="176983" imdbid="tt2375379" />
+  <anime anidbid="9541" tvdbid="267440" defaulttvdbseason="1" tmdbtv="1429" tmdbseason="1" />
+  <anime anidbid="9826" tvdbid="267440" defaulttvdbseason="0" tmdbtv="1429" tmdbseason="0" />
+  <anime anidbid="10944" tvdbid="267440" defaulttvdbseason="2" tmdbtv="1429" tmdbseason="2" />
+  <anime anidbid="11529" tvdbid="81797" defaulttvdbseason="0" tmdbid="374205" imdbid="tt5251328" />
+  <anime anidbid="11829" tvdbid="movie" tmdbid="372058" imdbid="tt5311514" />
+  <anime anidbid="13241" tvdbid="267440" defaulttvdbseason="3" tmdbtv="1429" tmdbseason="3" />
+  <anime anidbid="13546" tvdbid="267440" defaulttvdbseason="0" tmdbtv="1429" tmdbseason="0" imdbid="tt7941892" />
+  <anime anidbid="14318" tvdbid="81797" defaulttvdbseason="0" episodeoffset="37" tmdbid="568012" imdbid="tt9430698" />
+  <anime anidbid="14444" tvdbid="267440" defaulttvdbseason="3" episodeoffset="12" tmdbtv="1429" tmdbseason="3" tmdboffset="12" />
+  <anime anidbid="14977" tvdbid="267440" defaulttvdbseason="4" tmdbtv="1429" tmdbseason="4" />
+  <anime anidbid="15582" tvdbid="267440" defaulttvdbseason="0" tmdbid="714194" imdbid="tt12415546" />
+  <anime anidbid="16177" tvdbid="267440" defaulttvdbseason="4" episodeoffset="16" tmdbtv="1429" tmdbseason="4" tmdboffset="16" />
+  <anime anidbid="16947" tvdbid="405920" defaulttvdbseason="1" tmdbtv="120089" tmdbseason="1" />
+  <anime anidbid="16983" tvdbid="81797" defaulttvdbseason="0" episodeoffset="45" tmdbid="900667" imdbid="tt16183464" />
+  <anime anidbid="17061" tvdbid="405920" defaulttvdbseason="1" episodeoffset="12" tmdbtv="120089" tmdbseason="1" tmdboffset="12" />
+  <anime anidbid="17303" tvdbid="267440" defaulttvdbseason="4" episodeoffset="28" tmdbtv="1429" tmdbseason="4" tmdboffset="28" />
+  <anime anidbid="17617" tvdbid="424536" defaulttvdbseason="1" tmdbtv="209867" tmdbseason="1" />
+  <anime anidbid="17784" tvdbid="405920" defaulttvdbseason="2" tmdbtv="120089" tmdbseason="2" />
+  <anime anidbid="17785" tvdbid="405920" defaulttvdbseason="0" episodeoffset="2" tmdbid="1062807" imdbid="tt26684398" />
+  <anime anidbid="18677" tvdbid="405920" defaulttvdbseason="3" tmdbtv="120089" tmdbseason="3" />
+  <anime anidbid="18886" tvdbid="424536" defaulttvdbseason="2" tmdbtv="209867" tmdbseason="1" tmdboffset="28" />
+  <anime anidbid="19977" tvdbid="424536" defaulttvdbseason="3" tmdbtv="209867" tmdbseason="1" tmdboffset="38" />
+</anime-list>

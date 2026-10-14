@@ -1,0 +1,523 @@
+[
+ {
+  "type": "TV",
+  "anidb_id": 69,
+  "anilist_id": 21,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "tv": 37854
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 411,
+  "anilist_id": 459,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    19576
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 893,
+  "anilist_id": 460,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    23446
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 1253,
+  "anilist_id": 461,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    44725
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 1254,
+  "anilist_id": 462,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    44727
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 2036,
+  "anilist_id": 463,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    44728
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 2644,
+  "anilist_id": 464,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    44729
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "OVA",
+  "anidb_id": 2736,
+  "anilist_id": 466,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    116315
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 4097,
+  "anilist_id": 465,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    44730
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 4851,
+  "anilist_id": 2107,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    25278
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 5691,
+  "anilist_id": 3848,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    44731
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "OVA",
+  "anidb_id": 6199,
+  "anilist_id": 5252,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    422807
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 6537,
+  "anilist_id": 4155,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    41498
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "OVA",
+  "anidb_id": 7538,
+  "anilist_id": 8740,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    270413
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 8010,
+  "anilist_id": 9999,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    79082
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 8762,
+  "anilist_id": 12001,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    462387
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 8940,
+  "anilist_id": 12859,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    176983
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 9541,
+  "anilist_id": 16498,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 1,
+   "tmdb": 1
+  }
+ },
+ {
+  "type": "OVA",
+  "anidb_id": 9826,
+  "anilist_id": 18397,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 0,
+   "tmdb": 0
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 10944,
+  "anilist_id": 20958,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 2,
+   "tmdb": 2
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 11529,
+  "anilist_id": 21335,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    374205
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 11829,
+  "anilist_id": 21519,
+  "themoviedb_id": {
+   "movie": [
+    372058
+   ]
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 13241,
+  "anilist_id": 99147,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 3,
+   "tmdb": 3
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 13546,
+  "anilist_id": 100465,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 0,
+   "tmdb": 0
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 14318,
+  "anilist_id": 105143,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    568012
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 14444,
+  "anilist_id": 104578,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 3,
+   "tmdb": 3
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 14977,
+  "anilist_id": 110277,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 4,
+   "tmdb": 4
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 15582,
+  "anilist_id": 119113,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "movie": [
+    714194
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 16177,
+  "anilist_id": 131681,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 4,
+   "tmdb": 4
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 16947,
+  "anilist_id": 140960,
+  "tvdb_id": 405920,
+  "themoviedb_id": {
+   "tv": 120089
+  },
+  "season": {
+   "tvdb": 1,
+   "tmdb": 1
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 16983,
+  "anilist_id": 141902,
+  "tvdb_id": 81797,
+  "themoviedb_id": {
+   "movie": [
+    900667
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 17061,
+  "anilist_id": 142838,
+  "tvdb_id": 405920,
+  "themoviedb_id": {
+   "tv": 120089
+  },
+  "season": {
+   "tvdb": 1,
+   "tmdb": 1
+  }
+ },
+ {
+  "type": "SPECIAL",
+  "anidb_id": 17303,
+  "anilist_id": 146984,
+  "tvdb_id": 267440,
+  "themoviedb_id": {
+   "tv": 1429
+  },
+  "season": {
+   "tvdb": 4,
+   "tmdb": 4
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 17617,
+  "anilist_id": 154587,
+  "tvdb_id": 424536,
+  "themoviedb_id": {
+   "tv": 209867
+  },
+  "season": {
+   "tvdb": 1,
+   "tmdb": 1
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 17784,
+  "anilist_id": 158927,
+  "tvdb_id": 405920,
+  "themoviedb_id": {
+   "tv": 120089
+  },
+  "season": {
+   "tvdb": 2,
+   "tmdb": 2
+  }
+ },
+ {
+  "type": "MOVIE",
+  "anidb_id": 17785,
+  "anilist_id": 158928,
+  "tvdb_id": 405920,
+  "themoviedb_id": {
+   "movie": [
+    1062807
+   ]
+  },
+  "season": {
+   "tvdb": 0
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 18677,
+  "anilist_id": 177937,
+  "tvdb_id": 405920,
+  "themoviedb_id": {
+   "tv": 120089
+  },
+  "season": {
+   "tvdb": 3,
+   "tmdb": 3
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 18886,
+  "anilist_id": 182255,
+  "tvdb_id": 424536,
+  "themoviedb_id": {
+   "tv": 209867
+  },
+  "season": {
+   "tvdb": 2,
+   "tmdb": 1
+  }
+ },
+ {
+  "type": "TV",
+  "anidb_id": 19977,
+  "anilist_id": 209939,
+  "tvdb_id": 424536,
+  "themoviedb_id": {
+   "tv": 209867
+  },
+  "season": {
+   "tvdb": 3,
+   "tmdb": 1
+  }
+ }
+]

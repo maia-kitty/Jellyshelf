@@ -1,0 +1,6 @@
+services:
+  kitsune:
+    build: .
+    ports: ["3000:3000"]
+    volumes: ["./config:/config"]
+    restart: unless-stopped
