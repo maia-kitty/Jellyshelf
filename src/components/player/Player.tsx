@@ -8,6 +8,7 @@ import type { BrowserCaps, PlayReport, PlaySource, SubtitleTrack, WatchMeta } fr
 import { detectCaps } from "./caps";
 import { SeekBar } from "./SeekBar";
 import { Icon } from "./icons";
+import { JarLoader } from "../AppIcon";
 
 type HlsLike = { destroy(): void; loadSource(u: string): void; attachMedia(v: HTMLVideoElement): void; on(ev: string, cb: (e: string, d: { fatal?: boolean }) => void): void };
 type JassubLike = { destroy(): void | Promise<void> };
@@ -515,7 +516,12 @@ export function Player({ meta }: { meta: WatchMeta }) {
               </div>
             </div>
           ) : (
-            <span className="player-spinner h-12 w-12 rounded-full border-4 border-white/20 border-t-white" />
+            // Starting up: the jelly jar. Buffering mid-video: just a small spinner over the picture.
+            !started.current ? (
+              <JarLoader width={220} label="Starting…" className="text-white/80" />
+            ) : (
+              <span className="player-spinner h-12 w-12 rounded-full border-4 border-white/20 border-t-white" />
+            )
           )}
         </div>
       )}
