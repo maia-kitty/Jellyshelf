@@ -12,11 +12,12 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
       <ShelfHeader title="Continue watching" />
       <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3 pt-1.5">
         {cards.map((c, i) => (
+          <div key={`${c.kind}:${c.id}`} className="card-in group relative shrink-0 transition duration-300 ease-out hover:-translate-y-1" style={{ "--i": i } as React.CSSProperties}>
+          {/* The card plays (when there's something to play); the corner button opens the title's page. */}
           <Link
-            key={`${c.kind}:${c.id}`}
             href={c.playHref ?? c.href}
-            style={{ "--i": i } as React.CSSProperties}
-            className="card-in group relative flex h-36 w-72 shrink-0 overflow-hidden rounded-xl border border-line bg-panel transition duration-300 ease-out hover:-translate-y-1 hover:border-accent active:scale-[0.98] sm:w-80"
+            aria-label={c.playHref ? `Play ${c.title}` : c.title}
+            className="relative flex h-36 w-72 overflow-hidden rounded-xl border border-line bg-panel transition duration-300 ease-out group-hover:border-accent active:scale-[0.98] sm:w-80"
           >
             {c.poster && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -53,6 +54,20 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
               </div>
             </div>
           </Link>
+          {c.playHref && (
+            <Link
+              href={c.href}
+              aria-label={`Open ${c.title}`}
+              title="Open page"
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white/80 backdrop-blur transition hover:bg-white hover:text-black"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 11v5M12 8h.01" />
+              </svg>
+            </Link>
+          )}
+          </div>
         ))}
       </div>
     </section>
