@@ -17,7 +17,11 @@ type Dated = { card: Card; at: number };
 export async function continueWatching(user: User, list: Map<number, AniListEntry & { media: AniMediaCard }> | null): Promise<Card[]> {
   const watching = list ? [...list.values()].filter((e) => e.status === "CURRENT" || e.status === "REPEATING") : [];
   const anime: Dated[] = watching.map((e) => ({
-    card: { ...animeCard(e.media), watched: e.media.episodes ? Math.min(1, e.progress / e.media.episodes) : undefined },
+    card: {
+      ...animeCard(e.media),
+      sub: e.media.episodes && e.progress >= e.media.episodes ? "All watched" : `Next: episode ${e.progress + 1}${e.media.episodes ? ` of ${e.media.episodes}` : ""}`,
+      watched: e.media.episodes ? Math.min(1, e.progress / e.media.episodes) : undefined,
+    },
     at: e.updatedAt * 1000,
   }));
   const fromJellyfin = await jellyfinWatching(user, new Set(watching.map((e) => e.mediaId))).catch((e) => {

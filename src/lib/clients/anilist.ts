@@ -89,6 +89,13 @@ export interface AniListEntry {
   updatedAt: number;
 }
 
+/** One episode on the airing schedule. */
+export interface AiringSlot {
+  airingAt: number;
+  episode: number;
+  media: AniMediaCard & { popularity: number; isAdult: boolean; countryOfOrigin: string | null };
+}
+
 export interface ListEntryPatch {
   status?: AniListStatus;
   progress?: number;
@@ -249,6 +256,34 @@ export const anilist = {
       return data.Page.media.filter((m) => m.bannerImage).slice(0, 6);
     }),
   popular: (p: PageArgs = {}) => page("popular", "sort: POPULARITY_DESC", "", {}, p, 3600),
+  /**
+   * Episodes airing between two times (unix seconds), soonest first. Up to 3 pages of 50; the week's schedule of
+   * everything popular enough to matter fits comfortably. Cached by the hour.
+   */
+  schedule: (from: number, to: number) =>
+    cached(`anilist:schedule:${Math.floor(from / 3600)}:${Math.floor(to / 3600)}`, 1800, async () => {
+      const out: AiringSlot[] = [];
+      for (let pg = 1; pg <= 3; pg++) {
+        const data = await anilistQuery<{ Page: { pageInfo: { hasNextPage: boolean }; airingSchedules: AiringSlot[] } }>(
+          `query ($from: Int, $to: Int, $page: Int) { Page(page: $page, perPage: 50) { pageInfo { hasNextPage }
+            airingSchedules(airingAt_greater: $from, airingAt_lesser: $to, sort: TIME) {
+              airingAt episode media { ${CARD} popularity isAdult countryOfOrigin } } } }`,
+          { from, to, page: pg },
+        );
+        out.push(...data.Page.airingSchedules);
+        if (!data.Page.pageInfo.hasNextPage) break;
+      }
+      return out.filter((s) => !s.media.isAdult);
+    }),
+  /** What AniList users recommend alongside this title, best-rated first. */
+  recommendations: (id: number) =>
+    cached(`anilist:recs:${id}`, 86400, async () => {
+      const data = await anilistQuery<{ Media: { recommendations: { nodes: { rating: number; mediaRecommendation: AniMediaCard | null }[] } } | null }>(
+        `query ($id: Int) { Media(id: $id, type: ANIME) { recommendations(sort: RATING_DESC, perPage: 20) { nodes { rating mediaRecommendation { ${CARD} } } } } }`,
+        { id },
+      );
+      return (data.Media?.recommendations.nodes ?? []).flatMap((n) => (n.mediaRecommendation && n.rating > 0 ? [n.mediaRecommendation] : []));
+    }),
   seasonal: (season: AniSeason, year: number, p: PageArgs = {}) =>
     page("seasonal", "season: $season, seasonYear: $year, sort: POPULARITY_DESC", "$season: MediaSeason, $year: Int, ", { season, year }, p),
   search: (search: string, p: PageArgs = {}) =>

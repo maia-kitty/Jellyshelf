@@ -8,6 +8,7 @@ import type { DownloadProgress } from "@/lib/downloads";
 import { StatusBadge } from "./StatusBadge";
 import { SubsChip } from "./Subtitles";
 import { DownloadBar } from "./DownloadBar";
+import { requestScope } from "@/lib/requestScope";
 import type { SubsSummary } from "@/lib/subtitles";
 
 export interface RequestRow {
@@ -52,13 +53,7 @@ function ago(iso: string) {
   return "just now";
 }
 
-function scope(r: RequestRow) {
-  if (r.target === "radarr") return "Movie";
-  const eps = r.episodeRanges?.map((x) => `ep ${x.from}–${x.to ?? "…"}`).join(", ");
-  if (r.absolute) return eps ? `Absolute ${eps}` : "Whole series";
-  const s = r.seasons?.map((n) => (n === 0 ? "Specials" : `S${n}`)).join(", ");
-  return [s, eps].filter(Boolean).join(" · ");
-}
+const scope = requestScope;
 
 export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isAdmin: boolean; userId: number }) {
   const router = useRouter();

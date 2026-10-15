@@ -46,18 +46,27 @@ export function MediaCard({ card }: { card: Card }) {
   );
 }
 
-export function CardRow({ title, href, cards }: { title: string; href?: string; cards: Card[] }) {
+/** Heading for a home/discover section, with an optional "See all" link and a muted aside. */
+export function ShelfHeader({ title, href, note, actions }: { title: React.ReactNode; href?: string; note?: React.ReactNode; actions?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-baseline gap-3">
+      <h2 className="min-w-0 truncate text-lg font-semibold">{title}</h2>
+      {note && <span className="hidden min-w-0 truncate text-sm text-muted sm:inline">{note}</span>}
+      {actions}
+      {href && (
+        <Link href={href} className="ml-auto shrink-0 text-sm text-muted hover:text-fg">
+          See all →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+export function CardRow({ title, href, cards, note }: { title: React.ReactNode; href?: string; cards: Card[]; note?: React.ReactNode }) {
   if (!cards.length) return null;
   return (
     <section className="mb-10">
-      <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {href && (
-          <Link href={href} className="text-sm text-muted hover:text-fg">
-            See all →
-          </Link>
-        )}
-      </div>
+      <ShelfHeader title={title} href={href} note={note} />
       <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3">
         {cards.map((c) => (
           <div key={`${c.kind}:${c.id}`} className="w-36 shrink-0 sm:w-40">
