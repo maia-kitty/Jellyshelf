@@ -107,9 +107,6 @@ export function EpisodeList({
             show missing
           </label>
         )}
-        <span className="ml-auto">
-          <JellyfinButton href={info.playUrl} label="Play" />
-        </span>
       </div>
       {(info.subs || audio) && (
         <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
