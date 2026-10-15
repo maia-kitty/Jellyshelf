@@ -80,7 +80,7 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
                 onClick={() => setI(n)}
                 className={clsx(
                   "relative h-2 overflow-hidden rounded-full transition-all duration-300",
-                  n === i ? "w-8 bg-white/15" : "w-2 opacity-45 hover:opacity-80",
+                  n === i ? "w-14 bg-white/15" : "w-2 opacity-45 hover:opacity-80",
                 )}
                 style={n === i ? undefined : { backgroundImage: JELLY }}
               >
@@ -89,14 +89,12 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
                   // motion it never runs, so slides only change by hand.
                   <span
                     key={i}
-                    onAnimationEnd={() => go(1)}
-                    className="spotlight-progress absolute inset-0 rounded-full"
-                    style={{
-                      backgroundImage: JELLY,
-                      animationDuration: `${ROTATE_MS}ms`,
-                      animationPlayState: hold ? "paused" : "running",
-                    }}
-                  />
+                    onAnimationEnd={(e) => e.target === e.currentTarget && go(1)}
+                    className="spotlight-progress absolute inset-0 overflow-hidden rounded-full"
+                    style={{ animationDuration: `${ROTATE_MS}ms`, animationPlayState: hold ? "paused" : "running" }}
+                  >
+                    <span className="absolute inset-0" style={{ backgroundImage: JELLY }} />
+                  </span>
                 )}
               </button>
             ))}

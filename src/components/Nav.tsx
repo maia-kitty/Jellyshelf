@@ -43,7 +43,13 @@ function useSlidingPill<T extends HTMLElement>(path: string) {
       setPill((prev) => (el ? { x: el.offsetLeft, w: el.offsetWidth, animate: animate && prev !== null } : null));
     };
     measure(true);
-    const ro = new ResizeObserver(() => measure(false));
+    // A ResizeObserver reports once as soon as it starts observing; acting on that would snap the pill into place
+    // mid-glide. Only real resizes after that should jump it.
+    let first = true;
+    const ro = new ResizeObserver(() => {
+      if (first) first = false;
+      else measure(false);
+    });
     if (box.current) ro.observe(box.current);
     return () => ro.disconnect();
   }, [path]);

@@ -184,12 +184,28 @@ body {
   from { opacity: 0; transform: translateY(8px); }
 }
 .rise-in { animation: rise-in 0.6s ease-out both; }
-/* Scaled rather than resized: a width animation re-lays out every frame and steps visibly on a bar this small. */
+/* The fill slides in from the left (a compositor transform: no layout per frame, unlike animating width) while its
+   inner layer slides the other way, so the gradient stays put and is revealed rather than dragged along. The soft
+   leading edge hides the pixel-by-pixel steps a bar this slow would otherwise show. */
 @keyframes spotlight-progress {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
-.spotlight-progress { transform-origin: left center; will-change: transform; animation: spotlight-progress linear both; }
+@keyframes spotlight-progress-inner {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.spotlight-progress {
+  will-change: transform;
+  animation: spotlight-progress linear both;
+  mask-image: linear-gradient(to right, #000 calc(100% - 10px), transparent);
+}
+.spotlight-progress > span {
+  will-change: transform;
+  animation: spotlight-progress-inner linear both;
+  animation-duration: inherit;
+  animation-play-state: inherit;
+}
 
 /* Each page eases in on navigation (app/template.tsx). Only the start state is applied ("backwards"): a transform
    left on the wrapper would turn it into the containing block for fixed dialogs and the dock. */
@@ -236,6 +252,7 @@ body {
   .jar .jar-sparks circle,
   .rise-in,
   .spotlight-progress,
+  .spotlight-progress > span,
   .page-in,
   .card-in,
   .tab-pop {
