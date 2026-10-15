@@ -95,6 +95,9 @@ export function Nav({ user }: { user: NavUser }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // The player is the whole screen: no bar (or search field) left underneath it.
+  if (path.startsWith("/watch/")) return null;
+
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
@@ -119,6 +122,7 @@ export function Nav({ user }: { user: NavUser }) {
             ))}
           </nav>
           <form
+            role="search"
             className="relative ml-auto min-w-0 flex-1 lg:max-w-xs"
             onSubmit={(e) => {
               e.preventDefault();
@@ -126,7 +130,22 @@ export function Nav({ user }: { user: NavUser }) {
               search.current?.blur();
             }}
           >
-            <input ref={search} className="input pr-8" placeholder="Search anime, movies, series…" value={q} onChange={(e) => setQ(e.target.value)} />
+            {/* Not a login field, whatever password managers guess: keep their autofill menus off it. */}
+            <input
+              ref={search}
+              type="search"
+              name="q"
+              autoComplete="off"
+              data-bwignore="true"
+              data-1p-ignore="true"
+              data-lpignore="true"
+              data-form-type="other"
+              enterKeyHint="search"
+              className="input pr-8 [&::-webkit-search-cancel-button]:hidden"
+              placeholder="Search anime, movies, series…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
             <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line px-1.5 text-[11px] text-muted sm:block">
               /
             </kbd>
