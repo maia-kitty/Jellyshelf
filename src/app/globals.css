@@ -25,7 +25,12 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Sideways rows only ever scroll sideways. overflow-x: auto quietly makes the other axis scrollable too, so anything
+   poking out vertically (the Top 10's big numerals, a hover lift) would otherwise give the row a little vertical
+   scroll on touch screens. Swiping past the end doesn't drag the page or trigger back-navigation. */
 .scroll-row {
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
 }
