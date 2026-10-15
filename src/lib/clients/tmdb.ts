@@ -60,6 +60,12 @@ export interface TmdbTvDetails extends TmdbTv {
   number_of_seasons: number;
   seasons: TmdbSeason[];
   external_ids?: { tvdb_id: number | null; imdb_id: string | null };
+  number_of_episodes?: number;
+  last_air_date?: string | null;
+  episode_run_time?: number[];
+  networks?: { id: number; name: string }[];
+  created_by?: { id: number; name: string }[];
+  recommendations?: TmdbPage<TmdbTv>;
 }
 
 export interface TmdbPage<T> {
@@ -104,7 +110,7 @@ export const tmdbClient = {
   popularTv: (page = 1) => tmdb<TmdbPage<TmdbTv>>("/tv/popular", { page }),
   airingTv: (page = 1) => tmdb<TmdbPage<TmdbTv>>("/tv/on_the_air", { page }),
   movie: (id: number) => tmdb<TmdbMovieDetails>(`/movie/${id}`, { append_to_response: "external_ids,recommendations" }),
-  tv: (id: number) => tmdb<TmdbTvDetails>(`/tv/${id}`, { append_to_response: "external_ids" }),
+  tv: (id: number) => tmdb<TmdbTvDetails>(`/tv/${id}`, { append_to_response: "external_ids,recommendations" }),
   search: (query: string, page = 1) => tmdb<TmdbPage<TmdbMultiResult>>("/search/multi", { query, page }, 600),
   /** Used by the setup wizard's test button. */
   ping: () => tmdb<unknown>("/configuration", {}, 0),

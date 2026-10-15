@@ -1,29 +1,29 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { and, eq, inArray } from "drizzle-orm";
+import { db, schema } from "@/db";
+import type { User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
 import { CardRow } from "@/components/MediaCard";
-import { TvRequest } from "@/components/RequestButtons";
+import { TvRequest, TvRequestAll, type SeasonOption } from "@/components/RequestButtons";
+import { EpisodeList, JellyfinButton } from "@/components/Episodes";
+import { JarLoader } from "@/components/AppIcon";
+import { DetailsPanel } from "@/components/DetailsPanel";
+import { LibraryStatus } from "@/components/LibraryStatus";
+import { AnimeNote } from "@/components/AnimeNote";
 import { anilist } from "@/lib/clients/anilist";
-import { looksLikeAnime, tmdbClient, tmdbImage } from "@/lib/clients/tmdb";
+import { looksLikeAnime, tmdbClient, tmdbImage, type TmdbTvDetails } from "@/lib/clients/tmdb";
 import { HttpError } from "@/lib/clients/http";
-import { animeCard, decorate } from "@/lib/cards";
+import { animeCard, decorate, tvCard } from "@/lib/cards";
 import { anilistIdsFor } from "@/lib/mapping";
 import { findMedia, requestedSeasons } from "@/lib/media";
 import { pageUser } from "@/lib/page";
-import { Suspense } from "react";
-import { EpisodeList } from "@/components/Episodes";
-import { JarLoader } from "@/components/AppIcon";
-import { seriesEpisodes } from "@/lib/episodes";
+import { seriesEpisodes, type EpisodesInfo } from "@/lib/episodes";
 import { debugSleep } from "@/lib/debug";
 import { canFixSubs } from "@/lib/subtitles";
-import type { User } from "@/db/schema";
+import { langName } from "@/lib/langs";
 
-async function TvEpisodes({ title, user, ...props }: { tvdbId: number; tmdbId: number; jellyfinItemId: string | null; title: string; user: User }) {
-  await debugSleep("episodes");
-  const info = await seriesEpisodes({ ...props, target: null }).catch(() => null);
-  if (!info || (!info.episodes.length && !info.playUrl)) return null;
-  const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
-  return <EpisodeList info={info} anilist={null} groupBySeason title={title} canFixSubs={canFix} />;
-}
+const longDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
 export default async function TvPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
@@ -34,23 +34,41 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
   });
   const media = await findMedia({ kind: "tv", tmdbId: id });
   const requested = new Set(media ? await requestedSeasons(media.id) : []);
-  const isAnime = looksLikeAnime(tv);
+  const active = media
+    ? await db
+        .select()
+        .from(schema.requests)
+        .where(and(eq(schema.requests.mediaId, media.id), inArray(schema.requests.status, ["pending", "approved", "completed"])))
+    : [];
+  const tvdbId = tv.external_ids?.tvdb_id ?? null;
+  // Started once; the hero (Play) and the episode list both wait on it.
+  const library = tvdbId
+    ? (async () => {
+        await debugSleep("episodes");
+        return seriesEpisodes({ tvdbId, tmdbId: id, jellyfinItemId: media?.jellyfinItemId ?? null, target: null }).catch(() => null);
+      })()
+    : Promise.resolve(null);
 
-  const mapped = isAnime ? await anilistIdsFor({ tmdbTvId: id, tvdbId: tv.external_ids?.tvdb_id }) : [];
+  const isAnime = looksLikeAnime(tv);
+  const mapped = isAnime ? await anilistIdsFor({ tmdbTvId: id, tvdbId }) : [];
   const entries = mapped.length ? await anilist.byIds(mapped.map((m) => m.anilistId).slice(0, 50)) : [];
   const order = new Map(mapped.map((m) => [m.anilistId, (m.tvdbSeason ?? 99) * 1000 + m.episodeOffset]));
   entries.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   const animeCards = await decorate(entries.map(animeCard), user);
+  const recs = await decorate((tv.recommendations?.results ?? []).slice(0, 20).map(tvCard), user);
 
-  const seasons = tv.seasons
+  const seasons: SeasonOption[] = tv.seasons
     .filter((s) => s.episode_count > 0)
     .map((s) => ({
       number: s.season_number,
       name: s.name,
       episodes: s.episode_count,
+      year: s.air_date?.slice(0, 4) ?? null,
+      poster: tmdbImage(s.poster_path ?? tv.poster_path),
       status: media?.seasonStatus?.[s.season_number],
       requested: requested.has(s.season_number),
     }));
+  const regular = seasons.filter((s) => s.number > 0).length;
 
   return (
     <>
@@ -59,30 +77,78 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         original={tv.original_name}
         poster={tmdbImage(tv.poster_path, "w500")}
         backdrop={tmdbImage(tv.backdrop_path, "original")}
-        facts={[tv.first_air_date?.slice(0, 4), `${tv.number_of_seasons} season${tv.number_of_seasons === 1 ? "" : "s"}`, tv.status, tv.vote_average ? `★ ${tv.vote_average.toFixed(1)}` : null]}
+        facts={[
+          tv.first_air_date?.slice(0, 4),
+          `${regular} season${regular === 1 ? "" : "s"}`,
+          tv.number_of_episodes ? `${tv.number_of_episodes} episodes` : null,
+          tv.vote_average ? `★ ${Math.round(tv.vote_average * 10)}%` : null,
+        ]}
         genres={tv.genres.map((g) => g.name)}
         overview={tv.overview}
         status={media?.status}
-      />
-      {isAnime && animeCards.length > 0 && (
-        <div className="mb-6 rounded-xl border border-anilist/40 bg-anilist/5 p-4 text-sm">
-          <strong className="text-anilist">This is anime.</strong> AniList splits it into the entries below; requesting from those
-          monitors the exact TVDB season/episodes for each cour and adds them to your AniList list.
+        aside={<TvDetails tv={tv} />}
+      >
+        {animeCards.length > 0 && <AnimeNote href="#anilist-entries" what="series" />}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-start gap-3">
+            <Suspense fallback={null}>
+              <PlayButton library={library} />
+            </Suspense>
+            {tvdbId ? (
+              <TvRequestAll tmdbId={id} seasons={seasons} />
+            ) : (
+              <p className="text-sm text-bad">No TVDB id on TMDB — Sonarr can&apos;t add this show.</p>
+            )}
+          </div>
+          <LibraryStatus requests={active} media={media} inLibrary={media?.status === "available"} />
         </div>
-      )}
-      <CardRow title="AniList entries" cards={animeCards} />
-      {tv.external_ids?.tvdb_id && (
+      </Hero>
+
+      {tvdbId && (
         <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
-          <TvEpisodes tvdbId={tv.external_ids.tvdb_id} tmdbId={id} jellyfinItemId={media?.jellyfinItemId ?? null} title={tv.name} user={user} />
+          <TvEpisodes library={library} title={tv.name} user={user} />
         </Suspense>
       )}
-      <div className="max-w-2xl">
-        {tv.external_ids?.tvdb_id ? (
-          <TvRequest tmdbId={id} seasons={seasons} />
-        ) : (
-          <p className="text-bad">No TVDB id on TMDB — Sonarr can&apos;t add this show.</p>
-        )}
+      {tvdbId && <TvRequest tmdbId={id} seasons={seasons} />}
+      <div id="anilist-entries" className="scroll-mt-24">
+        <CardRow title="On AniList" cards={animeCards} />
       </div>
+      <CardRow title="More like this" cards={recs} />
     </>
+  );
+}
+
+async function PlayButton({ library }: { library: Promise<EpisodesInfo | null> }) {
+  return <JellyfinButton href={(await library)?.playUrl ?? null} />;
+}
+
+async function TvEpisodes({ library, title, user }: { library: Promise<EpisodesInfo | null>; title: string; user: User }) {
+  const info = await library;
+  if (!info || (!info.episodes.length && !info.playUrl)) return null;
+  const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
+  return <EpisodeList info={info} anilist={null} groupBySeason title={title} canFixSubs={canFix} />;
+}
+
+function TvDetails({ tv }: { tv: TmdbTvDetails }) {
+  const imdb = tv.external_ids?.imdb_id;
+  const runtime = tv.episode_run_time?.[0];
+  const ended = tv.status === "Ended" || tv.status === "Canceled";
+  return (
+    <DetailsPanel
+      facts={[
+        ["First aired", tv.first_air_date ? longDate(tv.first_air_date) : null],
+        [ended ? "Last aired" : "Latest episode", tv.last_air_date ? longDate(tv.last_air_date) : null],
+        ["Status", tv.status],
+        ["Network", tv.networks?.slice(0, 2).map((n) => n.name).join(", ")],
+        ["Episode length", runtime ? `${runtime} min` : null],
+        ["Language", tv.original_language ? langName(tv.original_language) : null],
+        ["Created by", tv.created_by?.slice(0, 2).map((c) => c.name).join(", ")],
+      ]}
+      links={[
+        { label: "TMDB", href: `https://www.themoviedb.org/tv/${tv.id}` },
+        ...(imdb ? [{ label: "IMDb", href: `https://www.imdb.com/title/${imdb}` }] : []),
+        ...(tv.external_ids?.tvdb_id ? [{ label: "TVDB", href: `https://thetvdb.com/dereferrer/series/${tv.external_ids.tvdb_id}` }] : []),
+      ]}
+    />
   );
 }

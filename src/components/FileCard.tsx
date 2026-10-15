@@ -1,10 +1,8 @@
-import type { Media, Request, User } from "@/db/schema";
+import type { User } from "@/db/schema";
 import type { MovieLibraryInfo } from "@/lib/episodes";
 import { canFixSubs } from "@/lib/subtitles";
-import { downloadQueues, progressFor } from "@/lib/downloads";
 import { langName } from "@/lib/langs";
 import { SubsBar } from "./Subtitles";
-import { DownloadBar } from "./DownloadBar";
 
 const gb = (bytes: number) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1e6))} MB`);
 
@@ -31,38 +29,20 @@ export function Langs({ codes, empty = "—" }: { codes: string[]; empty?: strin
   );
 }
 
-/** What's on disk for a film (quality, dubs, subtitles), or where the request is up to before there's a file. */
+/** What's on disk for a film: quality, dubs, subtitles. */
 export async function FileCard({
   info,
-  requests,
-  media,
   title,
   user,
 }: {
   info: MovieLibraryInfo | null;
-  requests: Request[];
-  media: Media | null;
   title: string;
   user: User;
 }) {
   const file = info?.file;
 
-  if (!file) {
-    // Nothing to say until someone has asked for it.
-    if (!requests.length) return null;
-    const approved = requests.find((r) => r.status === "approved");
-    const download = approved && media ? progressFor(approved, media, await downloadQueues()) : null;
-    return (
-      <section className="card p-5">
-        <h3 className="mb-2 font-semibold">Library</h3>
-        {download ? (
-          <DownloadBar d={download} className="max-w-xl" />
-        ) : (
-          <p className="text-sm text-muted">{approved ? "Approved — Radarr is looking for a release." : "Requested — waiting for an admin to approve it."}</p>
-        )}
-      </section>
-    );
-  }
+  // Before there's a file, the hero says where the request is up to.
+  if (!file || !info) return null;
 
   const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
   return (

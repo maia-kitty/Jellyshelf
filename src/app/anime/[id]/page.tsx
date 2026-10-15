@@ -11,7 +11,7 @@ import { MappingOverride } from "@/components/MappingOverride";
 import { AniListPanel } from "@/components/AniListPanel";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
 import { FileCard } from "@/components/FileCard";
-import { DownloadBar } from "@/components/DownloadBar";
+import { LibraryStatus } from "@/components/LibraryStatus";
 import { JarLoader } from "@/components/AppIcon";
 import { movieInfo, seriesEpisodes, type EpisodesInfo, type MovieLibraryInfo } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
@@ -26,7 +26,6 @@ import { pageUser } from "@/lib/page";
 import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
-import { downloadQueues, progressFor } from "@/lib/downloads";
 
 async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
   const token = anilistToken(user);
@@ -82,36 +81,27 @@ async function HeroActions({
   requests: Request[];
   media: Media | undefined;
 }) {
-  const lib = await library;
-  const playUrl = lib?.info.playUrl ?? null;
-  const approved = requests.find((r) => r.status === "approved");
-  const download = approved && media ? progressFor(approved, media, await downloadQueues()) : null;
-  const pending = requests.some((r) => r.status === "pending");
+  const playUrl = (await library)?.info.playUrl ?? null;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start gap-3">
         <JellyfinButton href={playUrl} />
         {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={current} />}
       </div>
-      {download ? (
-        <DownloadBar d={download} className="max-w-md" />
-      ) : approved && !playUrl ? (
-        <p className="text-sm text-muted">Approved — Sonarr/Radarr is looking for a release.</p>
-      ) : pending ? (
-        <p className="text-sm text-muted">Requested — waiting for an admin to approve it.</p>
-      ) : null}
+      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} />
     </div>
   );
 }
 
-async function LibrarySection({ library, entry, progress, user, requests, media }: { library: Promise<Library>; entry: AniMediaCard; progress: number | null; user: User; requests: Request[]; media: Media | undefined }) {
+async function LibrarySection({ library, entry, progress, user }: { library: Promise<Library>; entry: AniMediaCard; progress: number | null; user: User }) {
   const lib = await library;
   if (!lib) return null;
   const title = aniTitle(entry.title);
   if (lib.kind === "movie") {
+    if (!lib.info.file) return null;
     return (
       <div className="mb-10">
-        <FileCard info={lib.info} requests={requests} media={media ?? null} title={title} user={user} />
+        <FileCard info={lib.info} title={title} user={user} />
       </div>
     );
   }
@@ -208,7 +198,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
       </Hero>
 
       <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
-        <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} requests={active} media={media} />
+        <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
       </Suspense>
       <Suspense fallback={<AnimeRequest entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
         <Franchise entry={a} user={user} footer={mappingFooter} />
