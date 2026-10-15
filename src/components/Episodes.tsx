@@ -6,6 +6,7 @@ import clsx from "clsx";
 import type { EpisodesInfo } from "@/lib/episodes";
 import { patchEntry } from "./ListEditor";
 import { SubsBar, SubsChips, SubtitlePicker } from "./Subtitles";
+import { langName } from "@/lib/langs";
 
 const PAGE = 60;
 
@@ -15,6 +16,18 @@ function size(bytes: number | null) {
 }
 
 const code = (s: number, e: number) => `S${String(s).padStart(2, "0")}E${String(e).padStart(2, "0")}`;
+
+/** "Audio: Japanese · English" or "Audio: Japanese · English on 10 of 12" when a dub only covers some episodes. */
+function audioSummary(eps: EpisodesInfo["episodes"]) {
+  const files = eps.filter((e) => e.hasFile && e.audio.length);
+  if (!files.length) return null;
+  const count = new Map<string, number>();
+  for (const e of files) for (const l of e.audio) count.set(l, (count.get(l) ?? 0) + 1);
+  const parts = [...count]
+    .sort((a, b) => b[1] - a[1])
+    .map(([l, n]) => (n === files.length ? langName(l) : `${langName(l)} on ${n} of ${files.length}`));
+  return `Audio: ${parts.join(" · ")}`;
+}
 
 export function JellyfinButton({ href, label = "Play on Jellyfin" }: { href: string | null; label?: string }) {
   if (!href) return null;
@@ -56,6 +69,7 @@ export function EpisodeList({
   const rows = info.episodes.filter((e) => e.hasFile || (showMissing && (!e.airDate || Date.parse(e.airDate) <= now + 7 * 864e5)));
   const shown = rows.slice(0, limit);
   const missing = info.episodes.length - info.downloaded;
+  const audio = audioSummary(info.episodes);
 
   const markUpTo = async (n: number) => {
     if (!anilist) return;
@@ -89,7 +103,12 @@ export function EpisodeList({
           <JellyfinButton href={info.playUrl} label="Open in Jellyfin" />
         </span>
       </div>
-      {info.subs && <SubsBar subs={info.subs} canFix={canFixSubs} title={title} className="mb-3" />}
+      {(info.subs || audio) && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+          {audio && <span className="text-sm text-muted">{audio}</span>}
+          {info.subs && <SubsBar subs={info.subs} canFix={canFixSubs} title={title} />}
+        </div>
+      )}
       {err && <p className="mb-2 text-sm text-bad">{err}</p>}
       {picking && info.subs && (
         <SubtitlePicker target={{ kind: "series", id: info.subs.id, episodeId: picking.id }} title={`${title} · ${picking.label}`} onClose={() => setPicking(null)} />
@@ -118,6 +137,7 @@ export function EpisodeList({
                         e.absolute !== null && e.absolute !== e.n ? `#${e.absolute}` : null,
                         e.hasFile ? e.quality : e.airDate ? `airs ${new Date(e.airDate).toLocaleDateString()}` : "missing",
                         size(e.size),
+                        e.audio.length ? e.audio.join("+") : null,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
@@ -139,7 +159,8 @@ export function EpisodeList({
                   {anilist && (
                     <button
                       className={clsx(
-                        "shrink-0 text-xs text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100",
+                        // Phones have no hover to reveal it, and the row needs the room.
+                        "shrink-0 text-xs text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100 max-sm:hidden",
                         watched && "invisible",
                       )}
                       tabIndex={watched ? -1 : undefined}

@@ -1,16 +1,19 @@
 import { aniDescription } from "@/lib/text";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import type { User } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/db";
+import type { Media, Request, User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
 import { CardRow } from "@/components/MediaCard";
-import { AnimeRequest, type AnimeEntryOption } from "@/components/RequestButtons";
+import { AnimeRequest, RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
 import { MappingOverride } from "@/components/MappingOverride";
-import { ListEditor } from "@/components/ListEditor";
-import { RatingForm } from "@/components/RatingForm";
+import { AniListPanel } from "@/components/AniListPanel";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
+import { FileCard } from "@/components/FileCard";
+import { DownloadBar } from "@/components/DownloadBar";
 import { JarLoader } from "@/components/AppIcon";
-import { movieInfo, seriesEpisodes } from "@/lib/episodes";
+import { movieInfo, seriesEpisodes, type EpisodesInfo, type MovieLibraryInfo } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
 import { LIST_LABEL } from "@/components/StatusBadge";
 import { anilist, aniTitle, FORMAT_LABEL, franchiseChain, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
@@ -23,7 +26,7 @@ import { pageUser } from "@/lib/page";
 import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
-import { SubsBar } from "@/components/Subtitles";
+import { downloadQueues, progressFor } from "@/lib/downloads";
 
 async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
   const token = anilistToken(user);
@@ -40,6 +43,7 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
         id: e.id,
         title: aniTitle(e.title),
         sub: [e.seasonYear, e.format && FORMAT_LABEL[e.format], e.episodes && `${e.episodes} eps`].filter(Boolean).join(" · "),
+        cover: e.coverImage.large,
         target: describeTarget(target),
         mapped: target.service !== "unmapped",
         status: m?.status,
@@ -51,39 +55,74 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
   );
 }
 
-async function Franchise({ entry, user }: { entry: AniMediaCard; user: User }) {
-  const chain = await franchiseChain(entry.id).catch(() => []);
-  const entries = chain.some((c) => c.id === entry.id) ? chain : [entry];
-  return <AnimeRequest entries={await entryOptions(entries, entry.id, user)} />;
-}
+type Library = { kind: "series"; info: EpisodesInfo } | { kind: "movie"; info: MovieLibraryInfo } | null;
 
-/** Downloaded episodes of this entry (or the Jellyfin link for a film). Renders nothing if it's in neither Sonarr nor Jellyfin. */
-async function AnimeEpisodes({ entry, progress, user }: { entry: AniMediaCard; progress: number | null; user: User }) {
+/** What Sonarr/Radarr/Jellyfin have of this entry: its episodes, or the film's file. */
+async function loadLibrary(entry: AniMediaCard, media: Media | undefined): Promise<Library> {
   await debugSleep("episodes");
-  const [{ target }, media] = await Promise.all([
-    resolveAnime({ id: entry.id, format: entry.format, episodes: entry.episodes }),
-    findMedia({ kind: "anime", anilistId: entry.id }),
-  ]);
+  const { target } = await resolveAnime({ id: entry.id, format: entry.format, episodes: entry.episodes });
   if (target.service === "radarr") {
-    const info = await movieInfo({ itemId: media?.jellyfinItemId, tmdbId: target.tmdbId, anilistId: entry.id, radarrId: media?.radarrId });
-    const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
-    return info.playUrl || info.subs ? (
-      <div className="mb-10 flex flex-wrap items-center gap-3">
-        <JellyfinButton href={info.playUrl} />
-        {info.subs && <SubsBar subs={info.subs} canFix={canFix} title={aniTitle(entry.title)} className="basis-full" />}
-      </div>
-    ) : null;
+    const info = await movieInfo({ itemId: media?.jellyfinItemId, tmdbId: target.tmdbId, anilistId: entry.id, radarrId: media?.radarrId }).catch(() => null);
+    return info && { kind: "movie", info };
   }
   if (target.service !== "sonarr") return null;
-  const info = await seriesEpisodes({
-    tvdbId: target.tvdbId,
-    anilistId: entry.id,
-    jellyfinItemId: media?.jellyfinItemId,
-    target,
-  }).catch(() => null);
-  if (!info || (!info.episodes.length && !info.playUrl)) return null;
-  const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
-  return <EpisodeList info={info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={aniTitle(entry.title)} canFixSubs={canFix} />;
+  const info = await seriesEpisodes({ tvdbId: target.tvdbId, anilistId: entry.id, jellyfinItemId: media?.jellyfinItemId, target }).catch(() => null);
+  return info && (info.episodes.length || info.playUrl) ? { kind: "series", info } : null;
+}
+
+/** Play when it's there, Request when it isn't, and how far along a request is. */
+async function HeroActions({
+  library,
+  current,
+  requests,
+  media,
+}: {
+  library: Promise<Library>;
+  current: AnimeEntryOption;
+  requests: Request[];
+  media: Media | undefined;
+}) {
+  const lib = await library;
+  const playUrl = lib?.info.playUrl ?? null;
+  const approved = requests.find((r) => r.status === "approved");
+  const download = approved && media ? progressFor(approved, media, await downloadQueues()) : null;
+  const pending = requests.some((r) => r.status === "pending");
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-start gap-3">
+        <JellyfinButton href={playUrl} />
+        {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={current} />}
+      </div>
+      {download ? (
+        <DownloadBar d={download} className="max-w-md" />
+      ) : approved && !playUrl ? (
+        <p className="text-sm text-muted">Approved — Sonarr/Radarr is looking for a release.</p>
+      ) : pending ? (
+        <p className="text-sm text-muted">Requested — waiting for an admin to approve it.</p>
+      ) : null}
+    </div>
+  );
+}
+
+async function LibrarySection({ library, entry, progress, user, requests, media }: { library: Promise<Library>; entry: AniMediaCard; progress: number | null; user: User; requests: Request[]; media: Media | undefined }) {
+  const lib = await library;
+  if (!lib) return null;
+  const title = aniTitle(entry.title);
+  if (lib.kind === "movie") {
+    return (
+      <div className="mb-10">
+        <FileCard info={lib.info} requests={requests} media={media ?? null} title={title} user={user} />
+      </div>
+    );
+  }
+  const canFix = lib.info.subs ? await canFixSubs(user, lib.info.subs) : false;
+  return <EpisodeList info={lib.info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={title} canFixSubs={canFix} />;
+}
+
+async function Franchise({ entry, user, footer }: { entry: AniMediaCard; user: User; footer?: React.ReactNode }) {
+  const chain = await franchiseChain(entry.id).catch(() => []);
+  const entries = chain.some((c) => c.id === entry.id) ? chain : [entry];
+  return <AnimeRequest entries={await entryOptions(entries, entry.id, user)} showTargets={user.role === "admin"} footer={footer} />;
 }
 
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
@@ -97,8 +136,14 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   const entry = list?.get(id);
   const [decorated] = await decorate([animeCard(a)], user);
   const isSeries = a.format !== "MOVIE";
+  const media = await findMedia({ kind: "anime", anilistId: id });
+  const requests = media ? await db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [];
+  const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
+  // Started once; the hero (Play) and the episode list both wait on it.
+  const library = loadLibrary(a, media);
+  const [current] = await entryOptions([a], id, user);
 
-  // Direct prequels/sequels hint that a franchise list is coming; reserve rows for it so the page doesn't jump.
+  // Direct prequels/sequels hint that a franchise list is coming; reserve tiles for it so the page doesn't jump.
   const neighbours = a.relations.edges.filter((e) => e.node.type === "ANIME" && ["PREQUEL", "SEQUEL"].includes(e.relationType)).length;
   const franchiseGuess = neighbours ? Math.max(2, neighbours) : 0;
   const related = a.relations.edges
@@ -111,6 +156,18 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   const airing = a.nextAiringEpisode
     ? `Ep ${a.nextAiringEpisode.episode} airs ${new Date(a.nextAiringEpisode.airingAt * 1000).toLocaleDateString()}`
     : null;
+  const mappingFooter =
+    user.role === "admin" ? (
+      <MappingOverride
+        anilistId={a.id}
+        initial={{
+          tvdbId: mapping?.tvdbId ?? null,
+          tmdbMovieId: mapping?.tmdbMovieId ?? null,
+          tvdbSeason: mapping?.tvdbSeason ?? null,
+          episodeOffset: mapping?.episodeOffset ?? 0,
+        }}
+      />
+    ) : undefined;
 
   return (
     <>
@@ -133,52 +190,28 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         overview={aniDescription(a.description)}
         status={decorated.status}
         list={entry ? { status: entry.status, progress: entry.progress, total: a.episodes } : undefined}
+        aside={
+          <AniListPanel
+            mediaId={a.id}
+            title={aniTitle(a.title)}
+            episodes={a.episodes}
+            aired={a.nextAiringEpisode ? a.nextAiringEpisode.episode - 1 : null}
+            entry={entry ? { status: entry.status, progress: entry.progress, score: entry.score } : null}
+            linked={!!token}
+            rating={rating ? { scores: rating.scores, total: rating.total, ratedOn: rating.ratedOn } : null}
+          />
+        }
       >
-        <a className="text-sm text-anilist hover:underline" href={`https://anilist.co/anime/${a.id}`} target="_blank" rel="noreferrer">
-          Open on AniList ↗
-        </a>
+        <Suspense fallback={<RequestThis entry={current} />}>
+          <HeroActions library={library} current={current} requests={active} media={media} />
+        </Suspense>
       </Hero>
 
-      <div className="mb-10 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <Suspense fallback={<AnimeRequest entries={await entryOptions([a], a.id, user)} placeholders={franchiseGuess} />}>
-          <Franchise entry={a} user={user} />
-        </Suspense>
-        <div className="space-y-6">
-          {token ? (
-            <ListEditor
-              mediaId={a.id}
-              episodes={a.episodes}
-              aired={a.nextAiringEpisode ? a.nextAiringEpisode.episode - 1 : null}
-              entry={entry ? { status: entry.status, progress: entry.progress, score: entry.score } : null}
-            />
-          ) : (
-            <div className="card p-4 text-sm text-muted">
-              <a className="text-anilist hover:underline" href="/api/auth/anilist">
-                Link AniList
-              </a>{" "}
-              to track episodes and status here.
-            </div>
-          )}
-          <RatingForm
-            anilistId={a.id}
-            canPush={!!token}
-            previous={rating ? { scores: rating.scores, total: rating.total, ratedOn: rating.ratedOn } : null}
-          />
-          {user.role === "admin" && (
-            <MappingOverride
-              anilistId={a.id}
-              initial={{
-                tvdbId: mapping?.tvdbId ?? null,
-                tmdbMovieId: mapping?.tmdbMovieId ?? null,
-                tvdbSeason: mapping?.tvdbSeason ?? null,
-                episodeOffset: mapping?.episodeOffset ?? 0,
-              }}
-            />
-          )}
-        </div>
-      </div>
       <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
-        <AnimeEpisodes entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
+        <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} requests={active} media={media} />
+      </Suspense>
+      <Suspense fallback={<AnimeRequest entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
+        <Franchise entry={a} user={user} footer={mappingFooter} />
       </Suspense>
       <CardRow title="Related" cards={relatedCards} />
     </>

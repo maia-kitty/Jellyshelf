@@ -1,4 +1,4 @@
-import { arrApi, type ArrConfig } from "./arr";
+import { arrApi, type ArrConfig, type ArrFile } from "./arr";
 import { HttpError } from "./http";
 
 export interface SonarrSeasonStats {
@@ -46,7 +46,7 @@ export interface SonarrEpisode {
   title: string;
   airDateUtc?: string;
   /** Present when requested with includeEpisodeFile=true. */
-  episodeFile?: { size: number; quality?: { quality?: { name: string } } };
+  episodeFile?: ArrFile;
 }
 
 export function sonarr(cfg: ArrConfig) {

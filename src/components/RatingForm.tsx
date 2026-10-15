@@ -10,9 +10,13 @@ export function RatingForm(props: {
   anilistId: number;
   canPush: boolean;
   previous: { scores: Record<string, number>; total: number; ratedOn: string } | null;
+  /** Inside a dialog: no card, no collapse. */
+  embedded?: boolean;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [expanded, setOpen] = useState(false);
+  const open = props.embedded || expanded;
   const [scores, setScores] = useState<Record<string, number>>(
     props.previous?.scores ?? Object.fromEntries(CATEGORIES.map((c) => [c.name, Math.round(c.max / 2)])),
   );
@@ -39,18 +43,21 @@ export function RatingForm(props: {
         : { ok: true, text: push && props.canPush ? `Saved ${sum}/100 and pushed to AniList` : `Saved ${sum}/100` },
     );
     router.refresh();
+    if (!j.pushError) props.onSaved?.();
   };
 
   return (
-    <div className="card p-4">
-      <button className="flex w-full items-center justify-between" onClick={() => setOpen(!open)}>
-        <span className="font-semibold">Rate it</span>
-        <span className="text-sm text-muted">
-          {props.previous ? `Last: ${props.previous.total}/100 · ${props.previous.ratedOn}` : "Not rated"} {open ? "−" : "+"}
-        </span>
-      </button>
+    <div className={props.embedded ? "p-5" : "card p-4"}>
+      {!props.embedded && (
+        <button className="mb-4 flex w-full items-center justify-between" onClick={() => setOpen(!open)}>
+          <span className="font-semibold">Rate it</span>
+          <span className="text-sm text-muted">
+            {props.previous ? `Last: ${props.previous.total}/100 · ${props.previous.ratedOn}` : "Not rated"} {open ? "−" : "+"}
+          </span>
+        </button>
+      )}
       {open && (
-        <div className="mt-4 space-y-5">
+        <div className="space-y-5">
           {CATEGORIES.map((c) => {
             const v = scores[c.name];
             const ticks = Object.keys(c.anchors).map(Number);

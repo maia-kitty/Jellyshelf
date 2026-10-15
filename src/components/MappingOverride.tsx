@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Modal } from "./Modal";
 
 interface Values {
   tvdbId: number | null;
@@ -51,32 +52,31 @@ export function MappingOverride({ anilistId, initial }: { anilistId: number; ini
     </label>
   );
 
+  const summary = `TVDB ${initial.tvdbId ?? "—"} · season ${initial.tvdbSeason === -1 ? "absolute" : (initial.tvdbSeason ?? "—")} · offset ${initial.episodeOffset} · TMDB movie ${initial.tmdbMovieId ?? "—"}`;
   return (
-    <div className="card h-fit p-4 text-sm">
-      <button className="flex w-full items-center justify-between font-semibold" onClick={() => setOpen(!open)}>
-        Mapping (admin) <span className="text-muted">{open ? "−" : "+"}</span>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line pt-3 text-xs text-muted">
+      <span>Mapping (admin): {summary}</span>
+      <button className="text-accent hover:underline" onClick={() => setOpen(true)}>
+        Edit
       </button>
-      {!open ? (
-        <p className="mt-2 text-xs text-muted">
-          TVDB {initial.tvdbId ?? "—"} · season {initial.tvdbSeason === -1 ? "absolute" : (initial.tvdbSeason ?? "—")} · offset{" "}
-          {initial.episodeOffset} · TMDB movie {initial.tmdbMovieId ?? "—"}
-        </p>
-      ) : (
-        <div className="mt-3 space-y-3">
-          {field("tvdbId", "TVDB series id", "e.g. 267440")}
-          {field("tvdbSeason", "TVDB season", "-1 = absolute numbering")}
-          {field("episodeOffset", "Episode offset", "episodes before this entry in that season")}
-          {field("tmdbMovieId", "TMDB movie id", "for films")}
-          <div className="flex gap-2">
-            <button className="btn-primary" onClick={() => save("PUT")}>
-              Save override
-            </button>
-            <button className="btn-ghost" onClick={() => save("DELETE")}>
-              Reset
-            </button>
+      {open && (
+        <Modal kicker="Mapping (admin)" title="Where this entry goes in Sonarr / Radarr" onClose={() => setOpen(false)} className="max-w-md">
+          <div className="space-y-3 p-5 text-sm">
+            {field("tvdbId", "TVDB series id", "e.g. 267440")}
+            {field("tvdbSeason", "TVDB season", "-1 = absolute numbering")}
+            {field("episodeOffset", "Episode offset", "episodes before this entry in that season")}
+            {field("tmdbMovieId", "TMDB movie id", "for films")}
+            <div className="flex gap-2">
+              <button className="btn-primary" onClick={() => save("PUT")}>
+                Save override
+              </button>
+              <button className="btn-ghost" onClick={() => save("DELETE")}>
+                Reset
+              </button>
+            </div>
+            {msg && <p className="text-xs text-muted">{msg}</p>}
           </div>
-          {msg && <p className="text-xs text-muted">{msg}</p>}
-        </div>
+        </Modal>
       )}
     </div>
   );

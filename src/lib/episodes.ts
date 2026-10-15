@@ -26,6 +26,8 @@ export interface EpisodeRow {
   playUrl: string | null;
   /** From Bazarr, for downloaded episodes. */
   subs?: FileSubs;
+  /** Audio track languages of the file ("JA", "EN"): the dubs. */
+  audio: string[];
 }
 
 /** Where a title's subtitles live in Bazarr, and how complete they are. */
@@ -191,6 +193,7 @@ export async function seriesEpisodes(opts: {
         size: e.episodeFile?.size ?? null,
         playUrl: j ? jf!.link(j.Id) : null,
         subs: e.hasFile ? subsById.get(e.id) : undefined,
+        audio: e.hasFile ? trackLangs(e.episodeFile?.mediaInfo?.audioLanguages) : [],
       };
     });
     const aired = rows.filter((r) => r.hasFile || !r.airDate || Date.parse(r.airDate) <= now);
@@ -224,6 +227,7 @@ export async function seriesEpisodes(opts: {
       quality: null,
       size: null,
       playUrl: jf!.link(e.id),
+      audio: [],
     }));
     return { playUrl, episodes: rows, total: rows.length, downloaded: rows.length, subs: null };
   }

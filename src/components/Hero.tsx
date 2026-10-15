@@ -16,6 +16,8 @@ export function Hero(props: {
   list?: { status: AniListStatus; progress: number; total?: number | null };
   accentColor?: string | null;
   children?: React.ReactNode;
+  /** A panel to the right of the text on wide screens (below it on narrow ones). */
+  aside?: React.ReactNode;
 }) {
   return (
     <div className="bleed relative -mt-6 mb-8 overflow-hidden">
@@ -27,7 +29,7 @@ export function Hero(props: {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/30" />
       </div>
-      <div className="rise-in relative flex flex-col gap-6 pb-6 pt-10 sm:flex-row">
+      <div className="rise-in relative flex flex-col gap-6 pb-6 pt-10 sm:flex-row sm:flex-wrap lg:flex-nowrap">
         <div className="w-40 shrink-0 sm:w-52">
           {props.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -60,6 +62,13 @@ export function Hero(props: {
           {props.overview && <Overview text={props.overview} />}
           {props.children && <div className="mt-5">{props.children}</div>}
         </div>
+        {/* Wide: a third column. Tablet: no room beside the poster, so it wraps onto its own line. */}
+        {/* The width cap sits on the inner box: on the outer one it would let the panel squeeze onto the poster's line. */}
+        {props.aside && (
+          <div className="w-full shrink-0 sm:basis-full lg:w-80 lg:basis-auto">
+            <div className="sm:max-w-md lg:max-w-none">{props.aside}</div>
+          </div>
+        )}
       </div>
     </div>
   );

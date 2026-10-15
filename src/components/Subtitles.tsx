@@ -9,6 +9,7 @@ import type { FileSubs, SubsSummary } from "@/lib/subtitles";
 import { summaryText } from "@/lib/subsText";
 import { subName } from "@/lib/langs";
 import { JarLoader } from "./AppIcon";
+import { Modal } from "./Modal";
 
 export type SubsTarget = { kind: "movie"; id: number } | { kind: "series"; id: number; episodeId: number };
 
@@ -143,13 +144,6 @@ export function SubtitlePicker({ target, title, onClose }: { target: SubsTarget;
   useEffect(() => {
     const body = { action: "candidates", target: target.kind === "series" ? { kind: "series", id: target.id, episodeId: target.episodeId } : target };
     postSubs<BazarrCandidate[]>(body).then(setList, (e) => setErr((e as Error).message));
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", esc);
-      document.body.style.overflow = "";
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -172,20 +166,13 @@ export function SubtitlePicker({ target, title, onClose }: { target: SubsTarget;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label="Pick subtitles" className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-t-2xl border border-line bg-panel shadow-2xl sm:rounded-2xl">
-        <div className="flex items-center gap-3 border-b border-line px-5 py-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-xs uppercase tracking-wide text-muted">Pick subtitles</div>
-            <div className="truncate font-semibold">{title}</div>
-          </div>
-          <button className="rounded-lg px-2 py-1 text-xl leading-none text-muted hover:bg-panel-2 hover:text-fg" aria-label="Close" onClick={onClose}>
-            ×
-          </button>
-        </div>
-
-        {langs.length > 1 && (
-          <div className="flex flex-wrap gap-1.5 border-b border-line px-5 py-2">
+    <Modal
+      kicker="Pick subtitles"
+      title={title}
+      onClose={onClose}
+      toolbar={
+        langs.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
             {[null, ...langs].map((l) => (
               <button
                 key={l ?? "all"}
@@ -196,9 +183,10 @@ export function SubtitlePicker({ target, title, onClose }: { target: SubsTarget;
               </button>
             ))}
           </div>
-        )}
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-[env(safe-area-inset-bottom)]">
+        )
+      }
+    >
+      <div className="px-2">
           {err && <p className="px-3 py-3 text-sm text-bad">{err}</p>}
           {!list && !err && (
             <div className="py-10">
@@ -250,8 +238,7 @@ export function SubtitlePicker({ target, title, onClose }: { target: SubsTarget;
               );
             })}
           </ul>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
