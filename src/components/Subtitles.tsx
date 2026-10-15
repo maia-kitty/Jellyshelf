@@ -7,6 +7,7 @@ import type { BazarrCandidate } from "@/lib/clients/bazarr";
 import type { SubsInfo } from "@/lib/episodes";
 import type { FileSubs, SubsSummary } from "@/lib/subtitles";
 import { summaryText } from "@/lib/subsText";
+import { subName } from "@/lib/langs";
 import { JarLoader } from "./AppIcon";
 
 export type SubsTarget = { kind: "movie"; id: number } | { kind: "series"; id: number; episodeId: number };
@@ -58,7 +59,20 @@ export function SubsChips({ subs }: { subs: FileSubs }) {
 }
 
 /** Summary line with "Search missing" (and, for a film, "Pick…"). */
-export function SubsBar({ subs, canFix, title, className }: { subs: SubsInfo; canFix: boolean; title: string; className?: string }) {
+export function SubsBar({
+  subs,
+  canFix,
+  title,
+  className,
+  chips = false,
+}: {
+  subs: SubsInfo;
+  canFix: boolean;
+  title: string;
+  className?: string;
+  /** Language chips instead of a sentence (for a single file). */
+  chips?: boolean;
+}) {
   const refreshSoon = useRefreshSoon();
   const [state, setState] = useState<{ busy: boolean; msg: string; ok: boolean }>({ busy: false, msg: "", ok: true });
   const [picking, setPicking] = useState(false);
@@ -79,7 +93,26 @@ export function SubsBar({ subs, canFix, title, className }: { subs: SubsInfo; ca
 
   return (
     <div className={clsx("flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm", className)}>
-      <span className={missing ? "text-warn" : "text-muted"}>{text ?? "No subtitle info from Bazarr"}</span>
+      {chips ? (
+        subs.summary.have.length || missing ? (
+          <span className="flex flex-wrap gap-1.5">
+            {subs.summary.have.map((l) => (
+              <span key={l} className="rounded-md bg-panel-2 px-1.5 py-0.5 text-xs">
+                {subName(l)}
+              </span>
+            ))}
+            {subs.summary.missing.map((m) => (
+              <span key={m.lang} className="rounded-md border border-warn/40 px-1.5 py-0.5 text-xs text-warn" title="Wanted by Bazarr, not found yet">
+                {subName(m.lang)} missing
+              </span>
+            ))}
+          </span>
+        ) : (
+          <span className="text-muted">None</span>
+        )
+      ) : (
+        <span className={missing ? "text-warn" : "text-muted"}>{text ?? "No subtitle info from Bazarr"}</span>
+      )}
       {canFix && missing && (
         <button className="btn-ghost px-2.5 py-1 text-xs" disabled={state.busy} onClick={search}>
           {state.busy ? "Asking Bazarr…" : "Search missing"}

@@ -5,6 +5,8 @@ import { sonarr, type SonarrSeries } from "./clients/sonarr";
 import type { AnimeTarget } from "./mapping/resolve";
 import { scopeEpisodes } from "./episodeScope";
 import { radarr } from "./clients/radarr";
+import type { ArrFile } from "./clients/arr";
+import { trackLangs } from "./langs";
 import { fileSubs, movieSubs, seriesSubs, summarize, type FileSubs, type SubsSummary } from "./subtitles";
 
 export interface EpisodeRow {
@@ -82,22 +84,60 @@ function findItem(
   );
 }
 
-/** Jellyfin link for a movie (plain or anime film). */
-export async function movieInfo(hint: { itemId?: string | null; tmdbId: number; anilistId?: number | null; radarrId?: number | null }): Promise<EpisodesInfo> {
-  const [jf, subs] = await Promise.all([jellyfinCtx().catch(() => null), movieSubsInfo(hint.tmdbId, hint.radarrId)]);
-  const item = jf && findItem(jf.library, "Movie", hint);
-  return { ...EMPTY, playUrl: item ? jf.link(item.Id) : null, subs };
+/** What's on disk for a film, from Radarr. */
+export interface FileInfo {
+  name: string | null;
+  size: number;
+  quality: string | null;
+  resolution: string | null;
+  videoCodec: string | null;
+  /** "HDR10", "DV"… empty for SDR */
+  hdr: string | null;
+  /** Audio track languages: the dubs ("JA", "EN"). */
+  audio: string[];
+  /** Subtitle tracks inside the video file (Bazarr only lists external ones as "have" when it's told to). */
+  embeddedSubs: string[];
 }
 
-async function movieSubsInfo(tmdbId: number, radarrId?: number | null): Promise<SubsInfo | null> {
+export function fileInfo(f: ArrFile): FileInfo {
+  const mi = f.mediaInfo ?? {};
+  return {
+    name: f.relativePath?.split(/[\\/]/).pop() ?? null,
+    size: f.size,
+    quality: f.quality?.quality?.name ?? null,
+    resolution: mi.resolution?.replace("x", "×") ?? null,
+    videoCodec: mi.videoCodec || null,
+    hdr: mi.videoDynamicRangeType || null,
+    audio: trackLangs(mi.audioLanguages),
+    embeddedSubs: trackLangs(mi.subtitles),
+  };
+}
+
+export interface MovieLibraryInfo extends EpisodesInfo {
+  /** Radarr's id, if Radarr has the film. */
+  radarrId: number | null;
+  file: FileInfo | null;
+}
+
+/** Jellyfin link, Radarr file details and Bazarr subtitles for a movie (plain or anime film). */
+export async function movieInfo(hint: { itemId?: string | null; tmdbId: number; anilistId?: number | null; radarrId?: number | null }): Promise<MovieLibraryInfo> {
+  const [jf, movie] = await Promise.all([jellyfinCtx().catch(() => null), radarrMovie(hint.tmdbId, hint.radarrId)]);
+  const item = jf && findItem(jf.library, "Movie", hint);
+  const subs = movie?.id && movie.hasFile ? await movieSubs(movie.id) : null;
+  return {
+    ...EMPTY,
+    playUrl: item ? jf.link(item.Id) : null,
+    radarrId: movie?.id ?? null,
+    file: movie?.hasFile && movie.movieFile ? fileInfo(movie.movieFile) : null,
+    subs: movie?.id && subs ? { kind: "movie", id: movie.id, summary: summarize([subs]) } : null,
+  };
+}
+
+async function radarrMovie(tmdbId: number, radarrId?: number | null) {
   const s = (await getSettings()).radarr;
-  const id =
-    radarrId ??
-    (s.url && s.apiKey && (await getSettings()).bazarr.url
-      ? (await cached(`radarr:tmdb:${tmdbId}`, 300, () => radarr(s).movieByTmdb(tmdbId)).catch(() => null))?.id
-      : null);
-  const subs = id ? await movieSubs(id) : null;
-  return id && subs ? { kind: "movie", id, summary: summarize([subs]) } : null;
+  if (!s.url || !s.apiKey) return null;
+  const api = radarr(s);
+  return cached(`radarr:movie:${radarrId ?? `tmdb${tmdbId}`}`, 30, () => (radarrId ? api.movie(radarrId) : api.movieByTmdb(tmdbId))).catch(() => null);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { arrApi, type ArrConfig } from "./arr";
+import { arrApi, type ArrConfig, type ArrFile } from "./arr";
 
 export interface RadarrMovie {
   id?: number;
@@ -12,6 +12,7 @@ export interface RadarrMovie {
   rootFolderPath?: string;
   minimumAvailability?: string;
   addOptions?: { searchForMovie: boolean };
+  movieFile?: ArrFile;
   [k: string]: unknown;
 }
 
@@ -20,6 +21,7 @@ export function radarr(cfg: ArrConfig) {
   return {
     ...api,
     allMovies: () => api.call<RadarrMovie[]>("/movie", { timeoutMs: 60_000 }),
+    movie: (id: number) => api.call<RadarrMovie>(`/movie/${id}`),
     movieByTmdb: async (tmdbId: number) => (await api.call<RadarrMovie[]>(`/movie?tmdbId=${tmdbId}`))[0] ?? null,
     lookupTmdb: (tmdbId: number) => api.call<RadarrMovie>(`/movie/lookup/tmdb?tmdbId=${tmdbId}`),
     addMovie: (m: RadarrMovie) => api.call<RadarrMovie>("/movie", { method: "POST", body: m }),

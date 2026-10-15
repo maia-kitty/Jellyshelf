@@ -38,6 +38,10 @@ export interface TmdbMovieDetails extends TmdbMovie {
   status: string;
   tagline: string;
   external_ids?: { imdb_id: string | null };
+  production_companies?: { id: number; name: string }[];
+  budget?: number;
+  revenue?: number;
+  recommendations?: TmdbPage<TmdbMovie>;
 }
 
 export interface TmdbSeason {
@@ -99,7 +103,7 @@ export const tmdbClient = {
   trendingTv: (page = 1) => tmdb<TmdbPage<TmdbTv>>("/trending/tv/week", { page }),
   popularTv: (page = 1) => tmdb<TmdbPage<TmdbTv>>("/tv/popular", { page }),
   airingTv: (page = 1) => tmdb<TmdbPage<TmdbTv>>("/tv/on_the_air", { page }),
-  movie: (id: number) => tmdb<TmdbMovieDetails>(`/movie/${id}`, { append_to_response: "external_ids" }),
+  movie: (id: number) => tmdb<TmdbMovieDetails>(`/movie/${id}`, { append_to_response: "external_ids,recommendations" }),
   tv: (id: number) => tmdb<TmdbTvDetails>(`/tv/${id}`, { append_to_response: "external_ids" }),
   search: (query: string, page = 1) => tmdb<TmdbPage<TmdbMultiResult>>("/search/multi", { query, page }, 600),
   /** Used by the setup wizard's test button. */

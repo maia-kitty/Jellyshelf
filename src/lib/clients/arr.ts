@@ -15,6 +15,25 @@ export interface RootFolder {
   freeSpace?: number;
 }
 
+/** A file on disk as Sonarr/Radarr describe it (movieFile / episodeFile). */
+export interface ArrFile {
+  relativePath?: string;
+  size: number;
+  quality?: { quality?: { name: string; resolution?: number } };
+  releaseGroup?: string | null;
+  mediaInfo?: {
+    /** "jpn/eng" */
+    audioLanguages?: string;
+    audioCodec?: string;
+    audioChannels?: number;
+    /** Embedded subtitle tracks, same format: "eng/jpn" */
+    subtitles?: string;
+    videoCodec?: string;
+    videoDynamicRangeType?: string;
+    resolution?: string;
+  };
+}
+
 /** One item in a Sonarr/Radarr download queue. */
 export interface QueueRecord {
   id: number;

@@ -135,10 +135,16 @@ export function EpisodeList({
                     ) : (
                       <SubsChips subs={e.subs} />
                     ))}
-                  {anilist && !watched && (
+                  {/* Kept (invisible) on watched rows too, so the chips and Play line up down the list. */}
+                  {anilist && (
                     <button
-                      className="shrink-0 text-xs text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100"
-                      disabled={busy !== null}
+                      className={clsx(
+                        "shrink-0 text-xs text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100",
+                        watched && "invisible",
+                      )}
+                      tabIndex={watched ? -1 : undefined}
+                      aria-hidden={watched || undefined}
+                      disabled={busy !== null || watched}
                       onClick={() => markUpTo(e.n)}
                       title={`Set AniList progress to ${e.n}`}
                     >
