@@ -1,3 +1,4 @@
+import { cache as reactCache, Suspense } from "react";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Media, User } from "@/db/schema";
@@ -8,9 +9,10 @@ import { ContinueRow } from "@/components/discover/ContinueRow";
 import { OnItsWay, type InFlight } from "@/components/discover/OnItsWay";
 import { WeekSchedule, type ScheduleSlot } from "@/components/discover/WeekSchedule";
 import { TopTen } from "@/components/discover/TopTen";
+import { RowSkeleton, ScheduleSkeleton, SpotlightSkeleton, WideRowSkeleton } from "@/components/Skeletons";
 import { anilist, aniTitle, currentSeason, seasonLabel, shiftSeason, type AniListEntry, type AniMediaCard } from "@/lib/clients/anilist";
 import { tmdbClient, tmdbImage } from "@/lib/clients/tmdb";
-import { animeCard, decorateGroups, movieCard, soft, tvCard, type Card } from "@/lib/cards";
+import { animeCard, decorate, decorateGroups, movieCard, soft, tvCard, type Card } from "@/lib/cards";
 import { statusMap } from "@/lib/media";
 import { anilistToken } from "@/lib/auth";
 import { pageUser } from "@/lib/page";
@@ -20,52 +22,86 @@ import { requestScope } from "@/lib/requestScope";
 
 const DAY = 86_400;
 
+/**
+ * Discover streams: each section is its own Suspense boundary, so the page starts drawing at once and every row
+ * appears as soon as its own data does (a slow AniList call no longer holds up the whole page). The shared
+ * fetches (the viewer's AniList list, TMDB trending) are cached and de-duplicated, so sections asking for the same
+ * thing share one request.
+ */
 export default async function Home() {
   const user = await pageUser();
   const now = currentSeason();
   const next = shiftSeason(now, 1);
-  const token = anilistToken(user);
-  const t = Math.floor(Date.now() / 1000);
-  // From the start of today (UTC-12, so "today" covers every timezone) for a week.
-  const weekFrom = t - (t % DAY) - DAY / 2;
+  const hasList = !!(anilistToken(user) && user.anilistId);
 
-  const [spotlight, seasonal, trendingAnime, upcoming, movies, tv, list, schedule, mine, loved] = await Promise.all([
+  return (
+    <>
+      <Suspense fallback={<SpotlightSkeleton />}>
+        <SpotlightSection user={user} />
+      </Suspense>
+      <Suspense fallback={hasList || user.jellyfinUserId ? <WideRowSkeleton title="Continue watching" /> : null}>
+        <ContinueSection user={user} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <RequestsSection user={user} part="inFlight" />
+      </Suspense>
+      <Suspense fallback={<ScheduleSkeleton />}>
+        <ScheduleSection user={user} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <RequestsSection user={user} part="landed" />
+      </Suspense>
+      <Suspense fallback={<RowSkeleton title={`Top 10 · ${seasonLabel(now)}`} />}>
+        <TopTenSection user={user} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <LovedSection user={user} />
+      </Suspense>
+      {hasList && (
+        <Suspense fallback={<RowSkeleton title="Your AniList planning" />}>
+          <PlanningSection user={user} />
+        </Suspense>
+      )}
+      <Suspense fallback={<RowSkeleton title="Trending anime" />}>
+        <Row user={user} title="Trending anime" href="/discover/anime" load={async () => (await anilist.trending({ perPage: 20 })).media.map(animeCard)} />
+      </Suspense>
+      <Suspense fallback={<RowSkeleton title={`Next season · ${seasonLabel(next)}`} />}>
+        <Row
+          user={user}
+          title={`Next season · ${seasonLabel(next)}`}
+          href={`/discover/anime?list=seasonal&season=${next.season}&year=${next.year}`}
+          load={async () => (await anilist.seasonal(next.season, next.year, { perPage: 20 })).media.map(animeCard)}
+        />
+      </Suspense>
+      <Suspense fallback={<RowSkeleton title="Trending movies" />}>
+        <Row user={user} title="Trending movies" href="/discover/movies" load={async () => (await tmdbClient.trendingMovies()).results.map(movieCard)} />
+      </Suspense>
+      <Suspense fallback={<RowSkeleton title="Trending series" />}>
+        <Row user={user} title="Trending series" href="/discover/tv" load={async () => (await tmdbClient.trendingTv()).results.map(tvCard)} />
+      </Suspense>
+    </>
+  );
+}
+
+/** The viewer's AniList list (cached per user for a couple of minutes, shared by every section). */
+const listOf = (user: User) => {
+  const token = anilistToken(user);
+  return token && user.anilistId ? soft(anilist.userList(user.anilistId, token), null, "user list") : Promise.resolve(null);
+};
+
+async function Row({ user, title, href, load }: { user: User; title: string; href?: string; load: () => Promise<Card[]> }) {
+  const cards = await soft(load(), [], title);
+  return <CardRow title={title} href={href} cards={await decorate(cards, user)} />;
+}
+
+async function SpotlightSection({ user }: { user: User }) {
+  const [spotlight, movies, tv] = await Promise.all([
     soft(anilist.spotlight(), [], "spotlight"),
-    soft(anilist.seasonal(now.season, now.year, { perPage: 30 }), null, "seasonal"),
-    soft(anilist.trending({ perPage: 20 }), null, "anime trending"),
-    soft(anilist.seasonal(next.season, next.year, { perPage: 20 }), null, "next season"),
     soft(tmdbClient.trendingMovies(), null, "movies"),
     soft(tmdbClient.trendingTv(), null, "tv"),
-    token && user.anilistId ? soft(anilist.userList(user.anilistId, token), null, "user list") : null,
-    soft(anilist.schedule(weekFrom, weekFrom + 8 * DAY), [], "schedule"),
-    myRequests(user),
-    favourite(user),
   ]);
-
-  const watching = await continueWatching(user, list);
-  const planning = list ? [...list.values()].filter((e) => e.status === "PLANNING").map((e) => animeCard(e.media)) : [];
-  // Top 10 of the season by score, among the ones people are actually watching.
-  const top = (seasonal?.media ?? []).filter((m) => m.averageScore).sort((a, b) => b.averageScore! - a.averageScore!).slice(0, 10);
-  const recs = loved ? await soft(anilist.recommendations(loved.anilistId), [], "recommendations") : [];
-  const fresh = recs.filter((m) => !list?.has(m.id) && m.id !== loved?.anilistId).slice(0, 18);
-
-  const [rSpotlight, rWatching, rPlanning, rTop, rTrending, rUpcoming, rMovies, rTv, rRecs, rLanded] = await decorateGroups(
-    [
-      spotlight.map(animeCard),
-      watching.slice(0, 30),
-      planning.slice(0, 30),
-      top.map(animeCard),
-      trendingAnime?.media.map(animeCard) ?? [],
-      upcoming?.media.map(animeCard) ?? [],
-      movies?.results.map(movieCard) ?? [],
-      tv?.results.map(tvCard) ?? [],
-      fresh.map(animeCard),
-      mine.landed,
-    ],
-    user,
-  );
-
-  // Spotlight: trending anime interleaved with trending movies and series that have backdrop art.
+  const [rSpotlight, rMovies, rTv] = await decorateGroups([spotlight.map(animeCard), movies?.results.map(movieCard) ?? [], tv?.results.map(tvCard) ?? []], user);
+  // Trending anime interleaved with trending movies and series that have backdrop art.
   const anime: SpotlightItem[] = rSpotlight.map((card, n) => ({
     card,
     banner: spotlight[n].bannerImage!,
@@ -80,37 +116,64 @@ export default async function Home() {
       .map(({ m, card }) => ({ card, banner: tmdbImage(m.backdrop_path, "w1280")!, description: m.overview, label }));
   const film = tmdbItems(movies?.results, rMovies, "Trending movie");
   const series = tmdbItems(tv?.results, rTv, "Trending series");
-  const spotlightItems = Array.from({ length: Math.max(anime.length, film.length, series.length) })
+  const items = Array.from({ length: Math.max(anime.length, film.length, series.length) })
     .flatMap((_, n) => [anime[n], film[n], series[n]])
     .filter(Boolean)
     .slice(0, 9);
+  return <Spotlight items={items} />;
+}
 
+async function ContinueSection({ user }: { user: User }) {
+  const watching = await continueWatching(user, await listOf(user));
+  return <ContinueRow cards={await decorate(watching.slice(0, 30), user)} />;
+}
+
+async function RequestsSection({ user, part }: { user: User; part: "inFlight" | "landed" }) {
+  const mine = await myRequestsCached(user);
+  if (part === "inFlight") return <OnItsWay items={mine.inFlight} />;
+  return <CardRow title="Just landed" note="your requests, now in the library" href="/requests?filter=completed" cards={await decorate(mine.landed, user)} />;
+}
+// Both request sections render from one query.
+const myRequestsCached = reactCache(myRequests);
+
+async function ScheduleSection({ user }: { user: User }) {
+  const t = Math.floor(Date.now() / 1000);
+  // From the start of today (UTC-12, so "today" covers every timezone) for a week.
+  const weekFrom = t - (t % DAY) - DAY / 2;
+  const [schedule, list] = await Promise.all([soft(anilist.schedule(weekFrom, weekFrom + 8 * DAY), [], "schedule"), listOf(user)]);
+  return <WeekSchedule slots={await scheduleSlots(schedule, list)} hasList={!!list} />;
+}
+
+async function TopTenSection({ user }: { user: User }) {
+  const now = currentSeason();
+  const seasonal = await soft(anilist.seasonal(now.season, now.year, { perPage: 30 }), null, "seasonal");
+  // Top 10 of the season by score, among the ones people are actually watching.
+  const top = (seasonal?.media ?? []).filter((m) => m.averageScore).sort((a, b) => b.averageScore! - a.averageScore!).slice(0, 10);
+  return <TopTen title={`Top 10 · ${seasonLabel(now)}`} note="best rated this season" href="/discover/anime?list=seasonal" cards={await decorate(top.map(animeCard), user)} />;
+}
+
+async function LovedSection({ user }: { user: User }) {
+  const loved = await favourite(user);
+  if (!loved) return null;
+  const [recs, list] = await Promise.all([soft(anilist.recommendations(loved.anilistId), [], "recommendations"), listOf(user)]);
+  const fresh = recs.filter((m) => !list?.has(m.id) && m.id !== loved.anilistId).slice(0, 18);
   return (
-    <>
-      <Spotlight items={spotlightItems} />
-      <ContinueRow cards={rWatching} />
-      <OnItsWay items={mine.inFlight} />
-      <WeekSchedule slots={await scheduleSlots(schedule, list)} hasList={!!list} />
-      <CardRow title="Just landed" note="your requests, now in the library" href="/requests?filter=completed" cards={rLanded} />
-      <TopTen title={`Top 10 · ${seasonLabel(now)}`} note="best rated this season" href="/discover/anime?list=seasonal" cards={rTop} />
-      {loved && (
-        <CardRow
-          title={
-            <>
-              Because you loved <span className="text-anilist">{loved.title}</span>
-            </>
-          }
-          note={loved.total ? `you rated it ${loved.total}` : undefined}
-          cards={rRecs}
-        />
-      )}
-      <CardRow title="Your AniList planning" href="/my-lists?status=PLANNING" cards={rPlanning} />
-      <CardRow title="Trending anime" href="/discover/anime" cards={rTrending} />
-      <CardRow title={`Next season · ${seasonLabel(next)}`} href={`/discover/anime?list=seasonal&season=${next.season}&year=${next.year}`} cards={rUpcoming} />
-      <CardRow title="Trending movies" href="/discover/movies" cards={rMovies} />
-      <CardRow title="Trending series" href="/discover/tv" cards={rTv} />
-    </>
+    <CardRow
+      title={
+        <>
+          Because you loved <span className="text-anilist">{loved.title}</span>
+        </>
+      }
+      note={loved.total ? `you rated it ${loved.total}` : undefined}
+      cards={await decorate(fresh.map(animeCard), user)}
+    />
   );
+}
+
+async function PlanningSection({ user }: { user: User }) {
+  const list = await listOf(user);
+  const planning = list ? [...list.values()].filter((e) => e.status === "PLANNING").map((e) => animeCard(e.media)) : [];
+  return <CardRow title="Your AniList planning" href="/my-lists?status=PLANNING" cards={await decorate(planning.slice(0, 30), user)} />;
 }
 
 /** The viewer's requests: what's still on its way (with download progress), and what arrived in the last three weeks. */

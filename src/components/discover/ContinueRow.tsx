@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Card } from "@/lib/cards";
 import { ShelfHeader } from "../MediaCard";
+import { sized } from "@/lib/img";
 
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 
@@ -21,14 +22,14 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
           >
             {c.poster && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={c.poster} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-35 blur-2xl" />
+              <img {...sized(c.poster, 48)} alt="" aria-hidden loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-35 blur-2xl" />
             )}
             <div className="absolute inset-0 bg-gradient-to-r from-bg/70 to-bg/20" />
             <div className="relative flex min-w-0 flex-1 gap-3 p-3">
               {c.poster ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <span className="relative h-full w-[5rem] shrink-0">
-                  <img src={c.poster} alt="" loading="lazy" className="h-full w-full rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
+                  <img {...sized(c.poster, 80)} alt="" loading="lazy" decoding="async" className="h-full w-full rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
                 </span>
               ) : (
                 <div className="h-full w-[5rem] shrink-0 rounded-lg bg-panel-2" />

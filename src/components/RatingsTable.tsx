@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import clsx from "clsx";
 import type { RatingRow } from "@/lib/ratings";
 import { scoreOf, sortRatings, type RatingSort as Sort, type RatingSortKey as SortKey } from "@/lib/ratingSort";
+import { sized } from "@/lib/img";
 
 interface Unlinked {
   id: number;
@@ -115,7 +116,7 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                       <a href={`/anime/${r.anilistId}`} className="flex min-w-0 items-center gap-3">
                         {r.cover ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={r.cover} alt="" className="h-12 w-8 shrink-0 rounded object-cover" loading="lazy" />
+                          <img {...sized(r.cover, 32)} alt="" className="h-12 w-8 shrink-0 rounded object-cover" loading="lazy" />
                         ) : (
                           <div className="h-12 w-8 shrink-0 rounded bg-panel-2" />
                         )}

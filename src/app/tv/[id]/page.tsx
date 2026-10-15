@@ -28,11 +28,13 @@ const longDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "
 export default async function TvPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
   const id = Number((await params).id);
-  const tv = await tmdbClient.tv(id).catch((e) => {
-    if (e instanceof HttpError && e.status === 404) notFound();
-    throw e;
-  });
-  const media = await findMedia({ kind: "tv", tmdbId: id });
+  const [tv, media] = await Promise.all([
+    tmdbClient.tv(id).catch((e) => {
+      if (e instanceof HttpError && e.status === 404) notFound();
+      throw e;
+    }),
+    findMedia({ kind: "tv", tmdbId: id }),
+  ]);
   const requested = new Set(media ? await requestedSeasons(media.id) : []);
   const active = media
     ? await db
@@ -54,8 +56,10 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
   const entries = mapped.length ? await anilist.byIds(mapped.map((m) => m.anilistId).slice(0, 50)) : [];
   const order = new Map(mapped.map((m) => [m.anilistId, (m.tvdbSeason ?? 99) * 1000 + m.episodeOffset]));
   entries.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-  const animeCards = await decorate(entries.map(animeCard), user);
-  const recs = await decorate((tv.recommendations?.results ?? []).slice(0, 20).map(tvCard), user);
+  const [animeCards, recs] = await Promise.all([
+    decorate(entries.map(animeCard), user),
+    decorate((tv.recommendations?.results ?? []).slice(0, 20).map(tvCard), user),
+  ]);
 
   const seasons: SeasonOption[] = tv.seasons
     .filter((s) => s.episode_count > 0)

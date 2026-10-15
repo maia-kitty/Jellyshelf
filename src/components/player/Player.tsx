@@ -9,6 +9,7 @@ import { detectCaps } from "./caps";
 import { SeekBar } from "./SeekBar";
 import { Icon } from "./icons";
 import { JarLoader } from "../AppIcon";
+import { sized } from "@/lib/img";
 
 type HlsLike = { destroy(): void; loadSource(u: string): void; attachMedia(v: HTMLVideoElement): void; on(ev: string, cb: (e: string, d: { fatal?: boolean }) => void): void };
 type JassubLike = { destroy(): void | Promise<void> };
@@ -446,7 +447,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
     >
       {meta.backdrop && loading && !error && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={meta.backdrop} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-sm" />
+        <img {...sized(meta.backdrop, 960, "100vw")} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-sm" />
       )}
       <video
         ref={video}
@@ -556,7 +557,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
         <div className="absolute bottom-28 right-4 flex w-80 max-w-[calc(100%-2rem)] gap-3 overflow-hidden rounded-2xl border border-white/15 bg-black/75 p-3 backdrop-blur sm:right-8">
           {meta.next.thumb && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={meta.next.thumb} alt="" className="h-16 w-28 shrink-0 rounded-lg bg-white/10 object-cover" />
+            <img {...sized(meta.next.thumb, 112)} alt="" className="h-16 w-28 shrink-0 rounded-lg bg-white/10 object-cover" />
           )}
           <div className="min-w-0 flex-1">
             <div className="text-[11px] uppercase tracking-wide text-white/60">Up next · {meta.next.label}</div>

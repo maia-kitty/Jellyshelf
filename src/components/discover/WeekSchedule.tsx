@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { ShelfHeader } from "../MediaCard";
+import { sized } from "@/lib/img";
 
 export interface ScheduleSlot {
   /** unix seconds */
@@ -112,7 +113,7 @@ export function WeekSchedule({ slots, hasList }: { slots: ScheduleSlot[]; hasLis
                     >
                       {s.cover ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={s.cover} alt="" loading="lazy" className="h-12 w-9 shrink-0 rounded object-cover" />
+                        <img {...sized(s.cover, 36)} alt="" loading="lazy" decoding="async" className="h-12 w-9 shrink-0 rounded object-cover" />
                       ) : (
                         <div className="h-12 w-9 shrink-0 rounded bg-panel-2" />
                       )}

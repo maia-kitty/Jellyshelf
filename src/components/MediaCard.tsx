@@ -2,6 +2,8 @@ import Link from "next/link";
 import clsx from "clsx";
 import type { Card } from "@/lib/cards";
 import { ListBadge, StatusBadge } from "./StatusBadge";
+import { sized } from "@/lib/img";
+import { FadeImg } from "./FadeImg";
 
 export function MediaCard({ card }: { card: Card }) {
   return (
@@ -9,8 +11,7 @@ export function MediaCard({ card }: { card: Card }) {
       {/* Lifts toward you on hover, with a faint accent glow. */}
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-accent group-hover:shadow-[0_10px_30px_-10px_color-mix(in_srgb,var(--color-accent)_55%,transparent)] group-active:translate-y-0 group-active:scale-[0.98]">
         {card.poster ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={card.poster} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.05]" />
+          <FadeImg fast {...sized(card.poster, 160)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.05]" />
         ) : (
           <div className="flex h-full items-center justify-center p-3 text-center text-sm text-muted">{card.title}</div>
         )}

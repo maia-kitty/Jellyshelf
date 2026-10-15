@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { DownloadProgress } from "@/lib/downloads";
 import { DownloadBar } from "../DownloadBar";
 import { ShelfHeader } from "../MediaCard";
+import { sized } from "@/lib/img";
 
 export interface InFlight {
   id: number;
@@ -28,7 +29,7 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
             <Link href={it.href} className="flex gap-3 rounded-xl border border-line bg-panel p-2.5 transition hover:border-muted">
               {it.poster ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.poster} alt="" loading="lazy" className="h-16 w-11 shrink-0 rounded-md object-cover" />
+                <img {...sized(it.poster, 44)} alt="" loading="lazy" decoding="async" className="h-16 w-11 shrink-0 rounded-md object-cover" />
               ) : (
                 <div className="h-16 w-11 shrink-0 rounded-md bg-panel-2" />
               )}

@@ -5,6 +5,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import type { MediaStatus } from "@/db/schema";
 import { AppIcon } from "./AppIcon";
+import { sized } from "@/lib/img";
 
 async function postRequest(body: unknown) {
   const res = await fetch("/api/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -186,7 +187,7 @@ function PickGrid({
             >
               {it.cover ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.cover} alt="" loading="lazy" className="h-[4.5rem] w-12 shrink-0 rounded-md bg-panel-2 object-cover" />
+                <img {...sized(it.cover, 48)} alt="" loading="lazy" decoding="async" className="h-[4.5rem] w-12 shrink-0 rounded-md bg-panel-2 object-cover" />
               ) : (
                 <div className="h-[4.5rem] w-12 shrink-0 rounded-md bg-panel-2" />
               )}

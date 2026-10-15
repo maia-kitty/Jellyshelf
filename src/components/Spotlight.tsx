@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { useRef, useState } from "react";
 import type { Card } from "@/lib/cards";
 import { ListBadge, StatusBadge } from "./StatusBadge";
+import { sized } from "@/lib/img";
 
 export interface SpotlightItem {
   card: Card;
@@ -22,6 +23,7 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
   const [i, setI] = useState(0);
   const [hold, setHold] = useState(false);
   const touchX = useRef<number | null>(null);
+  const loaded = useRef(new Set<number>());
 
   const go = (delta: number) => setI((n) => (n + delta + items.length) % items.length);
 
@@ -41,17 +43,25 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
         touchX.current = null;
       }}
     >
-      {items.map((it, n) => (
+      {items.map((it, n) => {
+        // Only the banners around the current one are fetched (nine full-width images up front is a lot on a phone);
+        // ones already shown stay, so going back doesn't flash.
+        const near = n === i || n === (i + 1) % items.length || n === (i - 1 + items.length) % items.length;
+        if (near) loaded.current.add(n);
+        if (!loaded.current.has(n)) return null;
+        return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={`${it.card.kind}:${it.card.id}`}
-          src={it.banner}
+          {...sized(it.banner, 1600, "100vw")}
+          fetchPriority={n === 0 ? "high" : "low"}
           alt=""
           // The current banner drifts slowly closer while it's up, and eases back as it fades out.
           className={clsx("absolute inset-0 h-full w-full object-cover", n === i ? "opacity-80 motion-safe:scale-[1.07]" : "opacity-0")}
           style={{ transition: "opacity 1s ease, transform 9s cubic-bezier(0.2, 0.6, 0.3, 1)" }}
         />
-      ))}
+        );
+      })}
       <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-bg/85 via-bg/30 to-transparent" />
 
@@ -115,7 +125,7 @@ function Slide({ item: { card, label, description }, active }: { item: Spotlight
       <Link href={card.href} className="hidden w-36 shrink-0 md:block" tabIndex={active ? undefined : -1}>
         {card.poster && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={card.poster} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-xl border border-line object-cover shadow-2xl" />
+          <img {...sized(card.poster, 144)} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-xl border border-line object-cover shadow-2xl" />
         )}
       </Link>
       <div className="min-w-0 max-w-2xl flex-1">

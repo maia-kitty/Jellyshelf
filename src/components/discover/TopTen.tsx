@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Card } from "@/lib/cards";
 import { ShelfHeader } from "../MediaCard";
 import { StatusBadge } from "../StatusBadge";
+import { sized } from "@/lib/img";
 
 /** A ranked row: big outlined numbers tucked behind each poster. */
 export function TopTen({ title, href, note, cards }: { title: string; href?: string; note?: string; cards: Card[] }) {
@@ -24,7 +25,7 @@ export function TopTen({ title, href, note, cards }: { title: string; href?: str
                 <span className="relative block aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 shadow-xl transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-accent">
                   {c.poster && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.poster} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+                    <img {...sized(c.poster, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
                   )}
                   <span className="absolute left-1.5 top-1.5">
                     <StatusBadge status={c.status} />

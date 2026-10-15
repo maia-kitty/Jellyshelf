@@ -7,6 +7,7 @@ import { HttpError } from "@/lib/clients/http";
 import { libraryDetail } from "@/lib/library";
 import { pageUser } from "@/lib/page";
 import { canPlay } from "@/lib/playback";
+import { sized } from "@/lib/img";
 
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 
@@ -35,7 +36,7 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
                 <span className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-lg bg-panel-2">
                   {e.thumb && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={e.thumb} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
+                    <img {...sized(e.thumb, 128)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition group-hover:scale-105" />
                   )}
                   {e.progress !== null && !e.played && (
                     <span className="absolute inset-x-0 bottom-0 h-1 bg-black/60">

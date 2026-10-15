@@ -262,18 +262,19 @@ export const anilist = {
    */
   schedule: (from: number, to: number) =>
     cached(`anilist:schedule:${Math.floor(from / 3600)}:${Math.floor(to / 3600)}`, 1800, async () => {
-      const out: AiringSlot[] = [];
-      for (let pg = 1; pg <= 3; pg++) {
-        const data = await anilistQuery<{ Page: { pageInfo: { hasNextPage: boolean }; airingSchedules: AiringSlot[] } }>(
-          `query ($from: Int, $to: Int, $page: Int) { Page(page: $page, perPage: 50) { pageInfo { hasNextPage }
+      // The pages are asked for together rather than one after another: three round trips become one.
+      const page = (pg: number) =>
+        anilistQuery<{ Page: { airingSchedules: AiringSlot[] } }>(
+          `query ($from: Int, $to: Int, $page: Int) { Page(page: $page, perPage: 50) {
             airingSchedules(airingAt_greater: $from, airingAt_lesser: $to, sort: TIME) {
               airingAt episode media { ${CARD} popularity isAdult countryOfOrigin } } } }`,
           { from, to, page: pg },
-        );
-        out.push(...data.Page.airingSchedules);
-        if (!data.Page.pageInfo.hasNextPage) break;
-      }
-      return out.filter((s) => !s.media.isAdult);
+        ).then((d) => d.Page.airingSchedules);
+      const pages = await Promise.all([page(1), page(2).catch(() => []), page(3).catch(() => [])]);
+      const seen = new Set<string>();
+      return pages
+        .flat()
+        .filter((s) => !s.media.isAdult && !seen.has(`${s.media.id}:${s.episode}`) && seen.add(`${s.media.id}:${s.episode}`));
     }),
   /** What AniList users recommend alongside this title, best-rated first. */
   recommendations: (id: number) =>

@@ -124,20 +124,20 @@ async function Franchise({ entry, user, footer }: { entry: AniMediaCard; user: U
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
   const id = Number((await params).id);
-  const a = await anilist.media(id);
-  if (!a) notFound();
-
   const token = anilistToken(user);
-  const list = token && user.anilistId ? await anilist.userList(user.anilistId, token).catch(() => null) : null;
+  // The entry, your list and our records don't depend on each other: ask for them together.
+  const [a, list, media, rating, mapping] = await Promise.all([
+    anilist.media(id),
+    token && user.anilistId ? anilist.userList(user.anilistId, token).catch(() => null) : null,
+    findMedia({ kind: "anime", anilistId: id }),
+    latestRating(user.id, id),
+    user.role === "admin" ? getMapping(id) : undefined,
+  ]);
+  if (!a) notFound();
   const entry = list?.get(id);
-  const [decorated] = await decorate([animeCard(a)], user);
   const isSeries = a.format !== "MOVIE";
-  const media = await findMedia({ kind: "anime", anilistId: id });
-  const requests = media ? await db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [];
-  const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
   // Started once; the hero (Play) and the episode list both wait on it.
   const library = loadLibrary(a, media);
-  const [current] = await entryOptions([a], id, user);
 
   // Direct prequels/sequels hint that a franchise list is coming; reserve tiles for it so the page doesn't jump.
   const neighbours = a.relations.edges.filter((e) => e.node.type === "ANIME" && ["PREQUEL", "SEQUEL"].includes(e.relationType)).length;
@@ -145,10 +145,13 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   const related = a.relations.edges
     .filter((e) => e.node.type === "ANIME" && !(isSeries && ["PREQUEL", "SEQUEL"].includes(e.relationType) && e.node.format !== "MOVIE"))
     .map((e) => ({ ...animeCard(e.node), sub: `${e.relationType.replace("_", " ").toLowerCase()} · ${e.node.format ?? ""}` }));
-  const relatedCards = await decorate(related, user);
+  const [[decorated, ...relatedCards], requests, [current]] = await Promise.all([
+    decorate([animeCard(a), ...related], user),
+    media ? db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [],
+    entryOptions([a], id, user),
+  ]);
+  const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
 
-  const mapping = user.role === "admin" ? await getMapping(id) : undefined;
-  const rating = await latestRating(user.id, id);
   const airing = a.nextAiringEpisode
     ? `Ep ${a.nextAiringEpisode.episode} airs ${new Date(a.nextAiringEpisode.airingAt * 1000).toLocaleDateString()}`
     : null;

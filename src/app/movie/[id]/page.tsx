@@ -27,11 +27,13 @@ const money = (n?: number) => (n ? `$${n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : `
 export default async function MoviePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
   const id = Number((await params).id);
-  const movie = await tmdbClient.movie(id).catch((e) => {
-    if (e instanceof HttpError && e.status === 404) notFound();
-    throw e;
-  });
-  const media = await findMedia({ kind: "movie", tmdbId: id });
+  const [movie, media] = await Promise.all([
+    tmdbClient.movie(id).catch((e) => {
+      if (e instanceof HttpError && e.status === 404) notFound();
+      throw e;
+    }),
+    findMedia({ kind: "movie", tmdbId: id }),
+  ]);
   const active = media
     ? await db
         .select()
@@ -42,8 +44,10 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
   const library = movieInfo({ tmdbId: id, itemId: media?.jellyfinItemId ?? null, radarrId: media?.radarrId ?? null }).catch(() => null);
 
   // Anime films: point at the AniList entry so list status/write-back works.
-  const anime = looksLikeAnime(movie) ? (await anilistIdsFor({ tmdbMovieId: id })).filter((m) => m.type === "MOVIE") : [];
-  const recs = await decorate((movie.recommendations?.results ?? []).slice(0, 20).map(movieCard), user);
+  const [anime, recs] = await Promise.all([
+    looksLikeAnime(movie) ? anilistIdsFor({ tmdbMovieId: id }).then((ms) => ms.filter((m) => m.type === "MOVIE")) : [],
+    decorate((movie.recommendations?.results ?? []).slice(0, 20).map(movieCard), user),
+  ]);
   const available = media?.status === "available";
 
   return (

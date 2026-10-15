@@ -3,6 +3,7 @@ import { Overview } from "./Overview";
 import { StatusBadge, ListBadge } from "./StatusBadge";
 import type { MediaStatus } from "@/db/schema";
 import type { AniListStatus } from "@/lib/clients/anilist";
+import { sized } from "@/lib/img";
 
 export function Hero(props: {
   title: string;
@@ -25,7 +26,7 @@ export function Hero(props: {
           fixed 480px strip got cut off mid-fade under short heroes). Past 480px it stays put while content grows. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-full max-h-[480px]">
         {props.backdrop && (
-          <FadeImg src={props.backdrop} alt="" className="h-full w-full object-cover opacity-25" />
+          <FadeImg {...sized(props.backdrop, 1600, "100vw")} alt="" className="h-full w-full object-cover opacity-25" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/70 to-bg/30" />
       </div>
@@ -33,7 +34,7 @@ export function Hero(props: {
         <div className="w-40 shrink-0 sm:w-52">
           {props.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={props.poster} alt="" className="aspect-[2/3] w-full rounded-xl border border-line bg-panel-2 object-cover shadow-2xl" style={{ borderColor: props.accentColor ?? undefined }} />
+            <img {...sized(props.poster, 208)} alt="" className="aspect-[2/3] w-full rounded-xl border border-line bg-panel-2 object-cover shadow-2xl" style={{ borderColor: props.accentColor ?? undefined }} />
           ) : (
             <div className="aspect-[2/3] rounded-xl border border-line bg-panel-2" />
           )}

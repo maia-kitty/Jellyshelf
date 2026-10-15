@@ -10,6 +10,7 @@ import { SubsChip } from "./Subtitles";
 import { DownloadBar } from "./DownloadBar";
 import { requestScope } from "@/lib/requestScope";
 import type { SubsSummary } from "@/lib/subtitles";
+import { sized } from "@/lib/img";
 
 export interface RequestRow {
   id: number;
@@ -91,7 +92,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
             <a href={r.media.href} className="h-28 w-[4.7rem] shrink-0 overflow-hidden rounded-lg bg-panel-2">
               {r.media.poster && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={r.media.poster} alt="" className="h-full w-full object-cover" />
+                <img {...sized(r.media.poster, 80)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               )}
             </a>
             <div className="flex min-w-0 flex-1 flex-col">
