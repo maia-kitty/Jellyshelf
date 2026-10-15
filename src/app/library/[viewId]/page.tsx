@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { LibraryGrid } from "@/components/LibraryCard";
 import { PlaybackSignIn } from "@/components/PlaybackSignIn";
-import { Pager, Tabs } from "@/components/Tabs";
+import { Pager } from "@/components/Tabs";
+import { LibraryControls } from "@/components/LibraryControls";
 import { browse, FILTERS, libraryViews, PAGE_SIZE, SORTS, type FilterKey, type SortKey } from "@/lib/library";
 import { pageUser, param, type SearchParams } from "@/lib/page";
 import { canPlay } from "@/lib/playback";
@@ -25,16 +26,22 @@ export default async function LibraryView({ params, searchParams }: { params: Pr
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-2xl font-bold">{view.name}</h1>
-        <span className="text-sm text-muted">{total} titles</span>
+      <div className="mb-3 flex items-baseline gap-3">
+        <h2 className="text-lg font-semibold">{view.name}</h2>
+        <span className="text-sm text-muted">
+          {total} title{total === 1 ? "" : "s"}
+        </span>
       </div>
-      <div className="flex flex-wrap items-start justify-between gap-x-6">
-        <Tabs active={sort} tabs={Object.entries(SORTS).map(([k, s]) => ({ key: k, label: s.label, href: url({ sort: k }) }))} />
-        <Tabs active={filter} tabs={Object.entries(FILTERS).map(([k, f]) => ({ key: k, label: f.label, href: url({ filter: k }) }))} />
-      </div>
-      <LibraryGrid items={items} />
-      <Pager page={page} hasNext={page * PAGE_SIZE < total} href={(p) => url({ page: p })} />
+      <LibraryControls
+        base={`/library/${viewId}`}
+        sort={sort}
+        filter={filter}
+        sorts={Object.entries(SORTS).map(([key, s]) => ({ key, label: s.label }))}
+        filters={Object.entries(FILTERS).map(([key, f]) => ({ key, label: f.label }))}
+      >
+        <LibraryGrid items={items} />
+        {total > PAGE_SIZE && <Pager page={page} hasNext={page * PAGE_SIZE < total} href={(p) => url({ page: p })} />}
+      </LibraryControls>
     </>
   );
 }

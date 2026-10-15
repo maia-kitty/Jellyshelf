@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { LibraryRow } from "@/components/LibraryCard";
 import { PlaybackSignIn } from "@/components/PlaybackSignIn";
 import { soft } from "@/lib/cards";
@@ -14,16 +13,6 @@ export default async function LibraryHome() {
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-baseline gap-x-4 gap-y-3">
-        <h1 className="text-2xl font-bold">Library</h1>
-        <div className="flex flex-wrap gap-2">
-          {views.map((v) => (
-            <Link key={v.id} href={`/library/${v.id}`} className="rounded-full border border-line px-3.5 py-1.5 text-sm text-muted transition hover:border-accent hover:text-fg">
-              {v.name}
-            </Link>
-          ))}
-        </div>
-      </div>
       {views.map((v, i) => (
         <LibraryRow key={v.id} title={`Latest in ${v.name}`} href={`/library/${v.id}`} items={latest[i]} />
       ))}

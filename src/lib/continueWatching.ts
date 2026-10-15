@@ -6,9 +6,6 @@ import { jellyfin, type JellyfinItem } from "@/lib/clients/jellyfin";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { getSettings } from "@/lib/settings";
 import { animeCard, movieCard, tvCard, type Card } from "@/lib/cards";
-import { cached } from "@/lib/cache";
-import { movieInfo, seriesEpisodes } from "@/lib/episodes";
-import { resolveAnime } from "@/lib/mapping";
 
 type Dated = { card: Card; at: number };
 
@@ -19,36 +16,19 @@ type Dated = { card: Card; at: number };
  */
 export async function continueWatching(user: User, list: Map<number, AniListEntry & { media: AniMediaCard }> | null): Promise<Card[]> {
   const watching = list ? [...list.values()].filter((e) => e.status === "CURRENT" || e.status === "REPEATING") : [];
-  const anime: Dated[] = await Promise.all(
-    watching.map(async (e) => ({
-      card: {
-        ...animeCard(e.media),
-        sub: e.media.episodes && e.progress >= e.media.episodes ? "All watched" : `Next: episode ${e.progress + 1}${e.media.episodes ? ` of ${e.media.episodes}` : ""}`,
-        watched: e.media.episodes ? Math.min(1, e.progress / e.media.episodes) : undefined,
-        playHref: (await nextEpisodeHref(e.media, e.progress).catch(() => null)) ?? undefined,
-      },
-      at: e.updatedAt * 1000,
-    })),
-  );
+  const anime: Dated[] = watching.map((e) => ({
+    card: {
+      ...animeCard(e.media),
+      sub: e.media.episodes && e.progress >= e.media.episodes ? "All watched" : `Next: episode ${e.progress + 1}${e.media.episodes ? ` of ${e.media.episodes}` : ""}`,
+      watched: e.media.episodes ? Math.min(1, e.progress / e.media.episodes) : undefined,
+    },
+    at: e.updatedAt * 1000,
+  }));
   const fromJellyfin = await jellyfinWatching(user, new Set(watching.map((e) => e.mediaId))).catch((e) => {
     console.warn("[continue watching] jellyfin:", (e as Error).message);
     return [];
   });
   return [...anime, ...fromJellyfin].sort((a, b) => b.at - a.at).map((d) => d.card).slice(0, 30);
-}
-
-/**
- * The player link for the episode after your AniList progress, if it's in the library: the same mapping the anime
- * page's "Play episode N" uses. Null when it isn't downloaded yet (the card then opens the page instead).
- */
-function nextEpisodeHref(media: AniMediaCard, progress: number) {
-  return cached(`continue:next:${media.id}:${progress}`, 120, async () => {
-    const { target } = await resolveAnime({ id: media.id, format: media.format, episodes: media.episodes });
-    if (target.service === "radarr") return (await movieInfo({ tmdbId: target.tmdbId, anilistId: media.id })).playUrl;
-    if (target.service !== "sonarr") return null;
-    const info = await seriesEpisodes({ tvdbId: target.tvdbId, anilistId: media.id, target });
-    return info.episodes.find((ep) => ep.n === progress + 1 && ep.playUrl)?.playUrl ?? null;
-  });
 }
 
 const ticks = (it: JellyfinItem) =>
@@ -107,7 +87,6 @@ async function jellyfinWatching(user: User, anilistWatching: Set<number>): Promi
           ...card,
           sub: sh.inProgress ? `Resume ${episodeCode(sh.ep)}` : `Next: ${episodeCode(sh.ep)}`,
           watched: played ? played / 100 : undefined,
-          playHref: `/watch/${sh.ep.Id}`,
         },
         at: at.get(show.Id) ?? 0,
       };
@@ -117,7 +96,7 @@ async function jellyfinWatching(user: User, anilistWatching: Set<number>): Promi
       if (viaPlugin(mv) || covered.has(`movie:${tmdbId}`)) return null;
       const base = hasTmdb ? await tmdbClient.movie(tmdbId).then(movieCard, () => null) : null;
       const card: Card = base ?? { kind: "movie", id: tmdbId, title: mv.Name, poster: null, year: mv.ProductionYear ?? null, href: `/movie/${tmdbId}` };
-      return { card: { ...card, sub: "Resume movie", watched: ticks(mv), playHref: `/watch/${mv.Id}` }, at: Date.parse(mv.UserData?.LastPlayedDate ?? "") || 0 };
+      return { card: { ...card, sub: "Resume movie", watched: ticks(mv) }, at: Date.parse(mv.UserData?.LastPlayedDate ?? "") || 0 };
     }),
   ]);
   return out.filter((d): d is Dated => d !== null);
