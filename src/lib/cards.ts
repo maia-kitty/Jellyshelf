@@ -21,6 +21,8 @@ export interface Card {
   score?: number | null;
   /** How far the viewer is through it, 0–1 (continue watching). */
   watched?: number;
+  /** Straight into the player (continue watching), when it's in Jellyfin. */
+  playHref?: string;
   genres?: string[];
 }
 

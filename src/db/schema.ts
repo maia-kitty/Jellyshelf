@@ -18,6 +18,8 @@ export const users = sqliteTable("users", {
   anilistId: integer("anilist_id").unique(),
   anilistToken: text("anilist_token"), // AES-GCM encrypted
   anilistTokenExpires: integer("anilist_token_expires", { mode: "timestamp" }),
+  /** The user's own Jellyfin access token (AES-GCM encrypted), for playback as them. */
+  jellyfinToken: text("jellyfin_token"),
   jellyfinUserId: text("jellyfin_user_id").unique(),
   autoApproveMovie: integer("auto_approve_movie", { mode: "boolean" }).notNull().default(false),
   autoApproveTv: integer("auto_approve_tv", { mode: "boolean" }).notNull().default(false),

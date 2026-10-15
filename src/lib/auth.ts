@@ -93,6 +93,24 @@ export function anilistToken(user: User): string | null {
   }
 }
 
+export interface JellyfinCredentials {
+  token: string;
+  /** The device the token was issued to; Jellyfin expects the two together. */
+  deviceId: string;
+}
+
+/** The user's own Jellyfin session, for playback; null until they've signed in with Jellyfin since it was added. */
+export function jellyfinToken(user: User): JellyfinCredentials | null {
+  if (!user.jellyfinToken) return null;
+  try {
+    return JSON.parse(decrypt(user.jellyfinToken)) as JellyfinCredentials;
+  } catch {
+    return null;
+  }
+}
+
+export const sealJellyfinToken = (c: JellyfinCredentials) => encrypt(JSON.stringify(c));
+
 export { encrypt };
 
 /** First account ever created becomes admin. */

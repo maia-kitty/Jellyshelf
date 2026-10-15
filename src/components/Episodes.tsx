@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
@@ -29,12 +30,19 @@ function audioSummary(eps: EpisodesInfo["episodes"]) {
   return `Audio: ${parts.join(" · ")}`;
 }
 
-export function JellyfinButton({ href, label = "Play on Jellyfin" }: { href: string | null; label?: string }) {
+/** Opens Jellyshelf's player (the name stays: it plays from Jellyfin). */
+export function JellyfinButton({ href, label = "Play" }: { href: string | null; label?: string }) {
   if (!href) return null;
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="btn bg-[#00a4dc] text-white hover:brightness-110">
-      ▶ {label}
-    </a>
+    <Link
+      href={href}
+      className="btn bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)] px-5 text-white shadow-[0_8px_24px_-10px_#00a4dc] hover:brightness-110"
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+        <path d="M8 5.5v13l11-6.5z" />
+      </svg>
+      {label}
+    </Link>
   );
 }
 
@@ -100,7 +108,7 @@ export function EpisodeList({
           </label>
         )}
         <span className="ml-auto">
-          <JellyfinButton href={info.playUrl} label="Open in Jellyfin" />
+          <JellyfinButton href={info.playUrl} label="Play" />
         </span>
       </div>
       {(info.subs || audio) && (
@@ -173,9 +181,9 @@ export function EpisodeList({
                     </button>
                   )}
                   {e.playUrl ? (
-                    <a href={e.playUrl} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs hover:border-[#00a4dc] hover:text-[#00a4dc]">
+                    <Link href={e.playUrl} className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs transition hover:border-[#00a4dc] hover:text-[#00a4dc]">
                       ▶ Play
-                    </a>
+                    </Link>
                   ) : (
                     e.hasFile && <span className="shrink-0 text-xs text-muted" title="Downloaded, but Jellyfin hasn't picked it up yet">not in Jellyfin</span>
                   )}

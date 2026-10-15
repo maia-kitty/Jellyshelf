@@ -60,7 +60,8 @@ async function jellyfinCtx() {
     cached("jellyfin:library", 600, api.libraryItems),
     cached("jellyfin:serverId", 3600, async () => (await api.info()).Id),
   ]);
-  return { api, library, link: (id: string) => jellyfinWebUrl(base, id, serverId) };
+  // Play links open Jellyshelf's own player; a series goes through /watch/series, which picks up where you are.
+  return { api, library, link: (id: string) => `/watch/${id}`, seriesLink: (id: string) => `/watch/series/${id}`, webUrl: (id: string) => jellyfinWebUrl(base, id, serverId) };
 }
 
 const folder = (p?: string) => p?.replace(/[\\/]+$/, "").split(/[\\/]/).pop()?.toLowerCase();
@@ -170,7 +171,7 @@ export async function seriesEpisodes(opts: {
   const item = jf && findItem(jf.library, "Series", { itemId: opts.jellyfinItemId, tvdbId: opts.tvdbId, tmdbId: opts.tmdbId, anilistId: opts.anilistId, path: series?.path });
   const jfEps = item ? await cached(`jellyfin:eps:${item.Id}`, 120, () => jf!.api.episodes(item.Id)).catch(() => []) : [];
   const jfByKey = new Map(jfEps.map((e) => [`${e.ParentIndexNumber}x${e.IndexNumber}`, e]));
-  const playUrl = item ? jf!.link(item.Id) : null;
+  const playUrl = item ? jf!.seriesLink(item.Id) : null;
 
   if (sonarrEps.length) {
     const now = Date.now();

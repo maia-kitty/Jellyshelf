@@ -83,7 +83,12 @@ async function jellyfinWatching(user: User, anilistWatching: Set<number>): Promi
       const card: Card = base ?? { kind: "tv", id: tmdbId, title: show.Name, poster: null, year: show.ProductionYear ?? null, href: `/tv/${tmdbId}` };
       const played = show.UserData?.PlayedPercentage;
       return {
-        card: { ...card, sub: sh.inProgress ? `Resume ${episodeCode(sh.ep)}` : `Next: ${episodeCode(sh.ep)}`, watched: played ? played / 100 : undefined },
+        card: {
+          ...card,
+          sub: sh.inProgress ? `Resume ${episodeCode(sh.ep)}` : `Next: ${episodeCode(sh.ep)}`,
+          watched: played ? played / 100 : undefined,
+          playHref: `/watch/${sh.ep.Id}`,
+        },
         at: at.get(show.Id) ?? 0,
       };
     }),
@@ -92,7 +97,7 @@ async function jellyfinWatching(user: User, anilistWatching: Set<number>): Promi
       if (viaPlugin(mv) || covered.has(`movie:${tmdbId}`)) return null;
       const base = hasTmdb ? await tmdbClient.movie(tmdbId).then(movieCard, () => null) : null;
       const card: Card = base ?? { kind: "movie", id: tmdbId, title: mv.Name, poster: null, year: mv.ProductionYear ?? null, href: `/movie/${tmdbId}` };
-      return { card: { ...card, sub: "Resume movie", watched: ticks(mv) }, at: Date.parse(mv.UserData?.LastPlayedDate ?? "") || 0 };
+      return { card: { ...card, sub: "Resume movie", watched: ticks(mv), playHref: `/watch/${mv.Id}` }, at: Date.parse(mv.UserData?.LastPlayedDate ?? "") || 0 };
     }),
   ]);
   return out.filter((d): d is Dated => d !== null);

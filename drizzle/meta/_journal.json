@@ -15,6 +15,13 @@
       "when": 1792000004239,
       "tag": "0001_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792094462375,
+      "tag": "0002_jellyfin_token",
+      "breakpoints": true
     }
   ]
 }

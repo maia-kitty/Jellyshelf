@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function JellyfinLogin() {
+/** `stay`: reload the current page after signing in (re-authorising playback) instead of going home. */
+export function JellyfinLogin({ stay = false, label }: { stay?: boolean; label?: string } = {}) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +25,7 @@ export function JellyfinLogin() {
         const j = await res.json().catch(() => ({}));
         setBusy(false);
         if (!res.ok) return setErr(j.error ?? "Sign-in failed");
-        router.push(j.redirect ?? "/");
+        if (!stay) router.push(j.redirect ?? "/");
         router.refresh();
       }}
     >
@@ -32,7 +33,7 @@ export function JellyfinLogin() {
       <input className="input" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       {err && <p className="text-sm text-bad">{err}</p>}
       <button className="btn-primary w-full" disabled={busy || !username}>
-        {busy ? "Signing in…" : "Sign in with Jellyfin"}
+        {busy ? "Signing in…" : (label ?? "Sign in with Jellyfin")}
       </button>
     </form>
   );

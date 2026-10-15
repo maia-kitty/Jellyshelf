@@ -1,9 +1,18 @@
+import { createHash } from "node:crypto";
 import { fetchJson, joinUrl } from "./http";
 
-const CLIENT = 'MediaBrowser Client="Jellyshelf", Device="Server", DeviceId="jellyshelf-server", Version="0.1.0"';
+/**
+ * Jellyfin tracks sessions (what's playing, which token belongs to whom) per device, so each Jellyshelf user is
+ * their own device; the server's background work uses a shared one.
+ */
+export const SERVER_DEVICE = "jellyshelf-server";
+/** One device per Jellyfin account; known before sign-in (the token comes back bound to it), so it's from the name. */
+export const deviceIdFor = (username: string) =>
+  `jellyshelf-${createHash("sha256").update(username.toLowerCase()).digest("hex").slice(0, 16)}`;
 
-function authHeader(token: string | undefined) {
-  return token ? `${CLIENT}, Token="${token}"` : CLIENT;
+export function authHeader(token: string | undefined, deviceId = SERVER_DEVICE) {
+  const client = `MediaBrowser Client="Jellyshelf", Device="${deviceId === SERVER_DEVICE ? "Server" : "Jellyshelf web"}", DeviceId="${deviceId}", Version="0.1.0"`;
+  return token ? `${client}, Token="${token}"` : client;
 }
 
 export interface JellyfinItem {
@@ -23,19 +32,20 @@ export interface JellyfinItem {
 
 export function jellyfin(cfg: { url: string; apiKey: string }) {
   if (!cfg.url) throw new Error("Jellyfin is not configured");
-  const call = <T>(path: string, init: { method?: string; body?: unknown; token?: string; timeoutMs?: number } = {}) =>
+  const call = <T>(path: string, init: { method?: string; body?: unknown; token?: string; deviceId?: string; timeoutMs?: number } = {}) =>
     fetchJson<T>(joinUrl(cfg.url, path), {
       method: init.method,
       body: init.body,
       timeoutMs: init.timeoutMs,
-      headers: { Authorization: authHeader(init.token ?? cfg.apiKey) },
+      headers: { Authorization: authHeader(init.token ?? cfg.apiKey, init.deviceId) },
     });
   return {
     info: () => call<{ Id: string; ServerName: string; Version: string }>("/System/Info"),
-    authenticate: (username: string, password: string) =>
+    /** Signs in as the user. The token is tied to `deviceId`; send the same one with it later. */
+    authenticate: (username: string, password: string, deviceId: string) =>
       call<{ User: { Id: string; Name: string; Policy: { IsAdministrator: boolean } }; AccessToken: string }>(
         "/Users/AuthenticateByName",
-        { method: "POST", body: { Username: username, Pw: password } },
+        { method: "POST", body: { Username: username, Pw: password }, token: "", deviceId },
       ),
     /** Every movie and series in the library with provider ids. */
     libraryItems: async () => {

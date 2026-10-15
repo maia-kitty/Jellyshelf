@@ -10,6 +10,7 @@ type NavUser = { displayName: string; avatar: string | null; role: string; hasAn
 
 const ICON: Record<string, React.ReactNode> = {
   discover: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3.5 5.5-2 5-5 2 2-5 5-2Z" />,
+  library: <path d="M5 4v16M9 4v16M13 6.5l3.6-1.9 4.4 13.9-3.6 1.9zM3 20h18" />,
   anime: <path d="M4 7h16v10H4zM9 4l3 3 3-3M10 10.5v3l2.5-1.5z" />,
   movies: <path d="M4 5h16v14H4zM4 9h16M4 15h16M8 5v4M16 5v4M8 15v4M16 15v4" />,
   series: <path d="M3 6h18v11H3zM8 20h8M12 17v3" />,
@@ -18,6 +19,7 @@ const ICON: Record<string, React.ReactNode> = {
 
 const LINKS = [
   { href: "/", label: "Discover", icon: "discover" },
+  { href: "/library", label: "Library", icon: "library" },
   { href: "/discover/anime", label: "Anime", icon: "anime" },
   { href: "/discover/movies", label: "Movies", icon: "movies" },
   { href: "/discover/tv", label: "Series", icon: "series" },

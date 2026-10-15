@@ -14,7 +14,7 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
         {cards.map((c, i) => (
           <Link
             key={`${c.kind}:${c.id}`}
-            href={c.href}
+            href={c.playHref ?? c.href}
             style={{ "--i": i } as React.CSSProperties}
             className="card-in group relative flex h-36 w-72 shrink-0 overflow-hidden rounded-xl border border-line bg-panel transition duration-300 ease-out hover:-translate-y-1 hover:border-accent active:scale-[0.98] sm:w-80"
           >
@@ -26,7 +26,17 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
             <div className="relative flex min-w-0 flex-1 gap-3 p-3">
               {c.poster ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.poster} alt="" loading="lazy" className="h-full w-[5rem] shrink-0 rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
+                <span className="relative h-full w-[5rem] shrink-0">
+                  <img src={c.poster} alt="" loading="lazy" className="h-full w-full rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
+                  {c.playHref && (
+                    // Plays right away: say so on hover.
+                    <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 opacity-0 transition group-hover:opacity-100">
+                      <svg viewBox="0 0 24 24" className="h-8 w-8 text-white drop-shadow" fill="currentColor" aria-hidden>
+                        <path d="M8 5.5v13l11-6.5z" />
+                      </svg>
+                    </span>
+                  )}
+                </span>
               ) : (
                 <div className="h-full w-[5rem] shrink-0 rounded-lg bg-panel-2" />
               )}
