@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { db, schema } from "@/db";
 import {
   AniListSettings,
+  BazarrSettings,
   GeneralSettings,
   JellyfinSettings,
   JobButtons,
@@ -41,6 +42,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <SonarrSettings initial={s.sonarr} />
           <RadarrSettings initial={s.radarr} />
           <JellyfinSettings initial={s.jellyfin} />
+          <BazarrSettings initial={s.bazarr} />
         </>
       )}
       {tab === "general" && (

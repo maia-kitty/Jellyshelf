@@ -4,6 +4,7 @@ import { RequestList } from "@/components/RequestList";
 import { downloadQueues, progressFor } from "@/lib/downloads";
 import { Tabs } from "@/components/Tabs";
 import { pageUser, param, type SearchParams } from "@/lib/page";
+import { bazarrApi, requestSubs } from "@/lib/subtitles";
 
 export default async function RequestsPage({ searchParams }: { searchParams: SearchParams }) {
   const user = await pageUser();
@@ -20,6 +21,12 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
   const filter = param(await searchParams, "filter") ?? needsAdmin ?? "all";
   const queues = rows.some((r) => r.request.status === "approved") ? await downloadQueues() : null;
   const visible = rows.filter((r) => filter === "all" || r.request.status === filter);
+  // Subtitles only matter once something's on disk.
+  const hasFiles = (r: (typeof rows)[number]) =>
+    r.request.status === "completed" || (r.request.status === "approved" && ["available", "partially_available"].includes(r.media.status));
+  const subs = (await bazarrApi())
+    ? await Promise.all(visible.map((r) => (hasFiles(r) ? requestSubs(r.request, r.media).catch(() => null) : null)))
+    : visible.map(() => null);
   const count = (s: string) => rows.filter((r) => r.request.status === s).length;
 
   return (
@@ -38,7 +45,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
       <RequestList
         isAdmin={user.role === "admin"}
         userId={user.id}
-        rows={visible.map((r) => ({
+        rows={visible.map((r, i) => ({
           id: r.request.id,
           status: r.request.status,
           error: r.request.error,
@@ -48,6 +55,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
           episodeRanges: r.request.episodeRanges,
           absolute: r.request.absolute,
           download: queues && r.request.status === "approved" ? progressFor(r.request, r.media, queues) : null,
+          subs: subs[i],
           media: {
             kind: r.media.kind,
             title: r.media.title,

@@ -22,6 +22,8 @@ import { animeMediaMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
+import { canFixSubs } from "@/lib/subtitles";
+import { SubsBar } from "@/components/Subtitles";
 
 async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
   const token = anilistToken(user);
@@ -56,17 +58,19 @@ async function Franchise({ entry, user }: { entry: AniMediaCard; user: User }) {
 }
 
 /** Downloaded episodes of this entry (or the Jellyfin link for a film). Renders nothing if it's in neither Sonarr nor Jellyfin. */
-async function AnimeEpisodes({ entry, progress }: { entry: AniMediaCard; progress: number | null }) {
+async function AnimeEpisodes({ entry, progress, user }: { entry: AniMediaCard; progress: number | null; user: User }) {
   await debugSleep("episodes");
   const [{ target }, media] = await Promise.all([
     resolveAnime({ id: entry.id, format: entry.format, episodes: entry.episodes }),
     findMedia({ kind: "anime", anilistId: entry.id }),
   ]);
   if (target.service === "radarr") {
-    const info = await movieInfo({ itemId: media?.jellyfinItemId, tmdbId: target.tmdbId, anilistId: entry.id });
-    return info.playUrl ? (
-      <div className="mb-10">
+    const info = await movieInfo({ itemId: media?.jellyfinItemId, tmdbId: target.tmdbId, anilistId: entry.id, radarrId: media?.radarrId });
+    const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
+    return info.playUrl || info.subs ? (
+      <div className="mb-10 flex flex-wrap items-center gap-3">
         <JellyfinButton href={info.playUrl} />
+        {info.subs && <SubsBar subs={info.subs} canFix={canFix} title={aniTitle(entry.title)} className="basis-full" />}
       </div>
     ) : null;
   }
@@ -78,7 +82,8 @@ async function AnimeEpisodes({ entry, progress }: { entry: AniMediaCard; progres
     target,
   }).catch(() => null);
   if (!info || (!info.episodes.length && !info.playUrl)) return null;
-  return <EpisodeList info={info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} />;
+  const canFix = info.subs ? await canFixSubs(user, info.subs) : false;
+  return <EpisodeList info={info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={aniTitle(entry.title)} canFixSubs={canFix} />;
 }
 
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
@@ -173,7 +178,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
       <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
-        <AnimeEpisodes entry={a} progress={token ? (entry?.progress ?? 0) : null} />
+        <AnimeEpisodes entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
       </Suspense>
       <CardRow title="Related" cards={relatedCards} />
     </>

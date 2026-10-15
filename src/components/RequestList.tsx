@@ -6,6 +6,8 @@ import clsx from "clsx";
 import type { MediaStatus, RequestStatus } from "@/db/schema";
 import type { DownloadProgress } from "@/lib/downloads";
 import { StatusBadge } from "./StatusBadge";
+import { SubsChip } from "./Subtitles";
+import type { SubsSummary } from "@/lib/subtitles";
 
 export interface RequestRow {
   id: number;
@@ -17,6 +19,8 @@ export interface RequestRow {
   episodeRanges: { from: number; to: number | null }[] | null;
   absolute: boolean;
   download: DownloadProgress | null;
+  /** From Bazarr, once there are files. */
+  subs: SubsSummary | null;
   media: { kind: string; title: string; poster: string | null; status: MediaStatus; href: string };
   user: { id: number; displayName: string };
 }
@@ -110,6 +114,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
                 </span>
                 {/* The request's own status already says pending/processing; only show the library state when it adds something. */}
                 {(r.media.status === "available" || r.media.status === "partially_available") && <StatusBadge status={r.media.status} />}
+                {r.subs && <SubsChip summary={r.subs} />}
               </div>
               <div className="mt-0.5 text-xs text-muted">
                 {r.user.displayName} ·{" "}

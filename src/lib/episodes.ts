@@ -4,8 +4,12 @@ import { jellyfin, jellyfinWebUrl, type JellyfinItem } from "./clients/jellyfin"
 import { sonarr, type SonarrSeries } from "./clients/sonarr";
 import type { AnimeTarget } from "./mapping/resolve";
 import { scopeEpisodes } from "./episodeScope";
+import { radarr } from "./clients/radarr";
+import { fileSubs, movieSubs, seriesSubs, summarize, type FileSubs, type SubsSummary } from "./subtitles";
 
 export interface EpisodeRow {
+  /** Sonarr episode id (what Bazarr uses), when the episode came from Sonarr. */
+  id: number | null;
   season: number;
   episode: number;
   absolute: number | null;
@@ -18,6 +22,16 @@ export interface EpisodeRow {
   size: number | null;
   /** Deep link to the episode in Jellyfin, if Jellyfin has it. */
   playUrl: string | null;
+  /** From Bazarr, for downloaded episodes. */
+  subs?: FileSubs;
+}
+
+/** Where a title's subtitles live in Bazarr, and how complete they are. */
+export interface SubsInfo {
+  kind: "series" | "movie";
+  /** Sonarr series id or Radarr movie id. */
+  id: number;
+  summary: SubsSummary;
 }
 
 export interface EpisodesInfo {
@@ -27,9 +41,11 @@ export interface EpisodesInfo {
   /** Episodes in scope that have aired (or are known), and how many are downloaded. */
   total: number;
   downloaded: number;
+  /** Null when Bazarr isn't set up, can't be reached, or doesn't know the title. */
+  subs: SubsInfo | null;
 }
 
-const EMPTY: EpisodesInfo = { playUrl: null, episodes: [], total: 0, downloaded: 0 };
+const EMPTY: EpisodesInfo = { playUrl: null, episodes: [], total: 0, downloaded: 0, subs: null };
 
 async function jellyfinCtx() {
   const s = (await getSettings()).jellyfin;
@@ -67,10 +83,21 @@ function findItem(
 }
 
 /** Jellyfin link for a movie (plain or anime film). */
-export async function movieInfo(hint: { itemId?: string | null; tmdbId: number; anilistId?: number | null }): Promise<EpisodesInfo> {
-  const jf = await jellyfinCtx().catch(() => null);
+export async function movieInfo(hint: { itemId?: string | null; tmdbId: number; anilistId?: number | null; radarrId?: number | null }): Promise<EpisodesInfo> {
+  const [jf, subs] = await Promise.all([jellyfinCtx().catch(() => null), movieSubsInfo(hint.tmdbId, hint.radarrId)]);
   const item = jf && findItem(jf.library, "Movie", hint);
-  return { ...EMPTY, playUrl: item ? jf.link(item.Id) : null };
+  return { ...EMPTY, playUrl: item ? jf.link(item.Id) : null, subs };
+}
+
+async function movieSubsInfo(tmdbId: number, radarrId?: number | null): Promise<SubsInfo | null> {
+  const s = (await getSettings()).radarr;
+  const id =
+    radarrId ??
+    (s.url && s.apiKey && (await getSettings()).bazarr.url
+      ? (await cached(`radarr:tmdb:${tmdbId}`, 300, () => radarr(s).movieByTmdb(tmdbId)).catch(() => null))?.id
+      : null);
+  const subs = id ? await movieSubs(id) : null;
+  return id && subs ? { kind: "movie", id, summary: summarize([subs]) } : null;
 }
 
 /**
@@ -95,6 +122,8 @@ export async function seriesEpisodes(opts: {
     series = await api.seriesByTvdb(opts.tvdbId).catch(() => null);
     if (series) sonarrEps = await api.episodes(series.id!, true).catch(() => []);
   }
+  const bazarrEps = series && sonarrEps.length ? await seriesSubs(series.id!) : null;
+  const subsById = new Map(bazarrEps?.map((e) => [e.sonarrEpisodeId, fileSubs(e)]));
 
   const item = jf && findItem(jf.library, "Series", { itemId: opts.jellyfinItemId, tvdbId: opts.tvdbId, tmdbId: opts.tmdbId, anilistId: opts.anilistId, path: series?.path });
   const jfEps = item ? await cached(`jellyfin:eps:${item.Id}`, 120, () => jf!.api.episodes(item.Id)).catch(() => []) : [];
@@ -110,6 +139,7 @@ export async function seriesEpisodes(opts: {
     const rows: EpisodeRow[] = scoped.map((e) => {
       const j = jfByKey.get(`${e.season}x${e.episode}`);
       return {
+        id: e.id,
         season: e.season,
         episode: e.episode,
         absolute: e.absolute,
@@ -120,10 +150,18 @@ export async function seriesEpisodes(opts: {
         quality: e.episodeFile?.quality?.quality?.name ?? null,
         size: e.episodeFile?.size ?? null,
         playUrl: j ? jf!.link(j.Id) : null,
+        subs: e.hasFile ? subsById.get(e.id) : undefined,
       };
     });
     const aired = rows.filter((r) => r.hasFile || !r.airDate || Date.parse(r.airDate) <= now);
-    return { playUrl, episodes: rows, total: aired.length, downloaded: rows.filter((r) => r.hasFile).length };
+    const withSubs = rows.flatMap((r) => (r.subs ? [r.subs] : []));
+    return {
+      playUrl,
+      episodes: rows,
+      total: aired.length,
+      downloaded: rows.filter((r) => r.hasFile).length,
+      subs: bazarrEps && withSubs.length ? { kind: "series", id: series!.id!, summary: summarize(withSubs) } : null,
+    };
   }
 
   if (jfEps.length) {
@@ -135,6 +173,7 @@ export async function seriesEpisodes(opts: {
       opts.target?.absolute ? null : opts.target,
     );
     const rows = scoped.map((e) => ({
+      id: null,
       season: e.season,
       episode: e.episode,
       absolute: null,
@@ -146,7 +185,7 @@ export async function seriesEpisodes(opts: {
       size: null,
       playUrl: jf!.link(e.id),
     }));
-    return { playUrl, episodes: rows, total: rows.length, downloaded: rows.length };
+    return { playUrl, episodes: rows, total: rows.length, downloaded: rows.length, subs: null };
   }
 
   return { ...EMPTY, playUrl };

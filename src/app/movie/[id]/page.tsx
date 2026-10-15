@@ -12,10 +12,19 @@ import { pageUser } from "@/lib/page";
 import { Suspense } from "react";
 import { JellyfinButton } from "@/components/Episodes";
 import { movieInfo } from "@/lib/episodes";
+import { canFixSubs } from "@/lib/subtitles";
+import { SubsBar } from "@/components/Subtitles";
+import type { User } from "@/db/schema";
 
-async function PlayMovie({ tmdbId, itemId }: { tmdbId: number; itemId: string | null }) {
-  const info = await movieInfo({ tmdbId, itemId }).catch(() => null);
-  return <JellyfinButton href={info?.playUrl ?? null} />;
+async function PlayMovie({ tmdbId, itemId, radarrId, title, user }: { tmdbId: number; itemId: string | null; radarrId: number | null; title: string; user: User }) {
+  const info = await movieInfo({ tmdbId, itemId, radarrId }).catch(() => null);
+  const canFix = info?.subs ? await canFixSubs(user, info.subs) : false;
+  return (
+    <>
+      <JellyfinButton href={info?.playUrl ?? null} />
+      {info?.subs && <SubsBar subs={info.subs} canFix={canFix} title={title} className="basis-full" />}
+    </>
+  );
 }
 import { db, schema } from "@/db";
 import { and, eq, inArray } from "drizzle-orm";
@@ -63,7 +72,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         <div className="mt-3 flex flex-wrap items-start gap-3">
           <MovieRequest tmdbId={id} status={media?.status ?? "unknown"} requested={active.length > 0} />
           <Suspense fallback={null}>
-            <PlayMovie tmdbId={id} itemId={media?.jellyfinItemId ?? null} />
+            <PlayMovie tmdbId={id} itemId={media?.jellyfinItemId ?? null} radarrId={media?.radarrId ?? null} title={movie.title} user={user} />
           </Suspense>
         </div>
       </Hero>

@@ -4,11 +4,12 @@ import { currentUser, isFirstUser } from "@/lib/auth";
 import { radarr } from "@/lib/clients/radarr";
 import { sonarr } from "@/lib/clients/sonarr";
 import { jellyfin } from "@/lib/clients/jellyfin";
+import { bazarr } from "@/lib/clients/bazarr";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { MASK, getSettings } from "@/lib/settings";
 
 const body = z.object({
-  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin"]),
+  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr"]),
   url: z.string().optional(),
   apiKey: z.string().optional(),
 });
@@ -26,6 +27,10 @@ export function POST(req: Request) {
     }
     const saved = s[service];
     const cfg = { url: url || saved.url, apiKey: apiKey && apiKey !== MASK ? apiKey : saved.apiKey };
+    if (service === "bazarr") {
+      const st = await bazarr(cfg).status();
+      return { ok: true, message: `Bazarr ${st.bazarr_version}` };
+    }
     if (service === "jellyfin") {
       const info = await jellyfin(cfg).info();
       return { ok: true, message: `${info.ServerName} (Jellyfin ${info.Version})` };

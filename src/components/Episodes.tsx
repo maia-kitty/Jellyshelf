@@ -5,6 +5,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import type { EpisodesInfo } from "@/lib/episodes";
 import { patchEntry } from "./ListEditor";
+import { SubsBar, SubsChips, SubtitlePicker } from "./Subtitles";
 
 const PAGE = 60;
 
@@ -32,10 +33,16 @@ export function EpisodeList({
   info,
   anilist,
   groupBySeason = false,
+  title,
+  canFixSubs = false,
 }: {
   info: EpisodesInfo;
   anilist: { mediaId: number; progress: number } | null;
   groupBySeason?: boolean;
+  /** Series title, for the subtitle picker. */
+  title: string;
+  /** May search Bazarr / pick subtitles (admins, or requesters when allowed). */
+  canFixSubs?: boolean;
 }) {
   const router = useRouter();
   const [showMissing, setShowMissing] = useState(false);
@@ -43,6 +50,7 @@ export function EpisodeList({
   const [progress, setProgress] = useState(anilist?.progress ?? 0);
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState("");
+  const [picking, setPicking] = useState<{ id: number; label: string } | null>(null);
 
   const now = Date.now();
   const rows = info.episodes.filter((e) => e.hasFile || (showMissing && (!e.airDate || Date.parse(e.airDate) <= now + 7 * 864e5)));
@@ -81,7 +89,11 @@ export function EpisodeList({
           <JellyfinButton href={info.playUrl} label="Open in Jellyfin" />
         </span>
       </div>
+      {info.subs && <SubsBar subs={info.subs} canFix={canFixSubs} title={title} className="mb-3" />}
       {err && <p className="mb-2 text-sm text-bad">{err}</p>}
+      {picking && info.subs && (
+        <SubtitlePicker target={{ kind: "series", id: info.subs.id, episodeId: picking.id }} title={`${title} · ${picking.label}`} onClose={() => setPicking(null)} />
+      )}
 
       {!rows.length ? (
         <p className="py-6 text-center text-sm text-muted">{info.episodes.length ? "Nothing downloaded yet." : "No episode information (not in Sonarr or Jellyfin)."}</p>
@@ -111,6 +123,18 @@ export function EpisodeList({
                         .join(" · ")}
                     </div>
                   </div>
+                  {e.subs &&
+                    (canFixSubs && info.subs && e.id !== null ? (
+                      <button
+                        className="shrink-0 rounded-md p-0.5 text-xs text-muted ring-line hover:text-fg hover:ring-1"
+                        onClick={() => setPicking({ id: e.id!, label: code(e.season, e.episode) })}
+                        title="Pick subtitles for this episode"
+                      >
+                        {e.subs.have.length || e.subs.missing.length ? <SubsChips subs={e.subs} /> : "Subs…"}
+                      </button>
+                    ) : (
+                      <SubsChips subs={e.subs} />
+                    ))}
                   {anilist && !watched && (
                     <button
                       className="shrink-0 text-xs text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100"

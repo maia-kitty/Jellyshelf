@@ -51,6 +51,14 @@ export const settingsSchema = z.object({
       allowLogin: z.boolean().default(true),
     })
     .prefault({}),
+  bazarr: z
+    .object({
+      url: z.string().default(""),
+      apiKey: z.string().default(""),
+      /** Who may search for and pick subtitles: admins only, or also whoever requested the title. */
+      fixSubsBy: z.enum(["admin", "requesters"]).default("requesters"),
+    })
+    .prefault({}),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -87,6 +95,7 @@ export function redactSettings(s: Settings) {
     sonarr: { ...s.sonarr, apiKey: mask(s.sonarr.apiKey) },
     radarr: { ...s.radarr, apiKey: mask(s.radarr.apiKey) },
     jellyfin: { ...s.jellyfin, apiKey: mask(s.jellyfin.apiKey) },
+    bazarr: { ...s.bazarr, apiKey: mask(s.bazarr.apiKey) },
   };
 }
 

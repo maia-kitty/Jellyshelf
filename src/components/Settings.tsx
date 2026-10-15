@@ -327,6 +327,29 @@ export function JellyfinSettings({ initial }: { initial: Settings["jellyfin"] })
   );
 }
 
+export function BazarrSettings({ initial }: { initial: Settings["bazarr"] }) {
+  const { v, set, submit, state } = useSection("bazarr", initial);
+  return (
+    <Section title="Bazarr" desc="Optional. Shows which subtitles each episode and film has, and lets people search for missing ones or pick a specific file.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="URL">
+          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://bazarr:6767" />
+        </Field>
+        <Field label="API key" hint="Settings → General → Security">
+          <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
+        </Field>
+        <Field label="Who can search and pick subtitles">
+          <select className="input" value={v.fixSubsBy} onChange={(e) => set("fixSubsBy", e.target.value as Settings["bazarr"]["fixSubsBy"])}>
+            <option value="requesters">Admins, and whoever requested the title</option>
+            <option value="admin">Admins only</option>
+          </select>
+        </Field>
+      </div>
+      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("bazarr", v.url, v.apiKey)} />} />
+    </Section>
+  );
+}
+
 export function FinishSetup() {
   const router = useRouter();
   const [err, setErr] = useState("");
