@@ -47,7 +47,9 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
           key={`${it.card.kind}:${it.card.id}`}
           src={it.banner}
           alt=""
-          className={clsx("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000", n === i ? "opacity-80" : "opacity-0")}
+          // The current banner drifts slowly closer while it's up, and eases back as it fades out.
+          className={clsx("absolute inset-0 h-full w-full object-cover", n === i ? "opacity-80 motion-safe:scale-[1.07]" : "opacity-0")}
+          style={{ transition: "opacity 1s ease, transform 9s cubic-bezier(0.2, 0.6, 0.3, 1)" }}
         />
       ))}
       <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/30 to-transparent" />
@@ -88,10 +90,9 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
                   <span
                     key={i}
                     onAnimationEnd={() => go(1)}
-                    className="spotlight-progress absolute inset-y-0 left-0"
+                    className="spotlight-progress absolute inset-0 rounded-full"
                     style={{
                       backgroundImage: JELLY,
-                      backgroundSize: "2rem 100%",
                       animationDuration: `${ROTATE_MS}ms`,
                       animationPlayState: hold ? "paused" : "running",
                     }}

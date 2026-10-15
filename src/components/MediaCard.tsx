@@ -6,10 +6,11 @@ import { ListBadge, StatusBadge } from "./StatusBadge";
 export function MediaCard({ card }: { card: Card }) {
   return (
     <Link href={card.href} className="group block w-full" title={card.title}>
-      <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 transition group-hover:border-accent">
+      {/* Lifts toward you on hover, with a faint accent glow. */}
+      <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-accent group-hover:shadow-[0_10px_30px_-10px_color-mix(in_srgb,var(--color-accent)_55%,transparent)] group-active:translate-y-0 group-active:scale-[0.98]">
         {card.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={card.poster} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+          <img src={card.poster} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.05]" />
         ) : (
           <div className="flex h-full items-center justify-center p-3 text-center text-sm text-muted">{card.title}</div>
         )}
@@ -67,9 +68,10 @@ export function CardRow({ title, href, cards, note }: { title: React.ReactNode; 
   return (
     <section className="mb-10">
       <ShelfHeader title={title} href={href} note={note} />
-      <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3">
-        {cards.map((c) => (
-          <div key={`${c.kind}:${c.id}`} className="w-36 shrink-0 sm:w-40">
+      {/* pt-1.5 leaves room for the hover lift inside the scroller's clip. */}
+      <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3 pt-1.5">
+        {cards.map((c, i) => (
+          <div key={`${c.kind}:${c.id}`} className="card-in w-36 shrink-0 sm:w-40" style={{ "--i": i } as React.CSSProperties}>
             <MediaCard card={c} />
           </div>
         ))}
@@ -82,8 +84,10 @@ export function CardGrid({ cards }: { cards: Card[] }) {
   if (!cards.length) return <p className="py-16 text-center text-muted">Nothing here.</p>;
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
-      {cards.map((c) => (
-        <MediaCard key={`${c.kind}:${c.id}`} card={c} />
+      {cards.map((c, i) => (
+        <div key={`${c.kind}:${c.id}`} className="card-in" style={{ "--i": i } as React.CSSProperties}>
+          <MediaCard card={c} />
+        </div>
       ))}
     </div>
   );

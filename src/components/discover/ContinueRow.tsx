@@ -10,12 +10,13 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
   return (
     <section className="mb-10">
       <ShelfHeader title="Continue watching" />
-      <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3">
-        {cards.map((c) => (
+      <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3 pt-1.5">
+        {cards.map((c, i) => (
           <Link
             key={`${c.kind}:${c.id}`}
             href={c.href}
-            className="group relative flex h-36 w-72 shrink-0 overflow-hidden rounded-xl border border-line bg-panel transition hover:border-accent sm:w-80"
+            style={{ "--i": i } as React.CSSProperties}
+            className="card-in group relative flex h-36 w-72 shrink-0 overflow-hidden rounded-xl border border-line bg-panel transition duration-300 ease-out hover:-translate-y-1 hover:border-accent active:scale-[0.98] sm:w-80"
           >
             {c.poster && (
               // eslint-disable-next-line @next/next/no-img-element

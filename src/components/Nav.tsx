@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 
 type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean };
@@ -28,12 +28,52 @@ const LINKS = [
 
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
+type Pill = { x: number; w: number; animate: boolean };
+
+/**
+ * A highlight that slides to whichever link in `box` has data-active. It jumps into place the first time (nothing to
+ * slide from) and glides on every navigation after; it follows the layout as the bar resizes.
+ */
+function useSlidingPill<T extends HTMLElement>(path: string) {
+  const box = useRef<T>(null);
+  const [pill, setPill] = useState<Pill | null>(null);
+  useLayoutEffect(() => {
+    const measure = (animate: boolean) => {
+      const el = box.current?.querySelector<HTMLElement>("[data-active='true']");
+      setPill((prev) => (el ? { x: el.offsetLeft, w: el.offsetWidth, animate: animate && prev !== null } : null));
+    };
+    measure(true);
+    const ro = new ResizeObserver(() => measure(false));
+    if (box.current) ro.observe(box.current);
+    return () => ro.disconnect();
+  }, [path]);
+  return { box, pill };
+}
+
+function PillBg({ pill, className }: { pill: Pill | null; className: string }) {
+  if (!pill) return null;
+  return (
+    <span
+      aria-hidden
+      className={clsx("nav-pill pointer-events-none absolute", className)}
+      style={{
+        width: pill.w,
+        transform: `translateX(${pill.x}px)`,
+        transition: pill.animate ? "transform 0.4s cubic-bezier(0.3, 1.25, 0.5, 1), width 0.4s cubic-bezier(0.3, 1.25, 0.5, 1)" : "none",
+      }}
+    />
+  );
+}
+
 export function Nav({ user }: { user: NavUser }) {
   const path = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
   const search = useRef<HTMLInputElement>(null);
   const links = LINKS.filter((l) => !l.anilist || user.hasAnilist);
+  const desk = useSlidingPill<HTMLElement>(path);
+  const tab = useSlidingPill<HTMLElement>(path);
+  const dock = useSlidingPill<HTMLElement>(path);
 
   // "/" jumps to search from anywhere that isn't already a text field.
   useEffect(() => {
@@ -54,14 +94,16 @@ export function Nav({ user }: { user: NavUser }) {
           <Link href="/" className="jar-trigger flex shrink-0 items-center gap-2 text-lg font-bold">
             <AppIcon size={28} animate="hover" /> <span className="hidden sm:inline">Jellyshelf</span>
           </Link>
-          <nav className="hidden gap-1 lg:flex">
+          <nav ref={desk.box} className="relative hidden gap-1 lg:flex">
+            <PillBg pill={desk.pill} className="inset-y-0 left-0 rounded-lg bg-panel-2" />
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
+                data-active={isActive(path, l.href)}
                 className={clsx(
-                  "whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition",
-                  isActive(path, l.href) ? "bg-panel-2 text-fg" : "text-muted hover:text-fg",
+                  "relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
+                  isActive(path, l.href) ? "text-fg" : "text-muted hover:text-fg",
                 )}
               >
                 {l.label}
@@ -84,12 +126,17 @@ export function Nav({ user }: { user: NavUser }) {
           <UserMenu user={user} links={links} path={path} />
         </div>
         {/* Tablet: the links get their own scrolling row. */}
-        <nav className="mx-auto hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-2 sm:flex sm:px-6 lg:hidden">
+        <nav ref={tab.box} className="relative mx-auto hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-2 sm:flex sm:px-6 lg:hidden">
+          <PillBg pill={tab.pill} className="bottom-2 left-0 top-0 rounded-lg bg-panel-2" />
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={clsx("whitespace-nowrap rounded-lg px-3 py-1.5 text-sm", isActive(path, l.href) ? "bg-panel-2 text-fg" : "text-muted")}
+              data-active={isActive(path, l.href)}
+              className={clsx(
+                "relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
+                isActive(path, l.href) ? "text-fg" : "text-muted",
+              )}
             >
               {l.label}
             </Link>
@@ -98,19 +145,39 @@ export function Nav({ user }: { user: NavUser }) {
       </header>
 
       {/* Phone: a bottom tab bar for the main sections; the rest lives in the avatar menu. */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex transform-gpu border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
-        {LINKS.filter((l) => l.icon).map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={clsx("flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px]", isActive(path, l.href) ? "text-accent" : "text-muted")}
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              {ICON[l.icon!]}
-            </svg>
-            {l.label}
-          </Link>
-        ))}
+      <nav ref={dock.box} className="fixed inset-x-0 bottom-0 z-30 flex transform-gpu border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
+        {/* A soft glow behind the current tab, and a jelly line along the top edge, both gliding between tabs. */}
+        <PillBg pill={dock.pill} className="left-0 top-1 h-[calc(100%-env(safe-area-inset-bottom)-0.5rem)] rounded-2xl bg-accent/12" />
+        <PillBg pill={dock.pill && { ...dock.pill, x: dock.pill.x + dock.pill.w / 4, w: dock.pill.w / 2 }} className="-top-px left-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)]" />
+        {LINKS.filter((l) => l.icon).map((l) => {
+          const on = isActive(path, l.href);
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              data-active={on}
+              className={clsx(
+                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-[color,transform] duration-300 active:scale-90",
+                on ? "text-accent" : "text-muted",
+              )}
+            >
+              {/* Re-keyed when it becomes the current tab, so the hop plays each time you switch to it. */}
+              <svg
+                key={on ? "on" : "off"}
+                viewBox="0 0 24 24"
+                className={clsx("h-5 w-5", on && "tab-pop")}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={on ? 2.1 : 1.8}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {ICON[l.icon!]}
+              </svg>
+              {l.label}
+            </Link>
+          );
+        })}
       </nav>
     </>
   );

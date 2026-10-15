@@ -31,7 +31,7 @@ body {
 }
 
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
   @apply btn bg-accent text-white hover:bg-accent-strong;
@@ -184,11 +184,34 @@ body {
   from { opacity: 0; transform: translateY(8px); }
 }
 .rise-in { animation: rise-in 0.6s ease-out both; }
+/* Scaled rather than resized: a width animation re-lays out every frame and steps visibly on a bar this small. */
 @keyframes spotlight-progress {
-  from { width: 0; }
-  to { width: 100%; }
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
-.spotlight-progress { animation: spotlight-progress linear both; }
+.spotlight-progress { transform-origin: left center; will-change: transform; animation: spotlight-progress linear both; }
+
+/* Each page eases in on navigation (app/template.tsx). Only the start state is applied ("backwards"): a transform
+   left on the wrapper would turn it into the containing block for fixed dialogs and the dock. */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.page-in { animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
+
+/* Cards in a row arrive one after another; the delay comes from --i. */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+.card-in { animation: card-in 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; animation-delay: calc(min(var(--i, 0), 10) * 45ms); }
+
+/* Dock: the tab you switch to gives a little hop. */
+@keyframes tab-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.22) translateY(-2px); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.tab-pop { animation: tab-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1); }
 
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
@@ -212,9 +235,13 @@ body {
   .jar .jar-play,
   .jar .jar-sparks circle,
   .rise-in,
-  .spotlight-progress {
+  .spotlight-progress,
+  .page-in,
+  .card-in,
+  .tab-pop {
     animation: none !important;
   }
+  .nav-pill { transition: none !important; }
   .overview-body,
   .fade-img { transition: none; }
 }

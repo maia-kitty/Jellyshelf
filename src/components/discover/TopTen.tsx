@@ -9,9 +9,9 @@ export function TopTen({ title, href, note, cards }: { title: string; href?: str
   return (
     <section className="mb-10">
       <ShelfHeader title={title} href={href} note={note} />
-      <ol className="scroll-row -mx-1 flex gap-1 overflow-x-auto px-1 pb-3">
+      <ol className="scroll-row -mx-1 flex gap-1 overflow-x-auto px-1 pb-3 pt-1.5">
         {cards.map((c, i) => (
-          <li key={`${c.kind}:${c.id}`} className="shrink-0">
+          <li key={`${c.kind}:${c.id}`} className="card-in shrink-0" style={{ "--i": i } as React.CSSProperties}>
             <Link href={c.href} className="group flex items-end" title={c.title}>
               <span
                 aria-hidden
@@ -21,7 +21,7 @@ export function TopTen({ title, href, note, cards }: { title: string; href?: str
                 {i + 1}
               </span>
               <span className="relative block w-28 sm:w-32">
-                <span className="relative block aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 shadow-xl transition group-hover:border-accent">
+                <span className="relative block aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 shadow-xl transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-accent">
                   {c.poster && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={c.poster} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
