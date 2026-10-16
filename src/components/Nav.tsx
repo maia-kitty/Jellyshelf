@@ -9,12 +9,31 @@ import { NavProgress } from "./NavProgress";
 
 type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean };
 
+// Split into parts so each icon can move its own way (keyframes in globals.css): the compass needle spins, the
+// leaning book tips up and drops back, the tiles pop in turn, the rows slide in, the bookmark's tick draws itself.
+const tile = (i: number, d: string) => <path key={i} className="ni-tile" style={{ "--i": i } as React.CSSProperties} d={d} />;
+const row = (i: number, y: number) => <path key={i} className="ni-row" style={{ "--i": i } as React.CSSProperties} d={`M4 ${y}h.01M8 ${y}h12`} />;
 const ICON: Record<string, React.ReactNode> = {
-  discover: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3.5 5.5-2 5-5 2 2-5 5-2Z" />,
-  library: <path d="M5 4v16M9 4v16M13 6.5l3.6-1.9 4.4 13.9-3.6 1.9zM3 20h18" />,
-  browse: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
-  requests: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
-  lists: <path d="M6 3.5h12v17l-6-4-6 4zM9 9.5l2 2 4-4" />,
+  discover: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path className="ni-needle" d="M15.5 8.5l-2 5-5 2 2-5 5-2Z" />
+    </>
+  ),
+  library: (
+    <>
+      <path d="M5 4v16M9 4v16M3 20h18" />
+      <path className="ni-book" d="M13 6.5l3.6-1.9 4.4 13.9-3.6 1.9z" />
+    </>
+  ),
+  browse: [tile(0, "M4 4h7v7H4z"), tile(1, "M13 4h7v7h-7z"), tile(2, "M4 13h7v7H4z"), tile(3, "M13 13h7v7h-7z")],
+  requests: [row(0, 6), row(1, 12), row(2, 18)],
+  lists: (
+    <>
+      <path className="ni-mark" d="M6 3.5h12v17l-6-4-6 4z" />
+      <path className="ni-check" pathLength={1} d="M9 9.5l2 2 4-4" />
+    </>
+  ),
 };
 
 const LINKS = [
@@ -27,14 +46,14 @@ const LINKS = [
   { href: "/requests", label: "Requests", icon: "requests" },
 ];
 
-/** A link's icon; re-keyed when it becomes the current one, so the hop plays each time you switch to it. */
+/** A link's icon; re-keyed when it becomes the current one, so the hop (and its own move) plays each time you switch to it. */
 function NavIcon({ icon, on, className }: { icon: string; on: boolean; className: string }) {
   return (
     <svg
       key={on ? "on" : "off"}
       aria-hidden
       viewBox="0 0 24 24"
-      className={clsx("shrink-0", className, on && "tab-pop")}
+      className={clsx("nav-icon shrink-0", className, on && "tab-pop")}
       fill="none"
       stroke="currentColor"
       strokeWidth={on ? 2.1 : 1.8}
@@ -139,7 +158,7 @@ export function Nav({ user }: { user: NavUser }) {
                 href={l.href}
                 data-active={isActive(path, l)}
                 className={clsx(
-                  "relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
+                  "nav-link relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
                   isActive(path, l) ? "text-accent" : "text-muted hover:text-fg",
                 )}
               >
@@ -190,7 +209,7 @@ export function Nav({ user }: { user: NavUser }) {
               href={l.href}
               data-active={isActive(path, l)}
               className={clsx(
-                "relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
+                "nav-link relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
                 isActive(path, l) ? "text-accent" : "text-muted",
               )}
             >
@@ -221,7 +240,7 @@ export function Nav({ user }: { user: NavUser }) {
               href={l.href}
               data-active={on}
               className={clsx(
-                "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-[color,transform] duration-300 active:scale-90",
+                "nav-link relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-[color,transform] duration-300 active:scale-90",
                 on ? "text-accent" : "text-muted",
               )}
             >
