@@ -7,22 +7,24 @@ const KINDS = [
   { key: "tv", label: "Series", href: "/discover/tv" },
 ] as const;
 
-/** Browse's heading: one top-bar tab for anime, movies and series, switched here. */
+/** Browse's heading: one top-bar tab for anime, movies and series, switched here. Same look as the Library switcher. */
 export function BrowseHeader({ active }: { active: (typeof KINDS)[number]["key"] }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-      <h1 className="text-2xl font-bold">Browse</h1>
-      <div className="flex rounded-full border border-line bg-panel p-0.5">
-        {KINDS.map((k) => (
-          <Link
-            key={k.key}
-            href={k.href}
-            className={clsx("rounded-full px-3.5 py-1 text-sm transition", k.key === active ? "bg-panel-2 text-fg" : "text-muted hover:text-fg")}
-          >
-            {k.label}
-          </Link>
-        ))}
-      </div>
-    </div>
+    <nav className="scroll-row -mx-1 mb-4 flex items-center gap-2 overflow-x-auto px-1 pb-1">
+      <h1 className="mr-2 shrink-0 text-2xl font-bold">Browse</h1>
+      {KINDS.map((k) => (
+        <Link
+          key={k.key}
+          href={k.href}
+          aria-current={k.key === active ? "page" : undefined}
+          className={clsx(
+            "shrink-0 rounded-full border px-4 py-1.5 text-sm transition active:scale-95",
+            k.key === active ? "border-accent bg-accent/15 text-fg" : "border-line text-muted hover:border-muted hover:text-fg",
+          )}
+        >
+          {k.label}
+        </Link>
+      ))}
+    </nav>
   );
 }

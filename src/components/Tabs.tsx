@@ -9,8 +9,8 @@ export function Tabs({ tabs, active }: { tabs: { key: string; label: string; hre
           key={t.key}
           href={t.href}
           className={clsx(
-            "rounded-full border px-3.5 py-1.5 text-sm transition",
-            t.key === active ? "border-accent bg-accent/15 text-fg" : "border-line text-muted hover:text-fg",
+            "rounded-full border px-3.5 py-1.5 text-sm transition active:scale-95",
+            t.key === active ? "border-accent bg-accent/15 text-fg" : "border-line text-muted hover:border-muted hover:text-fg",
           )}
         >
           {t.label}

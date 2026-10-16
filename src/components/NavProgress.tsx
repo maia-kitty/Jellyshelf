@@ -92,14 +92,16 @@ export function NavProgress() {
   return (
     <div aria-hidden className={`edge-spill pointer-events-none absolute inset-x-0 bottom-0 ${phase === "finishing" ? "edge-spill-done" : ""}`}>
       {/* the jar, lying on the header's edge with its mouth to the right (same drawing as the loading jar) */}
-      <svg viewBox="12 20 52 38" className="absolute bottom-0 left-2 h-4 w-auto" overflow="visible">
+      <svg viewBox="12 20 52 38" className="absolute -bottom-px left-2 h-4 w-auto" overflow="visible">
         <defs>
           <linearGradient id="edge-jar" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#aa5cc3" />
             <stop offset="1" stopColor="#00a4dc" />
           </linearGradient>
         </defs>
-        <path d="M41 58 C42 54.5 45 50.5 50 49.5 L57 49.5 C60 49.5 62.5 52.5 62.5 58 Z" fill="#aa5cc3" />
+        {/* the spill: rises out of the mouth, then runs flat at the bar's own 3px out to the svg's edge, where the bar
+            takes over underneath, so the jelly is one level line with no step */}
+        <path d="M41 58 C42 54.5 45 51 50 51 L64 51 L64 58 Z" fill="#aa5cc3" />
         <rect x="14" y="22" width="38" height="34" rx="9" fill="url(#edge-jar)" />
         <rect x="49" y="27" width="6" height="24" rx="2" fill="url(#edge-jar)" />
         <rect x="31" y="27" width="15" height="4" rx="2" fill="#fff" opacity=".35" />

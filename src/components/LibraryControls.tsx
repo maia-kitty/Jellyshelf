@@ -33,7 +33,7 @@ export function LibraryControls({
             <button
               key={f.key}
               onClick={() => go(sort, f.key)}
-              className={clsx("rounded-full px-3.5 py-1 text-sm transition", f.key === filter ? "bg-panel-2 text-fg" : "text-muted hover:text-fg")}
+              className={clsx("rounded-full px-3.5 py-1 text-sm transition", f.key === filter ? "bg-accent/15 text-fg ring-1 ring-inset ring-accent" : "text-muted hover:text-fg")}
             >
               {f.label}
             </button>

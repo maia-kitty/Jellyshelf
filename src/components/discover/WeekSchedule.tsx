@@ -80,7 +80,7 @@ export function WeekSchedule({ slots, hasList }: { slots: ScheduleSlot[]; hasLis
                 <button
                   key={String(v)}
                   onClick={() => toggle(v)}
-                  className={clsx("rounded-md px-2 py-0.5 text-xs", onlyMine === v ? "bg-panel-2 text-fg" : "text-muted hover:text-fg")}
+                  className={clsx("rounded-md px-2 py-0.5 text-xs", onlyMine === v ? "bg-accent/15 text-fg ring-1 ring-inset ring-accent" : "text-muted hover:text-fg")}
                 >
                   {v ? "My list" : "Everything"}
                 </button>
