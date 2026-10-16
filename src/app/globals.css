@@ -219,6 +219,21 @@ body {
 }
 .page-in { animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 
+/* Page loading: the header's jar spills its jelly along the header edge. It creeps toward the far end without ever
+   getting there, then fills the rest and fades when the page is in. */
+@keyframes edge-spill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(0.92); }
+}
+@keyframes edge-jar-in {
+  from { opacity: 0; transform: translateY(3px); }
+}
+.edge-spill svg { animation: edge-jar-in 0.25s ease-out; }
+.edge-spill-bar { animation: edge-spill 8s cubic-bezier(0.1, 0.75, 0.2, 1) forwards; }
+.edge-spill { transition: opacity 0.3s ease 0.15s; }
+.edge-spill-done { opacity: 0; }
+.edge-spill-done .edge-spill-bar { animation: none; transform: scaleX(1); transition: transform 0.2s ease; }
+
 /* Cards in a row arrive one after another; the delay comes from --i. */
 @keyframes card-in {
   from { opacity: 0; transform: translateY(10px) scale(0.98); }
@@ -260,7 +275,9 @@ body {
   .spotlight-progress > span,
   .page-in,
   .card-in,
-  .tab-pop {
+  .tab-pop,
+  .edge-spill svg,
+  .edge-spill-bar {
     animation: none !important;
   }
   .nav-pill { transition: none !important; }

@@ -1,10 +1,6 @@
-import { JarChip } from "@/components/AppIcon";
+import { PageLoading } from "@/components/NavProgress";
 
-/** Shown while a page's data loads (route navigation). Same spot and look as the jar for slow clicks (NavProgress). */
+/** Shown while a page's data loads (route navigation): the header's jar runs, as for any page load. */
 export default function Loading() {
-  return (
-    <div className="flex justify-center">
-      <JarChip />
-    </div>
-  );
+  return <PageLoading />;
 }

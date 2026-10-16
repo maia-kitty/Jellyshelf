@@ -96,15 +96,3 @@ export function JarLoader({ label, width = 240, className }: { label?: string; w
     </div>
   );
 }
-
-/**
- * The page-loading jar: a small frosted chip just under the header. Used for every page load (route loading screens
- * and clicks still waiting on the server), always in the same spot, so loading looks the same wherever it happens.
- */
-export function JarChip({ label = "Loading…" }: { label?: string }) {
-  return (
-    <div className="rounded-2xl border border-line bg-panel px-5 pb-2.5 pt-3 shadow-xl shadow-black/40">
-      <JarLoader width={140} label={label} className="gap-2 text-xs" />
-    </div>
-  );
-}

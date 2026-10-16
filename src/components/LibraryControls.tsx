@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import clsx from "clsx";
-import { JarChip } from "./AppIcon";
+import { usePageLoading } from "./NavProgress";
 
-/** Sort and filter for a library grid; dims the grid under the jelly jar while the next page loads, like every other page load. */
+/** Sort and filter for a library grid; dims the grid and runs the header's jelly jar while the next page loads, like every other page load. */
 export function LibraryControls({
   base,
   sort,
@@ -23,6 +23,7 @@ export function LibraryControls({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  usePageLoading(pending);
   const go = (s: string, f: string) => start(() => router.push(`${base}?sort=${s}&filter=${f}`));
   return (
     <>
@@ -49,14 +50,7 @@ export function LibraryControls({
           </select>
         </label>
       </div>
-      <div className="relative">
-        <div className={clsx("transition-opacity duration-200", pending && "pointer-events-none opacity-40")}>{children}</div>
-        {pending && (
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
-            <JarChip />
-          </div>
-        )}
-      </div>
+      <div className={clsx("transition-opacity duration-200", pending && "pointer-events-none opacity-40")}>{children}</div>
     </>
   );
 }
