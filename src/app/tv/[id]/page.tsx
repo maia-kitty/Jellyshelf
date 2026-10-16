@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
+import { CommunityScore } from "@/components/Score";
 import { CardRow } from "@/components/MediaCard";
 import { TvRequest, TvRequestAll, type SeasonOption } from "@/components/RequestButtons";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
@@ -85,7 +86,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
           tv.first_air_date?.slice(0, 4),
           `${regular} season${regular === 1 ? "" : "s"}`,
           tv.number_of_episodes ? `${tv.number_of_episodes} episodes` : null,
-          tv.vote_average ? `★ ${Math.round(tv.vote_average * 10)}%` : null,
+          tv.vote_average ? <CommunityScore score={Math.round(tv.vote_average * 10)} percent /> : null,
         ]}
         genres={tv.genres.map((g) => g.name)}
         overview={tv.overview}

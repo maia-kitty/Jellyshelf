@@ -7,6 +7,7 @@ import { ListBadge, StatusBadge } from "./StatusBadge";
 import { sized } from "@/lib/img";
 import { FadeImg } from "./FadeImg";
 import { scoreColor } from "@/lib/scoreColor";
+import { CommunityScore } from "./Score";
 
 export function MediaCard({ card }: { card: Card }) {
   return (
@@ -29,9 +30,7 @@ export function MediaCard({ card }: { card: Card }) {
             )}
             <div className="flex items-baseline gap-2">
               {!!card.score && (
-                <span title="Average score" className={clsx("text-xs font-semibold tabular-nums", card.score >= 75 ? "text-ok" : card.score >= 60 ? "text-white" : "text-white/60")}>
-                  ★ {card.score}
-                </span>
+                <CommunityScore score={card.score} className="text-xs font-semibold tabular-nums" />
               )}
               {!!card.mine && (
                 <span title="Your score" className="text-xs font-semibold tabular-nums">

@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Media, Request, User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
+import { CommunityScore } from "@/components/Score";
 import { CardRow } from "@/components/MediaCard";
 import { AnimeRequest, RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
 import { MappingOverride } from "@/components/MappingOverride";
@@ -182,7 +183,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           a.episodes && a.format !== "MOVIE" ? `${a.episodes} episodes` : null,
           a.duration ? `${a.duration} min` : null,
           a.studios.nodes.map((s) => s.name).join(", "),
-          a.averageScore ? `★ ${a.averageScore}%` : null,
+          a.averageScore ? <CommunityScore score={a.averageScore} percent /> : null,
           airing,
         ]}
         genres={a.genres}

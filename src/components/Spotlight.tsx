@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import type { Card } from "@/lib/cards";
 import { ListBadge, StatusBadge } from "./StatusBadge";
 import { sized } from "@/lib/img";
+import { CommunityScore } from "./Score";
 
 export interface SpotlightItem {
   card: Card;
@@ -140,7 +141,7 @@ function Slide({ item: { card, label, description }, active }: { item: Spotlight
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-fg/75">
           {card.year && <span>{card.year}</span>}
           {card.sub && <span>{card.sub}</span>}
-          {card.score ? <span>★ {card.score}%</span> : null}
+          {card.score ? <CommunityScore score={card.score} percent /> : null}
           {card.genres?.map((g) => (
             <span key={g} className="text-fg/60">
               {g}

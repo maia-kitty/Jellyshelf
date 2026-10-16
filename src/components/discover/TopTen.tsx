@@ -5,6 +5,7 @@ import type { Card } from "@/lib/cards";
 import { ShelfHeader } from "../MediaCard";
 import { StatusBadge } from "../StatusBadge";
 import { sized } from "@/lib/img";
+import { CommunityScore } from "../Score";
 
 /** A ranked row: big outlined numbers tucked behind each poster. */
 export function TopTen({ title, href, note, cards }: { title: string; href?: string; note?: string; cards: Card[] }) {
@@ -33,7 +34,9 @@ export function TopTen({ title, href, note, cards }: { title: string; href?: str
                     <StatusBadge status={c.status} />
                   </span>
                   {!!c.score && (
-                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pb-1.5 pt-6 text-xs font-semibold text-ok">★ {c.score}</span>
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pb-1.5 pt-6 text-xs font-semibold">
+                      <CommunityScore score={c.score} />
+                    </span>
                   )}
                 </span>
                 <span className="sr-only">

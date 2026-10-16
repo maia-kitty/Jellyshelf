@@ -10,7 +10,7 @@ export function Hero(props: {
   original?: string | null;
   poster: string | null;
   backdrop: string | null;
-  facts: (string | null | undefined | false)[];
+  facts: React.ReactNode[];
   genres?: string[];
   overview?: string | null;
   status?: MediaStatus;

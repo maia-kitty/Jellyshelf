@@ -4,6 +4,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
+import { CommunityScore } from "@/components/Score";
 import { CardRow } from "@/components/MediaCard";
 import { MovieRequest } from "@/components/RequestButtons";
 import { JellyfinButton } from "@/components/Episodes";
@@ -57,7 +58,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         original={movie.original_title}
         poster={tmdbImage(movie.poster_path, "w500")}
         backdrop={tmdbImage(movie.backdrop_path, "original")}
-        facts={[movie.release_date?.slice(0, 4), movie.runtime ? runtime(movie.runtime) : null, movie.vote_average ? `★ ${Math.round(movie.vote_average * 10)}%` : null]}
+        facts={[movie.release_date?.slice(0, 4), movie.runtime ? runtime(movie.runtime) : null, movie.vote_average ? <CommunityScore score={Math.round(movie.vote_average * 10)} percent /> : null]}
         genres={movie.genres.map((g) => g.name)}
         overview={movie.overview}
         status={media?.status}
