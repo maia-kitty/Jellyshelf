@@ -200,7 +200,7 @@ export function Nav({ user }: { user: NavUser }) {
           ))}
         </nav>
         <Suspense fallback={null}>
-          <NavProgress />
+          <NavProgress className="absolute inset-x-0 bottom-0 max-sm:hidden" />
         </Suspense>
       </header>
 
@@ -209,6 +209,10 @@ export function Nav({ user }: { user: NavUser }) {
         {/* A soft glow behind the current tab, and a jelly line along the top edge, both gliding between tabs. */}
         <PillBg pill={dock.pill} className="left-0 top-1 h-[calc(100%-env(safe-area-inset-bottom)-0.5rem)] rounded-2xl bg-accent/12" />
         <PillBg pill={dock.pill && { ...dock.pill, x: dock.pill.x + dock.pill.w / 4, w: dock.pill.w / 2 }} className={clsx("-top-px", LINE)} />
+        {/* page loading: the jar sits on the dock's top edge here, where the thumb (and eye) is */}
+        <Suspense fallback={null}>
+          <NavProgress className="absolute inset-x-0 top-0" />
+        </Suspense>
         {LINKS.map((l) => {
           const on = isActive(path, l);
           return (

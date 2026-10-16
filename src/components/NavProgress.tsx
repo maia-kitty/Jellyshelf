@@ -1,12 +1,12 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 
 /*
- * Page loading, shown one way everywhere: a little jar tipped over at the left end of the header, its jelly running
- * along the header's bottom edge as the progress bar. It runs from a link click until the new page is in, and for as
- * long as anything says it's loading (route loading screens, the library's filter/sort) via <PageLoading />.
+ * Page loading, shown one way everywhere: a little jar tipped over at the left end of the header (on phones, on top of
+ * the dock), its jelly running along that edge as the progress bar. It runs from a link click until the new page is in,
+ * and for as long as anything says it's loading (route loading screens, the library's filter/sort) via <PageLoading />.
  */
 
 // What's loading besides a click: a count of mounted <PageLoading /> / active usePageLoading(true).
@@ -33,7 +33,10 @@ export function PageLoading({ label = "Loading…" }: { label?: string }) {
   return <span role="status" className="sr-only">{label}</span>;
 }
 
-export function NavProgress() {
+/** `className` places it: an edge it sits on (the header's bottom, or on phones the dock's top). */
+export function NavProgress({ className }: { className: string }) {
+  // Two are mounted (header and dock), so the gradient id must be unique: one in a hidden copy would break the other.
+  const grad = useId();
   const path = usePathname();
   const search = useSearchParams().toString();
   const [clicked, setClicked] = useState(false);
@@ -90,11 +93,11 @@ export function NavProgress() {
 
   if (phase === "off") return null;
   return (
-    <div aria-hidden className={`edge-spill pointer-events-none absolute inset-x-0 bottom-0 ${phase === "finishing" ? "edge-spill-done" : ""}`}>
+    <div aria-hidden className={`edge-spill pointer-events-none ${className} ${phase === "finishing" ? "edge-spill-done" : ""}`}>
       {/* the jar, lying on the header's edge with its mouth to the right (same drawing as the loading jar) */}
       <svg viewBox="12 20 52 38" className="absolute -bottom-px left-2 h-4 w-auto" overflow="visible">
         <defs>
-          <linearGradient id="edge-jar" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#aa5cc3" />
             <stop offset="1" stopColor="#00a4dc" />
           </linearGradient>
@@ -102,8 +105,8 @@ export function NavProgress() {
         {/* the spill: rises out of the mouth, then runs flat at the bar's own 3px out to the svg's edge, where the bar
             takes over underneath, so the jelly is one level line with no step */}
         <path d="M41 58 C42 54.5 45 51 50 51 L64 51 L64 58 Z" fill="#aa5cc3" />
-        <rect x="14" y="22" width="38" height="34" rx="9" fill="url(#edge-jar)" />
-        <rect x="49" y="27" width="6" height="24" rx="2" fill="url(#edge-jar)" />
+        <rect x="14" y="22" width="38" height="34" rx="9" fill={`url(#${grad})`} />
+        <rect x="49" y="27" width="6" height="24" rx="2" fill={`url(#${grad})`} />
         <rect x="31" y="27" width="15" height="4" rx="2" fill="#fff" opacity=".35" />
         <path d="M27.5 34 L38.5 34 L33 44.5 Z" fill="#fff" stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
       </svg>
