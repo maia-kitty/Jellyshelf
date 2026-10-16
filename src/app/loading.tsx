@@ -1,6 +1,10 @@
-import { JarLoader } from "@/components/AppIcon";
+import { JarChip } from "@/components/AppIcon";
 
-/** Shown while a page's data loads (route navigation). */
+/** Shown while a page's data loads (route navigation). Same spot and look as the jar for slow clicks (NavProgress). */
 export default function Loading() {
-  return <JarLoader label="Loading…" className="py-32" />;
+  return (
+    <div className="flex justify-center">
+      <JarChip />
+    </div>
+  );
 }

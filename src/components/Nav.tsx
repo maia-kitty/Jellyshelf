@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
+import { NavProgress } from "./NavProgress";
 
 type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean };
 
@@ -202,6 +203,9 @@ export function Nav({ user }: { user: NavUser }) {
             </Link>
           ))}
         </nav>
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
       </header>
 
       {/* Phone: a bottom tab bar for the main sections; the rest lives in the avatar menu. */}

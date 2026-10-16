@@ -2,27 +2,28 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { JarChip } from "./AppIcon";
 
 /**
- * A thin jelly bar along the top of the screen from the moment a link is clicked until the new page is in, so a click
- * always visibly registers, even when the page behind it is slow (AniList's rate limit can make one wait).
+ * The jelly jar just under the header from a link click until the new page is in, so a click always visibly
+ * registers, even when the page behind it is slow. Sits where the loading screens put it (header + main's padding).
+ * Rendered inside the header, so it stays put under it however far the page is scrolled.
  */
 export function NavProgress() {
   const path = usePathname();
   const search = useSearchParams().toString();
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  const [state, setState] = useState<"idle" | "waiting" | "loading">("idle");
 
-  // Arrived: finish the bar and fade it out.
+  // Arrived.
+  useEffect(() => setState("idle"), [path, search]);
   useEffect(() => {
-    setState((s) => (s === "loading" ? "done" : s));
-  }, [path, search]);
-  useEffect(() => {
-    if (state === "done") {
-      const t = setTimeout(() => setState("idle"), 400);
+    // Fast pages shouldn't flash a jar: show it only once the click has taken a moment.
+    if (state === "waiting") {
+      const t = setTimeout(() => setState("loading"), 150);
       return () => clearTimeout(t);
     }
+    // A link whose click was cancelled never navigates; don't leave the jar up forever.
     if (state === "loading") {
-      // A link whose click was cancelled never navigates; don't leave the bar up forever.
       const t = setTimeout(() => setState("idle"), 45_000);
       return () => clearTimeout(t);
     }
@@ -36,20 +37,17 @@ export function NavProgress() {
       const to = new URL(a.href, location.href);
       if (to.origin !== location.origin || to.pathname.startsWith("/api/")) return;
       if (to.pathname === location.pathname && to.search === location.search) return; // same page (or just a #hash)
-      setState("loading");
+      setState("waiting");
     };
     // Capture phase: Next's <Link> cancels the browser's own navigation, which would hide the click from a bubble listener.
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
   }, []);
 
-  if (state === "idle") return null;
+  if (state !== "loading") return null;
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5">
-      <div
-        className={state === "loading" ? "nav-progress h-full" : "nav-progress-done h-full"}
-        style={{ backgroundImage: "linear-gradient(90deg, #aa5cc3, #00a4dc)" }}
-      />
+    <div className="pointer-events-none absolute inset-x-0 top-full flex justify-center pt-6">
+      <JarChip />
     </div>
   );
 }

@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import clsx from "clsx";
+import { JarChip } from "./AppIcon";
 
-/** Sort and filter for a library grid; dims the grid while the next page loads so a click always visibly does something. */
+/** Sort and filter for a library grid; dims the grid under the jelly jar while the next page loads, like every other page load. */
 export function LibraryControls({
   base,
   sort,
@@ -48,7 +49,14 @@ export function LibraryControls({
           </select>
         </label>
       </div>
-      <div className={clsx("transition-opacity duration-200", pending && "pointer-events-none opacity-40")}>{children}</div>
+      <div className="relative">
+        <div className={clsx("transition-opacity duration-200", pending && "pointer-events-none opacity-40")}>{children}</div>
+        {pending && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+            <JarChip />
+          </div>
+        )}
+      </div>
     </>
   );
 }
