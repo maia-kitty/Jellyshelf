@@ -40,6 +40,8 @@ export function NavProgress() {
   const others = useSyncExternalStore(subscribe, () => loaders, () => 0);
   const busy = clicked || others > 0;
   const [phase, setPhase] = useState<"off" | "on" | "finishing">("off");
+  // Once it's up, it stays at least this long, so it reads as a spill rather than a blip.
+  const [shownAt, setShownAt] = useState(0);
 
   // Arrived (a loading screen, if any, keeps it going).
   useEffect(() => setClicked(false), [path, search]);
@@ -55,15 +57,21 @@ export function NavProgress() {
       if (phase === "finishing") setPhase("on");
       if (phase !== "off") return;
       // Fast pages shouldn't flash it: only once loading has taken a moment.
-      const t = setTimeout(() => setPhase("on"), 150);
+      const t = setTimeout(() => {
+        setShownAt(Date.now());
+        setPhase("on");
+      }, 150);
       return () => clearTimeout(t);
     }
-    if (phase === "on") setPhase("finishing");
+    if (phase === "on") {
+      const t = setTimeout(() => setPhase("finishing"), Math.max(0, shownAt + 500 - Date.now()));
+      return () => clearTimeout(t);
+    }
     if (phase === "finishing") {
       const t = setTimeout(() => setPhase("off"), 450);
       return () => clearTimeout(t);
     }
-  }, [busy, phase]);
+  }, [busy, phase, shownAt]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

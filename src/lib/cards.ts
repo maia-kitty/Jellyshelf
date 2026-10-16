@@ -19,6 +19,8 @@ export interface Card {
   list?: { status: AniListStatus; progress: number };
   /** 0–100 */
   score?: number | null;
+  /** Your own score, 0–100 (My AniList). */
+  mine?: number | null;
   /** How far the viewer is through it, 0–1 (continue watching). */
   watched?: number;
   genres?: string[];

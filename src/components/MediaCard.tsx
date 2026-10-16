@@ -6,6 +6,7 @@ import type { Card } from "@/lib/cards";
 import { ListBadge, StatusBadge } from "./StatusBadge";
 import { sized } from "@/lib/img";
 import { FadeImg } from "./FadeImg";
+import { scoreColor } from "@/lib/scoreColor";
 
 export function MediaCard({ card }: { card: Card }) {
   return (
@@ -21,16 +22,24 @@ export function MediaCard({ card }: { card: Card }) {
           <StatusBadge status={card.status} />
           {card.list && <ListBadge status={card.list.status} progress={card.list.progress} />}
         </div>
-        {(!!card.score || !!card.genres?.length) && (
+        {(!!card.score || !!card.mine || !!card.genres?.length) && (
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2 pb-1.5 pt-8">
             {!!card.genres?.length && (
               <div className="mb-1 hidden text-[11px] leading-snug text-white/85 group-hover:block">{card.genres.join(" · ")}</div>
             )}
-            {!!card.score && (
-              <span className={clsx("text-xs font-semibold tabular-nums", card.score >= 75 ? "text-ok" : card.score >= 60 ? "text-white" : "text-white/60")}>
-                ★ {card.score}
-              </span>
-            )}
+            <div className="flex items-baseline gap-2">
+              {!!card.score && (
+                <span title="Average score" className={clsx("text-xs font-semibold tabular-nums", card.score >= 75 ? "text-ok" : card.score >= 60 ? "text-white" : "text-white/60")}>
+                  ★ {card.score}
+                </span>
+              )}
+              {!!card.mine && (
+                <span title="Your score" className="text-xs font-semibold tabular-nums">
+                  <span className="text-white/70">You </span>
+                  <span style={{ color: scoreColor(card.mine, 100) }}>{card.mine}</span>
+                </span>
+              )}
+            </div>
           </div>
         )}
         {card.watched !== undefined && card.watched > 0 && (

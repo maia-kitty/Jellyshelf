@@ -6,6 +6,7 @@ import { anilist, type AniListStatus } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
 import { animeCard, decorate } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
+import { listRatings } from "@/lib/ratings";
 
 const STATUSES: { key: AniListStatus; label: string }[] = [
   { key: "CURRENT", label: "Watching" },
@@ -32,9 +33,12 @@ export default async function MyLists({ searchParams }: { searchParams: SearchPa
   }
   const status = (param(sp, "status") ?? "PLANNING") as AniListStatus;
   const missingOnly = param(sp, "missing") === "1";
-  const list = await anilist.userList(user.anilistId, token);
+  const [list, ratings] = await Promise.all([anilist.userList(user.anilistId, token), listRatings(user.id)]);
   const entries = [...list.values()].filter((e) => e.status === status);
-  let cards = await decorate(entries.map((e) => animeCard(e.media)), user);
+  // Your score: what's on AniList, else your latest rubric rating (rated here but not pushed). Newest first, so first wins.
+  const rubric = new Map<number, number>();
+  for (const r of ratings) if (r.anilistId && !rubric.has(r.anilistId)) rubric.set(r.anilistId, r.total);
+  let cards = (await decorate(entries.map((e) => animeCard(e.media)), user)).map((c) => ({ ...c, mine: list.get(c.id)?.score || rubric.get(c.id) || null }));
   if (missingOnly) cards = cards.filter((c) => !c.status || c.status === "unknown");
   const q = (s: string, m = missingOnly) => `/my-lists?status=${s}${m ? "&missing=1" : ""}`;
 
