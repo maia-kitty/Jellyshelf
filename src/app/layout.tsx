@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { currentUser } from "@/lib/auth";
+import { Suspense } from "react";
 import { Nav } from "@/components/Nav";
+import { NavProgress } from "@/components/NavProgress";
 
 // Every page depends on who's signed in and on runtime settings; never prerender at build time
 // (which would also open the database during `next build`).
@@ -17,6 +19,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         {user && (
           <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId }} />
         )}

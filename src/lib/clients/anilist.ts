@@ -131,6 +131,12 @@ interface Limiter {
 const g = globalThis as unknown as { __anilistLimiter?: Limiter };
 const limiter = (g.__anilistLimiter ??= { sent: [], limit: 30, active: 0, pausedUntil: 0 });
 
+/**
+ * AniList allows ~30 requests a minute, so anything already fetched is served from memory (for up to a day past its
+ * expiry) while it refreshes in the background, rather than making a page wait for rate-limit room.
+ */
+const cachedAniList = <T>(key: string, ttl: number, fn: () => Promise<T>) => cached(key, ttl, fn, 86400);
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function acquire() {
@@ -164,7 +170,8 @@ function learn(res: Response) {
 async function send(init: RequestInit): Promise<Response> {
   await acquire();
   try {
-    const res = await fetch(GRAPHQL, init);
+    // The timeout starts once we're through the queue: time spent waiting for rate-limit room isn't AniList being slow.
+    const res = await fetch(GRAPHQL, { ...init, signal: AbortSignal.timeout(20_000) });
     learn(res);
     return res;
   } finally {
@@ -181,7 +188,6 @@ export async function anilistQuery<T>(query: string, variables: Record<string, u
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ query, variables }),
-    signal: AbortSignal.timeout(20_000),
     cache: "no-store",
   });
   if (res.status === 429 && attempt < 3) {
@@ -239,7 +245,7 @@ function pageQuery(filter: string, varDefs: string) {
 }
 
 async function page(key: string, filter: string, varDefs: string, vars: Record<string, unknown>, { page = 1, perPage = 30 }: PageArgs, ttl = 900) {
-  return cached(`anilist:${key}:${JSON.stringify(vars)}:${page}:${perPage}`, ttl, async () => {
+  return cachedAniList(`anilist:${key}:${JSON.stringify(vars)}:${page}:${perPage}`, ttl, async () => {
     const data = await anilistQuery<{ Page: AniPage<AniMediaCard> }>(pageQuery(filter, varDefs), { ...vars, page, perPage });
     return data.Page;
   });
@@ -249,7 +255,7 @@ export const anilist = {
   trending: (p: PageArgs = {}) => page("trending", "sort: TRENDING_DESC", "", {}, p),
   /** Trending titles with banner art and a synopsis, for the home page spotlight. */
   spotlight: () =>
-    cached("anilist:spotlight", 900, async () => {
+    cachedAniList("anilist:spotlight", 900, async () => {
       const data = await anilistQuery<{ Page: AniPage<AniMediaCard & { bannerImage: string | null; description: string | null }> }>(
         `query { Page(perPage: 12) { pageInfo { currentPage hasNextPage total } media(type: ANIME, isAdult: false, sort: TRENDING_DESC) { ${CARD} bannerImage description(asHtml: false) } } }`,
       );
@@ -261,7 +267,7 @@ export const anilist = {
    * everything popular enough to matter fits comfortably. Cached by the hour.
    */
   schedule: (from: number, to: number) =>
-    cached(`anilist:schedule:${Math.floor(from / 3600)}:${Math.floor(to / 3600)}`, 1800, async () => {
+    cachedAniList(`anilist:schedule:${Math.floor(from / 3600)}:${Math.floor(to / 3600)}`, 1800, async () => {
       // The pages are asked for together rather than one after another: three round trips become one.
       const page = (pg: number) =>
         anilistQuery<{ Page: { airingSchedules: AiringSlot[] } }>(
@@ -278,7 +284,7 @@ export const anilist = {
     }),
   /** What AniList users recommend alongside this title, best-rated first. */
   recommendations: (id: number) =>
-    cached(`anilist:recs:${id}`, 86400, async () => {
+    cachedAniList(`anilist:recs:${id}`, 86400, async () => {
       const data = await anilistQuery<{ Media: { recommendations: { nodes: { rating: number; mediaRecommendation: AniMediaCard | null }[] } } | null }>(
         `query ($id: Int) { Media(id: $id, type: ANIME) { recommendations(sort: RATING_DESC, perPage: 20) { nodes { rating mediaRecommendation { ${CARD} } } } } }`,
         { id },
@@ -293,7 +299,7 @@ export const anilist = {
   byIds: (ids: number[]) =>
     ids.length === 0
       ? Promise.resolve([] as AniMediaCard[])
-      : cached(`anilist:ids:${[...ids].sort().join(",")}`, 900, async () => {
+      : cachedAniList(`anilist:ids:${[...ids].sort().join(",")}`, 900, async () => {
           const data = await anilistQuery<{ Page: AniPage<AniMediaCard> }>(
             `query ($ids: [Int]) { Page(perPage: 50) { pageInfo { currentPage hasNextPage total } media(id_in: $ids, type: ANIME) { ${CARD} } } }`,
             { ids: ids.slice(0, 50) },
@@ -302,7 +308,7 @@ export const anilist = {
         }),
 
   media: (id: number) =>
-    cached(`anilist:media:${id}`, 900, async () => {
+    cachedAniList(`anilist:media:${id}`, 900, async () => {
       const data = await anilistQuery<{ Media: AniMediaDetails | null }>(
         `query ($id: Int) { Media(id: $id, type: ANIME) {
           ${CARD} type description(asHtml: false) bannerImage duration popularity synonyms
@@ -325,7 +331,7 @@ export const anilist = {
 
   /** The full anime list for a user, keyed by media id. Cached briefly; invalidated on write. */
   userList: (userId: number, token: string) =>
-    cached(`anilist:list:${userId}`, 120, async () => {
+    cachedAniList(`anilist:list:${userId}`, 120, async () => {
       const data = await anilistQuery<{
         MediaListCollection: { lists: { entries: (AniListEntry & { media: AniMediaCard })[] }[] };
       }>(

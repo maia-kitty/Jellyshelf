@@ -23,6 +23,10 @@ describe("sized", () => {
     expect(s.src).toBe(`/_next/image?url=${encodeURIComponent(XL)}&w=160&q=72`);
     expect(s.srcSet?.split(", ").map((x) => x.split(" ")[1])).toEqual(["160w", "320w", "480w"]);
   });
+  it("doesn't ask for a large copy of older covers that have none", () => {
+    const old = "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/b159110-h47FGDUBilAy.png";
+    expect(sized(old, 160).src).toBe(`/_next/image?url=${encodeURIComponent(old)}&w=160&q=72`);
+  });
   it("asks Jellyfin for the width it needs", () => {
     const s = sized("/api/jf/Items/abc/Images/Primary?maxWidth=360&tag=t", 160);
     expect(s.src).toBe("/api/jf/Items/abc/Images/Primary?maxWidth=160&tag=t&quality=85");

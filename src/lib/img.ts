@@ -56,7 +56,9 @@ export function sized(url: string | null | undefined, width: number, sizes?: str
       const ws = pick(OPT_WIDTHS, width);
       return { src: optimized(small, ws[0]), srcSet: ws.map((w) => `${optimized(small, w)} ${w}w`).join(", "), sizes: sizesAttr };
     }
-    const original = ani[1].startsWith("cover/") ? url.replace(ANILIST, "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/") : url;
+    // Only "bx…" covers have a cover/large copy; older "b…" uploads top out at cover/medium (large there is a 404).
+    const hasLarge = /\/bx[^/]*$/.test(url);
+    const original = ani[1].startsWith("cover/") && hasLarge ? url.replace(ANILIST, "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/") : url;
     const ws = sizes?.includes("vw") ? OPT_WIDTHS.filter((w) => w >= 640) : pick(OPT_WIDTHS, width);
     return { src: optimized(original, ws[0]), srcSet: ws.map((w) => `${optimized(original, w)} ${w}w`).join(", "), sizes: sizesAttr };
   }

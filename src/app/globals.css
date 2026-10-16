@@ -219,6 +219,14 @@ body {
 }
 .page-in { animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.3, 1) backwards; }
 
+/* Link-click progress bar: creeps toward the end without ever reaching it, then fills and fades on arrival. */
+@keyframes nav-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(0.9); }
+}
+.nav-progress { transform-origin: left; animation: nav-progress 8s cubic-bezier(0.1, 0.8, 0.2, 1) forwards; }
+.nav-progress-done { transform-origin: left; transform: scaleX(1); opacity: 0; transition: transform 0.2s ease, opacity 0.3s ease 0.15s; }
+
 /* Cards in a row arrive one after another; the delay comes from --i. */
 @keyframes card-in {
   from { opacity: 0; transform: translateY(10px) scale(0.98); }
@@ -260,7 +268,8 @@ body {
   .spotlight-progress > span,
   .page-in,
   .card-in,
-  .tab-pop {
+  .tab-pop,
+  .nav-progress {
     animation: none !important;
   }
   .nav-pill { transition: none !important; }
