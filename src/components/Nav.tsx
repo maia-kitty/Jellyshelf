@@ -28,9 +28,13 @@ const LINKS = [
   { href: "/requests", label: "Requests", icon: "requests" },
 ];
 
+const LINE = "left-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)]";
+/** The jelly line under a header link spans its text, not its padding (px-3). */
+const underText = (p: Pill | null) => p && { ...p, x: p.x + 12, w: p.w - 24 };
+
 const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-type Pill = { x: number; w: number; animate: boolean };
+type Pill = { x: number; y: number; w: number; h: number; animate: boolean };
 
 /**
  * A highlight that slides to whichever link in `box` has data-active. It jumps into place the first time (nothing to
@@ -42,7 +46,7 @@ function useSlidingPill<T extends HTMLElement>(path: string) {
   useLayoutEffect(() => {
     const measure = (animate: boolean) => {
       const el = box.current?.querySelector<HTMLElement>("[data-active='true']");
-      setPill((prev) => (el ? { x: el.offsetLeft, w: el.offsetWidth, animate: animate && prev !== null } : null));
+      setPill((prev) => (el ? { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight, animate: animate && prev !== null } : null));
     };
     measure(true);
     // A ResizeObserver reports once as soon as it starts observing; acting on that would snap the pill into place
@@ -58,7 +62,8 @@ function useSlidingPill<T extends HTMLElement>(path: string) {
   return { box, pill };
 }
 
-function PillBg({ pill, className }: { pill: Pill | null; className: string }) {
+/** `fitY` sizes it to the link's height too, for bars taller than their links. */
+function PillBg({ pill, className, fitY }: { pill: Pill | null; className: string; fitY?: boolean }) {
   if (!pill) return null;
   return (
     <span
@@ -66,6 +71,7 @@ function PillBg({ pill, className }: { pill: Pill | null; className: string }) {
       className={clsx("nav-pill pointer-events-none absolute", className)}
       style={{
         width: pill.w,
+        ...(fitY && { top: pill.y, height: pill.h }),
         transform: `translateX(${pill.x}px)`,
         transition: pill.animate ? "transform 0.4s cubic-bezier(0.3, 1.25, 0.5, 1), width 0.4s cubic-bezier(0.3, 1.25, 0.5, 1)" : "none",
       }}
@@ -105,8 +111,10 @@ export function Nav({ user }: { user: NavUser }) {
           <Link href="/" className="jar-trigger flex shrink-0 items-center gap-2 text-lg font-bold">
             <AppIcon size={28} animate="hover" /> <span className="hidden sm:inline">Jellyshelf</span>
           </Link>
-          <nav ref={desk.box} className="relative hidden gap-1 lg:flex">
-            <PillBg pill={desk.pill} className="inset-y-0 left-0 rounded-lg bg-panel-2" />
+          {/* Stretched to the header's full height so the jelly line can ride its bottom edge, like the dock's top. */}
+          <nav ref={desk.box} className="relative -my-3 hidden items-center gap-1 self-stretch lg:flex">
+            <PillBg pill={desk.pill} fitY className="left-0 rounded-lg bg-panel-2" />
+            <PillBg pill={underText(desk.pill)} className={clsx("-bottom-px", LINE)} />
             {links.map((l) => (
               <Link
                 key={l.href}
@@ -152,9 +160,11 @@ export function Nav({ user }: { user: NavUser }) {
           </form>
           <UserMenu user={user} links={links} path={path} />
         </div>
-        {/* Tablet: the links get their own scrolling row. */}
-        <nav ref={tab.box} className="relative mx-auto hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-2 sm:flex sm:px-6 lg:hidden">
-          <PillBg pill={tab.pill} className="bottom-2 left-0 top-0 rounded-lg bg-panel-2" />
+        {/* Tablet: the links get their own scrolling row. It reaches 1px down over the header's border, so the line
+            can sit on it without overflowing (the row clips, being a scroller). */}
+        <nav ref={tab.box} className="relative mx-auto -mb-px hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-[9px] sm:flex sm:px-6 lg:hidden">
+          <PillBg pill={tab.pill} className="bottom-[9px] left-0 top-0 rounded-lg bg-panel-2" />
+          <PillBg pill={underText(tab.pill)} className={clsx("bottom-0", LINE)} />
           {links.map((l) => (
             <Link
               key={l.href}
@@ -175,7 +185,7 @@ export function Nav({ user }: { user: NavUser }) {
       <nav ref={dock.box} className="fixed inset-x-0 bottom-0 z-30 flex transform-gpu border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
         {/* A soft glow behind the current tab, and a jelly line along the top edge, both gliding between tabs. */}
         <PillBg pill={dock.pill} className="left-0 top-1 h-[calc(100%-env(safe-area-inset-bottom)-0.5rem)] rounded-2xl bg-accent/12" />
-        <PillBg pill={dock.pill && { ...dock.pill, x: dock.pill.x + dock.pill.w / 4, w: dock.pill.w / 2 }} className="-top-px left-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)]" />
+        <PillBg pill={dock.pill && { ...dock.pill, x: dock.pill.x + dock.pill.w / 4, w: dock.pill.w / 2 }} className={clsx("-top-px", LINE)} />
         {LINKS.filter((l) => l.icon).map((l) => {
           const on = isActive(path, l.href);
           return (
