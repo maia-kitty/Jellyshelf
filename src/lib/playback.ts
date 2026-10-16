@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { eq, inArray, or } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
-import { jellyfinToken, type JellyfinCredentials } from "@/lib/auth";
+import { anilistToken, jellyfinToken, type JellyfinCredentials } from "@/lib/auth";
+import { latestRating } from "@/lib/ratings";
 import { authHeader } from "@/lib/clients/jellyfin";
 import { fetchJson, joinUrl } from "@/lib/clients/http";
 import { sonarr } from "@/lib/clients/sonarr";
@@ -274,6 +275,11 @@ export async function watchMeta(user: User, itemId: string): Promise<WatchMeta> 
         }
       : null;
 
+  const last = target && (item.Type === "Movie" || (target.episodes !== null && target.episode >= target.episodes));
+  const finale = last && !(await latestRating(user.id, target.mediaId))
+    ? { anilistId: target.mediaId, title: target.title, canPush: !!user.anilistId && !!anilistToken(user) }
+    : null;
+
   const backdropOf = item.BackdropImageTags?.length ? item.Id : (item.ParentBackdropItemId ?? series?.Id ?? null);
   const resume = item.UserData?.Played ? 0 : (item.UserData?.PlaybackPositionTicks ?? 0) / TICKS;
   return {
@@ -289,6 +295,7 @@ export async function watchMeta(user: User, itemId: string): Promise<WatchMeta> 
     segments,
     trickplay,
     anilist: target,
+    finale,
   };
 }
 
@@ -348,7 +355,7 @@ export async function anilistTarget(item: JfItem, series: JfItem | null): Promis
 
 async function withTitle(mediaId: number, episode: number) {
   const [m] = await anilist.byIds([mediaId]).catch(() => []);
-  return { mediaId, episode, title: m ? aniTitle(m.title) : `AniList #${mediaId}` };
+  return { mediaId, episode, title: m ? aniTitle(m.title) : `AniList #${mediaId}`, episodes: m?.episodes ?? null };
 }
 
 async function absoluteNumber(tvdb: number, season: number, ep: number) {
@@ -400,7 +407,6 @@ export async function report(user: User, r: PlayReport) {
 }
 
 async function scrobble(user: User, jf: Awaited<ReturnType<typeof asUser>>, itemId: string) {
-  const { anilistToken } = await import("@/lib/auth");
   const token = anilistToken(user);
   if (!token || !user.anilistId) return null;
   const item = await jf.call<JfItem>(`/Items/${itemId}?userId=${jf.userId}&Fields=ProviderIds`);

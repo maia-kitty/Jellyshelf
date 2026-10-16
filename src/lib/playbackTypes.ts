@@ -94,7 +94,9 @@ export interface WatchMeta {
   segments: Segment[];
   trickplay: Trickplay | null;
   /** Whether finishing this will move AniList progress, and to which entry/episode. */
-  anilist: { mediaId: number; episode: number; title: string } | null;
+  anilist: { mediaId: number; episode: number; title: string; episodes: number | null } | null;
+  /** The last episode of an AniList entry (or an anime film) you haven't rated yet: the player offers to rate it. */
+  finale: { anilistId: number; title: string; canPush: boolean } | null;
 }
 
 export type ReportEvent = "start" | "progress" | "stop";

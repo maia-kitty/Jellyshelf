@@ -10,6 +10,8 @@ import { SeekBar } from "./SeekBar";
 import { Icon } from "./icons";
 import { JarLoader } from "../AppIcon";
 import { sized } from "@/lib/img";
+import { Modal } from "../Modal";
+import { RatingForm } from "../RatingForm";
 
 type HlsLike = { destroy(): void; loadSource(u: string): void; attachMedia(v: HTMLVideoElement): void; on(ev: string, cb: (e: string, d: { fatal?: boolean }) => void): void };
 type JassubLike = { destroy(): void | Promise<void> };
@@ -82,6 +84,11 @@ export function Player({ meta }: { meta: WatchMeta }) {
   const [toast, setToast] = useState<string | null>(null);
   const [upNext, setUpNext] = useState<null | number>(null); // seconds left on the countdown
   const [upNextDismissed, setUpNextDismissed] = useState(false);
+  // Last episode of something unrated: "offer" shows the card, "open" the rating form.
+  const [rate, setRate] = useState<null | "offer" | "open" | "dismissed">(null);
+  // As it was when the player opened: saving refreshes `meta`, where it's then null (rated), and the dialog would vanish.
+  const [finale] = useState(meta.finale);
+  const offeringRate = !!finale && rate !== "dismissed";
   const [ripple, setRipple] = useState<null | { side: "left" | "right"; key: number }>(null);
 
   const say = useCallback((t: string) => {
@@ -358,7 +365,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
   // Keyboard: space/k play, ←/→ 5 s, j/l 10 s, ↑/↓ volume, f fullscreen, m mute, c subtitles, n next.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, select, textarea") || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement).closest("input, select, textarea, [role=dialog]") || e.metaKey || e.ctrlKey || e.altKey) return;
       const v = video.current;
       if (!v) return;
       const k = e.key.toLowerCase();
@@ -424,9 +431,11 @@ export function Player({ meta }: { meta: WatchMeta }) {
   const outro = meta.segments.find((s) => s.type === "Outro");
   const nearEnd = duration > 0 && (outro ? time >= outro.start : duration - time <= 25);
   useEffect(() => {
-    if (!meta.next || upNextDismissed || !nearEnd || !playing) return;
+    if (nearEnd && offeringRate && rate === null) setRate("offer");
+    // At a finale the rating card comes first; the next episode (a new season) waits to be asked for.
+    if (!meta.next || upNextDismissed || offeringRate || !nearEnd || !playing) return;
     setUpNext((n) => (n === null ? Math.max(5, Math.min(15, Math.round(duration - time))) : n));
-  }, [nearEnd, playing, meta.next, upNextDismissed, duration, time]);
+  }, [nearEnd, playing, meta.next, upNextDismissed, offeringRate, rate, duration, time]);
   useEffect(() => {
     if (upNext === null) return;
     if (upNext <= 0) {
@@ -482,7 +491,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
         onEnded={() => {
           report("stop");
           started.current = false;
-          if (meta.next && !upNextDismissed) goNext();
+          if (offeringRate) setRate((r) => r ?? "offer");
+          else if (meta.next && !upNextDismissed) goNext();
         }}
         onError={onError}
       >
@@ -578,6 +588,48 @@ export function Player({ meta }: { meta: WatchMeta }) {
             </div>
           </div>
         </div>
+      )}
+
+      {finale && rate === "offer" && (
+        <div className="absolute bottom-28 right-4 w-80 max-w-[calc(100%-2rem)] rounded-2xl border border-white/15 bg-black/75 p-4 backdrop-blur sm:right-8">
+          <div className="text-[11px] uppercase tracking-wide text-white/60">Finished</div>
+          <div className="truncate font-semibold">{finale.title}</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-black"
+              onClick={() => {
+                video.current?.pause();
+                setRate("open");
+              }}
+            >
+              Rate it
+            </button>
+            {meta.next && (
+              <button className="rounded-lg bg-white/10 px-3 py-1.5 text-xs" onClick={goNext}>
+                Next: {meta.next.label}
+              </button>
+            )}
+            <button className="rounded-lg px-3 py-1.5 text-xs text-white/70 hover:text-white" onClick={() => setRate("dismissed")}>
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
+      {finale && rate === "open" && (
+        <Modal kicker="Rate it" title={finale.title} onClose={() => setRate("offer")} className="max-w-lg text-fg">
+          <RatingForm
+            anilistId={finale.anilistId}
+            canPush={finale.canPush}
+            previous={null}
+            embedded
+            onSaved={() =>
+              window.setTimeout(() => {
+                setRate("dismissed");
+                say("Rating saved");
+              }, 900)
+            }
+          />
+        </Modal>
       )}
 
       {toast && (
