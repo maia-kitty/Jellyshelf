@@ -6,6 +6,7 @@ import clsx from "clsx";
 import type { RatingRow } from "@/lib/ratings";
 import { scoreOf, sortRatings, type RatingSort as Sort, type RatingSortKey as SortKey } from "@/lib/ratingSort";
 import { sized } from "@/lib/img";
+import { scoreColor } from "@/lib/scoreColor";
 
 interface Unlinked {
   id: number;
@@ -14,11 +15,6 @@ interface Unlinked {
   ratedOn: string;
 }
 
-
-function tone(v: number, max: number) {
-  const r = v / max;
-  return r >= 0.9 ? "text-ok" : r >= 0.7 ? "text-fg" : r >= 0.5 ? "text-warn" : "text-bad";
-}
 
 async function send(url: string, init: RequestInit) {
   const res = await fetch(url, { ...init, headers: { "Content-Type": "application/json" } });
@@ -129,7 +125,9 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                       </a>
                     </td>
                     <td className={clsx("px-1 py-2 text-center", sort.key === "score" && "bg-accent/10")}>
-                      <span className="text-base font-semibold tabular-nums">{scoreOf(r)}</span>
+                      <span className="text-base font-semibold tabular-nums" style={{ color: scoreColor(scoreOf(r), 100) }}>
+                        {scoreOf(r)}
+                      </span>
                       {r.anilistScore === null && (
                         <span className="block text-[11px] leading-tight">
                           {canPush ? (
@@ -160,10 +158,11 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                           key={c.name}
                           className={clsx(
                             "px-1 py-2 text-center tabular-nums",
-                            v === undefined ? "text-line" : tone(v, c.max),
+                            v === undefined && "text-line",
                             differs && "opacity-60",
                             sort.key === c.name && "bg-accent/10 font-semibold",
                           )}
+                          style={v === undefined ? undefined : { color: scoreColor(v, c.max) }}
                         >
                           {v ?? "—"}
                         </td>

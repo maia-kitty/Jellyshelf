@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
 import { anchorFor, CATEGORIES, total } from "@/lib/rating";
+import { scoreColor } from "@/lib/scoreColor";
 
 /** Your personal rubric (Story / Characters / … / Originality = 100), saved locally and pushed to AniList. */
 export function RatingForm(props: {
@@ -66,7 +67,9 @@ export function RatingForm(props: {
                 <div className="mb-1 flex items-baseline justify-between text-sm">
                   <span className="font-medium">{c.name}</span>
                   <span className="tabular-nums">
-                    <span className="text-lg font-semibold">{v}</span>
+                    <span className="text-lg font-semibold transition-colors" style={{ color: scoreColor(v, c.max) }}>
+                      {v}
+                    </span>
                     <span className="text-muted">/{c.max}</span>
                   </span>
                 </div>
@@ -103,7 +106,9 @@ export function RatingForm(props: {
           <div className="flex items-baseline justify-between border-t border-line pt-4">
             <span className="text-sm text-muted">Total</span>
             <span className="tabular-nums">
-              <span className="text-3xl font-bold">{sum}</span>
+              <span className="text-3xl font-bold transition-colors" style={{ color: scoreColor(sum, 100) }}>
+                {sum}
+              </span>
               <span className="text-muted">/100</span>
               <span className="ml-2 text-sm text-muted">({(sum / 10).toFixed(1)})</span>
             </span>
