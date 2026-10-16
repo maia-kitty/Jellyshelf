@@ -113,7 +113,7 @@ export function Nav({ user }: { user: NavUser }) {
           </Link>
           {/* Stretched to the header's full height so the jelly line can ride its bottom edge, like the dock's top. */}
           <nav ref={desk.box} className="relative -my-3 hidden items-center gap-1 self-stretch lg:flex">
-            <PillBg pill={desk.pill} fitY className="left-0 rounded-lg bg-panel-2" />
+            <PillBg pill={desk.pill} fitY className="left-0 rounded-lg bg-accent/12" />
             <PillBg pill={underText(desk.pill)} className={clsx("-bottom-px", LINE)} />
             {links.map((l) => (
               <Link
@@ -122,7 +122,7 @@ export function Nav({ user }: { user: NavUser }) {
                 data-active={isActive(path, l.href)}
                 className={clsx(
                   "relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
-                  isActive(path, l.href) ? "text-fg" : "text-muted hover:text-fg",
+                  isActive(path, l.href) ? "text-accent" : "text-muted hover:text-fg",
                 )}
               >
                 {l.label}
@@ -163,7 +163,7 @@ export function Nav({ user }: { user: NavUser }) {
         {/* Tablet: the links get their own scrolling row. It reaches 1px down over the header's border, so the line
             can sit on it without overflowing (the row clips, being a scroller). */}
         <nav ref={tab.box} className="relative mx-auto -mb-px hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-[9px] sm:flex sm:px-6 lg:hidden">
-          <PillBg pill={tab.pill} className="bottom-[9px] left-0 top-0 rounded-lg bg-panel-2" />
+          <PillBg pill={tab.pill} className="bottom-[9px] left-0 top-0 rounded-lg bg-accent/12" />
           <PillBg pill={underText(tab.pill)} className={clsx("bottom-0", LINE)} />
           {links.map((l) => (
             <Link
@@ -172,7 +172,7 @@ export function Nav({ user }: { user: NavUser }) {
               data-active={isActive(path, l.href)}
               className={clsx(
                 "relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
-                isActive(path, l.href) ? "text-fg" : "text-muted",
+                isActive(path, l.href) ? "text-accent" : "text-muted",
               )}
             >
               {l.label}
