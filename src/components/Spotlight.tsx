@@ -56,9 +56,7 @@ export function Spotlight({ items }: { items: SpotlightItem[] }) {
           {...sized(it.banner, 1600, "100vw")}
           fetchPriority={n === 0 ? "high" : "low"}
           alt=""
-          // The current banner drifts slowly closer while it's up, and eases back as it fades out.
-          className={clsx("absolute inset-0 h-full w-full object-cover", n === i ? "opacity-80 motion-safe:scale-[1.07]" : "opacity-0")}
-          style={{ transition: "opacity 1s ease, transform 9s cubic-bezier(0.2, 0.6, 0.3, 1)" }}
+          className={clsx("absolute inset-0 h-full w-full object-cover transition-opacity duration-1000", n === i ? "opacity-80" : "opacity-0")}
         />
         );
       })}
