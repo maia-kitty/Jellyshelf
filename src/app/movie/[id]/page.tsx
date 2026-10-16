@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
+import { JarLoader } from "@/components/AppIcon";
 import { Hero } from "@/components/Hero";
 import { CommunityScore } from "@/components/Score";
 import { CardRow } from "@/components/MediaCard";
@@ -77,7 +78,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         </div>
       </Hero>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Checking the library…" /></div>}>
         <LibraryCard library={library} title={movie.title} user={user} />
       </Suspense>
       <CardRow title="More like this" cards={recs} />

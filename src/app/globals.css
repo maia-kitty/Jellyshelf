@@ -130,7 +130,6 @@ body {
 /* ---------- Spilled-jar loader (JarLoader) ---------- */
 .spill .spill-bar,
 .spill .spill-head-wobble,
-.spill .spill-glug,
 .spill .spill-puddle {
   transform-box: fill-box;
 }
@@ -151,10 +150,6 @@ body {
 .spill .spill-head-wobble {
   transform-origin: center;
   animation: spill-wobble 0.9s ease-in-out infinite;
-}
-.spill .spill-glug {
-  transform-origin: 0% 100%;
-  animation: spill-glug 1.2s ease-in-out infinite;
 }
 
 @keyframes spill-fill {
@@ -177,11 +172,7 @@ body {
 }
 @keyframes spill-puddle {
   0%, 100% { transform: scale(1, 1); }
-  50% { transform: scale(1.1, 1.12); }
-}
-@keyframes spill-glug {
-  0%, 100% { transform: scale(1, 1); }
-  50% { transform: scale(1.12, 1.08); }
+  50% { transform: scaleX(1.1); } /* sideways only: growing taller would lift it above the bar */
 }
 
 /* Content fading up into place: spotlight slides, detail-page heroes. */
@@ -253,7 +244,6 @@ body {
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
 .simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(78.9px); }
 .simulate-reduced-motion .spill .spill-head-wobble,
-.simulate-reduced-motion .spill .spill-glug,
 .simulate-reduced-motion .spill .spill-puddle,
 .simulate-reduced-motion .jar .jar-lid,
 .simulate-reduced-motion .jar .jar-play,
@@ -265,7 +255,6 @@ body {
   .spill .spill-bar { animation: none; transform: scaleX(0.55); }
   .spill .spill-head { animation: none; transform: translateX(78.9px); }
   .spill .spill-head-wobble,
-  .spill .spill-glug,
   .spill .spill-puddle { animation: none !important; }
   .jar .jar-lid,
   .jar .jar-play,
