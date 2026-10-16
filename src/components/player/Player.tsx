@@ -71,6 +71,11 @@ export function Player({ meta }: { meta: WatchMeta }) {
   const [choice, setChoice] = useState<Choice>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  // The opening splash (backdrop, title, jar): up until the picture starts, then fades out and is removed.
+  const [intro, setIntro] = useState<"on" | "out" | "gone">("on");
+  const endIntro = useCallback(() => setIntro((i) => (i === "on" ? "out" : i)), []);
+  // Fast servers start in a blink, which made the splash a flash: hold the first play() until then (it buffers meanwhile).
+  const splashUntil = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(meta.runTime);
@@ -199,9 +204,15 @@ export function Player({ meta }: { meta: WatchMeta }) {
         v.src = s.url;
         if (at) v.currentTime = at;
       }
-      v.play().catch(() => setPlaying(false));
+      const wait = splashUntil.current - Date.now();
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      v.play().catch((e) => {
+        setPlaying(false);
+        // Autoplay blocked: nothing will start on its own, so get the splash out of the way of the play button.
+        if ((e as Error).name === "NotAllowedError") endIntro();
+      });
     },
-    [meta.itemId, report, teardown],
+    [meta.itemId, report, teardown, endIntro],
   );
 
   // First load: remembered languages, resume point.
@@ -212,6 +223,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
     v.muted = store.get("muted") === "1";
     setVolume(v.volume);
     setMuted(v.muted);
+    splashUntil.current = Date.now() + 1200;
     load({}, meta.resumeAt);
     if (meta.resumeAt) say(`Resuming from ${fmt(meta.resumeAt)}`);
     return teardown;
@@ -454,15 +466,12 @@ export function Player({ meta }: { meta: WatchMeta }) {
       className={clsx("player-root fixed inset-0 z-[60] select-none bg-black text-white", !controls && "cursor-none")}
       onMouseMove={poke}
     >
-      {meta.backdrop && loading && !error && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img {...sized(meta.backdrop, 960, "100vw")} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-sm" />
-      )}
       <video
         ref={video}
         className="absolute inset-0 h-full w-full"
         playsInline
         onPlaying={() => {
+          endIntro();
           setLoading(false);
           setPlaying(true);
           if (!started.current) {
@@ -499,6 +508,26 @@ export function Player({ meta }: { meta: WatchMeta }) {
         {sub?.kind === "vtt" && sub.url && <track key={sub.index} kind="subtitles" src={sub.url} srcLang={sub.language ?? undefined} label={sub.label} default />}
       </video>
 
+      {intro !== "gone" && (
+        <div
+          className={clsx("pointer-events-none absolute inset-0 overflow-hidden bg-black transition-opacity duration-700", intro === "out" && "opacity-0")}
+          onTransitionEnd={(e) => e.target === e.currentTarget && setIntro("gone")}
+        >
+          {meta.backdrop && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img {...sized(meta.backdrop, 960, "100vw")} alt="" className="player-splash-bg absolute inset-0 h-full w-full object-cover opacity-40 blur-sm" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60" />
+          {!error && (
+            <div className="player-splash-body relative flex h-full flex-col items-center justify-center gap-1.5 px-6 text-center">
+              <div className="text-2xl font-bold drop-shadow sm:text-4xl">{meta.title}</div>
+              {meta.subtitle && <div className="text-sm text-white/70 sm:text-base">{meta.subtitle}</div>}
+              <JarLoader width={200} label="Starting…" className="mt-6 text-white/80" />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tap/click surface */}
       <div className="absolute inset-0" onClick={onSurfaceClick} />
 
@@ -527,8 +556,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
               </div>
             </div>
           ) : (
-            // Starting up: the jelly jar. Buffering mid-video: just a small spinner over the picture.
-            !started.current ? (
+            // Starting up: the jelly jar (the splash has its own). Buffering mid-video: a small spinner over the picture.
+            intro === "on" ? null : !started.current ? (
               <JarLoader width={220} label="Starting…" className="text-white/80" />
             ) : (
               <span className="player-spinner h-12 w-12 rounded-full border-4 border-white/20 border-t-white" />
@@ -542,7 +571,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
         <Link href={meta.backHref} className="rounded-full p-2 hover:bg-white/10" aria-label="Back">
           <Icon name="back" />
         </Link>
-        <div className="min-w-0">
+        {/* the splash shows the title big while it's up */}
+        <div className={clsx("min-w-0 transition-opacity duration-500", intro === "on" && "opacity-0")}>
           <div className="truncate text-base font-semibold sm:text-lg">{meta.title}</div>
           {meta.subtitle && <div className="truncate text-xs text-white/70 sm:text-sm">{meta.subtitle}</div>}
         </div>
@@ -640,7 +670,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
       <div
         className={clsx(
           "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-16 transition-opacity duration-300 sm:px-6",
-          controls ? "opacity-100" : "pointer-events-none opacity-0",
+          // hidden under the splash: nothing to control yet
+          controls && intro !== "on" ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
         <SeekBar time={time} duration={duration} buffered={buffered} segments={meta.segments} trickplay={trickIndex} onSeek={seekTo} onScrub={poke} />
