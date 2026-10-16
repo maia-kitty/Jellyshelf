@@ -2,14 +2,19 @@
 
 Formerly Kitsune: an existing `config/kitsune.db`, old sessions and `KITSUNE_*` env vars are picked up automatically.
 
-A Seerr-style request manager where **anime is a first-class citizen**. You sign in with AniList, your list status shows on every
-card, and requesting an anime adds it to your AniList *Planning* list. Every AniList entry (season, cour, "Part 2") is mapped to the exact
-Sonarr season or episode range, or to Radarr for films.
+A self-hosted front end for Jellyfin that also handles requests, Seerr-style, and treats **anime as a first-class
+citizen**. You sign in with your Jellyfin account, browse, request, and watch, all in one place.
 
-- **Movies** go to Radarr and **series** go to Sonarr, using TMDB metadata, the same as Seerr.
-- **Anime** is browsed through AniList (trending, seasonal, search) and sent to Sonarr as series type *Anime*, with its own root folder
-  and quality profile. Anime films go to Radarr.
-- **Jellyfin** provides availability badges and optional Jellyfin-account sign-in.
+- **Watch:** your Jellyfin library, with continue watching and a built-in player. The player supports direct play or
+  transcoding, styled anime subtitles, skip intro and up next. Video streams through Jellyshelf.
+- **Request:** movies go to Radarr and series go to Sonarr, using TMDB metadata. Anime is browsed through AniList
+  (trending, seasonal, airing schedule) and sent to the exact Sonarr season or episode range. Anime films go to Radarr.
+- **AniList (optional add-on):** link it to see your list status on every card, edit entries, and have episodes marked
+  as watched automatically at 90%.
+- **Subtitles:** shown per episode, with fixes through Bazarr.
+
+**Changing things yourself:** see [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md), a plain-language guide to how the
+project is laid out and how to make, test and undo a change.
 
 ## How anime mapping works
 
@@ -38,14 +43,14 @@ npm install && npm run dev
 The setup wizard asks for:
 1. The public URL, a TMDB key and an AniList API client. Create the client at https://anilist.co/settings/developer, with redirect
    URL `<public url>/api/auth/anilist/callback`.
-2. The first sign-in, with AniList or Jellyfin. This account becomes the admin.
-3. Sonarr, Radarr and Jellyfin connection details.
+2. The first sign-in. This account becomes the admin.
+3. Jellyfin, Sonarr, Radarr and (optionally) Bazarr connection details.
 
 All state lives in `/config` (`CONFIG_DIR`): the SQLite database plus the generated session/encryption secret.
 
 ## Development
 
-- `npm test`: mapping resolver tests against real mapping data fixtures
+- `npm test`: unit tests (mapping resolver against real mapping data, playback, subtitles, image sizing, …)
 - `npm run typecheck`
 - `npm run db:generate`: create a migration after editing `src/db/schema.ts`. Migrations run automatically on boot.
 - `JELLYSHELF_DISABLE_JOBS=1` disables the background jobs (mapping refresh daily, availability sync every 10 min).
