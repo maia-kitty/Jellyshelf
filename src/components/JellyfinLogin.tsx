@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { unreachable } from "@/lib/unreachable";
 
 /** `stay`: reload the current page after signing in (re-authorising playback) instead of going home. */
 export function JellyfinLogin({ stay = false, label }: { stay?: boolean; label?: string } = {}) {
@@ -21,7 +22,7 @@ export function JellyfinLogin({ stay = false, label }: { stay?: boolean; label?:
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username, password }),
-        });
+        }).catch(unreachable);
         const j = await res.json().catch(() => ({}));
         setBusy(false);
         if (!res.ok) return setErr(j.error ?? "Sign-in failed");

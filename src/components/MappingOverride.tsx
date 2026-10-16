@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "./Modal";
+import { unreachable } from "@/lib/unreachable";
 
 interface Values {
   tvdbId: number | null;
@@ -39,7 +40,7 @@ export function MappingOverride({ anilistId, initial }: { anilistId: number; ini
               episodeOffset: num(v.episodeOffset) ?? 0,
             })
           : undefined,
-    });
+    }).catch(unreachable);
     const j = await res.json().catch(() => ({}));
     setMsg(res.ok ? "Saved" : (j.error ?? "Failed"));
     if (res.ok) router.refresh();

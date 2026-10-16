@@ -11,6 +11,7 @@ import { DownloadBar } from "./DownloadBar";
 import { requestScope } from "@/lib/requestScope";
 import type { SubsSummary } from "@/lib/subtitles";
 import { sized } from "@/lib/img";
+import { unreachable } from "@/lib/unreachable";
 
 export interface RequestRow {
   id: number;
@@ -65,8 +66,14 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
   const active = rows.some((r) => r.download && r.download.state !== "stuck");
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(() => router.refresh(), 10_000);
-    return () => clearInterval(t);
+    // Not while the tab is in the background (each refresh asks Sonarr/Radarr); catch up as soon as it's back.
+    const tick = () => !document.hidden && router.refresh();
+    const t = setInterval(tick, 10_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [active, router]);
 
   const act = async (id: number, action: "approve" | "decline" | "retry" | "delete") => {
@@ -76,7 +83,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
       method: action === "delete" ? "DELETE" : "POST",
       headers: { "Content-Type": "application/json" },
       body: action === "delete" ? undefined : JSON.stringify({ action }),
-    });
+    }).catch(unreachable);
     if (!res.ok) setErr((await res.json().catch(() => ({}))).error ?? "Failed");
     setBusy(null);
     router.refresh();

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
 import type { Settings } from "@/lib/settings";
+import { unreachable } from "@/lib/unreachable";
 
 type Redacted = Settings; // same shape, secrets masked
 
@@ -378,7 +379,7 @@ export function JobButtons({ mappingCount }: { mappingCount: number }) {
   const [out, setOut] = useState<Record<string, string>>({});
   const run = async (name: string) => {
     setOut((o) => ({ ...o, [name]: "Running…" }));
-    const res = await fetch(`/api/jobs/${name}`, { method: "POST" });
+    const res = await fetch(`/api/jobs/${name}`, { method: "POST" }).catch(unreachable);
     const j = await res.json().catch(() => ({}));
     setOut((o) => ({ ...o, [name]: res.ok ? JSON.stringify(j) : (j.error ?? "Failed") }));
   };

@@ -5,6 +5,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { anchorFor, CATEGORIES, total } from "@/lib/rating";
 import { scoreColor } from "@/lib/scoreColor";
+import { unreachable } from "@/lib/unreachable";
 
 /** Your personal rubric (Story / Characters / … / Originality = 100), saved locally and pushed to AniList. */
 export function RatingForm(props: {
@@ -34,7 +35,7 @@ export function RatingForm(props: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ anilistId: props.anilistId, scores, push: push && props.canPush, markCompleted }),
-    });
+    }).catch(unreachable);
     const j = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setMsg({ ok: false, text: j.error ?? "Save failed" });

@@ -9,6 +9,7 @@ import { patchEntry, type EditableEntry } from "./ListEditor";
 import { LIST_LABEL } from "./StatusBadge";
 import { Modal } from "./Modal";
 import { RatingForm } from "./RatingForm";
+import { unreachable } from "@/lib/unreachable";
 
 const STATUSES = Object.keys(LIST_LABEL) as AniListStatus[];
 
@@ -55,7 +56,7 @@ export function AniListPanel(props: {
   const remove = async () => {
     if (!confirm("Remove this anime from your AniList list?")) return;
     setBusy(true);
-    const res = await fetch(`/api/anilist/entry?mediaId=${props.mediaId}`, { method: "DELETE" });
+    const res = await fetch(`/api/anilist/entry?mediaId=${props.mediaId}`, { method: "DELETE" }).catch(unreachable);
     setBusy(false);
     if (!res.ok) return setErr((await res.json().catch(() => ({}))).error ?? "Failed");
     setEntry(null);
