@@ -15,18 +15,39 @@ const ICON: Record<string, React.ReactNode> = {
   movies: <path d="M4 5h16v14H4zM4 9h16M4 15h16M8 5v4M16 5v4M8 15v4M16 15v4" />,
   series: <path d="M3 6h18v11H3zM8 20h8M12 17v3" />,
   requests: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+  lists: <path d="M6 3.5h12v17l-6-4-6 4zM9 9.5l2 2 4-4" />,
+  ratings: <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
 };
 
 const LINKS = [
-  { href: "/", label: "Discover", icon: "discover" },
-  { href: "/library", label: "Library", icon: "library" },
-  { href: "/discover/anime", label: "Anime", icon: "anime" },
-  { href: "/discover/movies", label: "Movies", icon: "movies" },
-  { href: "/discover/tv", label: "Series", icon: "series" },
-  { href: "/my-lists", label: "My AniList", anilist: true },
-  { href: "/ratings", label: "Ratings" },
-  { href: "/requests", label: "Requests", icon: "requests" },
+  { href: "/", label: "Discover", icon: "discover", dock: true },
+  { href: "/library", label: "Library", icon: "library", dock: true },
+  { href: "/discover/anime", label: "Anime", icon: "anime", dock: true },
+  { href: "/discover/movies", label: "Movies", icon: "movies", dock: true },
+  { href: "/discover/tv", label: "Series", icon: "series", dock: true },
+  { href: "/my-lists", label: "My AniList", icon: "lists", anilist: true },
+  { href: "/ratings", label: "Ratings", icon: "ratings" },
+  { href: "/requests", label: "Requests", icon: "requests", dock: true },
 ];
+
+/** A link's icon; re-keyed when it becomes the current one, so the hop plays each time you switch to it. */
+function NavIcon({ icon, on, className }: { icon: string; on: boolean; className: string }) {
+  return (
+    <svg
+      key={on ? "on" : "off"}
+      aria-hidden
+      viewBox="0 0 24 24"
+      className={clsx("shrink-0", className, on && "tab-pop")}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={on ? 2.1 : 1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {ICON[icon]}
+    </svg>
+  );
+}
 
 const LINE = "left-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)]";
 /** The jelly line under a header link spans its text, not its padding (px-3). */
@@ -44,18 +65,18 @@ function useSlidingPill<T extends HTMLElement>(path: string) {
   const box = useRef<T>(null);
   const [pill, setPill] = useState<Pill | null>(null);
   useLayoutEffect(() => {
+    let last = "";
     const measure = (animate: boolean) => {
       const el = box.current?.querySelector<HTMLElement>("[data-active='true']");
+      const at = el ? `${el.offsetLeft},${el.offsetTop},${el.offsetWidth},${el.offsetHeight}` : "";
+      // A ResizeObserver reports once as soon as it starts observing; snapping on that would cut a glide short. So
+      // only move when the link really is somewhere else now (fonts loading late shift every link, for one).
+      if (!animate && at === last) return;
+      last = at;
       setPill((prev) => (el ? { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight, animate: animate && prev !== null } : null));
     };
     measure(true);
-    // A ResizeObserver reports once as soon as it starts observing; acting on that would snap the pill into place
-    // mid-glide. Only real resizes after that should jump it.
-    let first = true;
-    const ro = new ResizeObserver(() => {
-      if (first) first = false;
-      else measure(false);
-    });
+    const ro = new ResizeObserver(() => measure(false));
     if (box.current) ro.observe(box.current);
     return () => ro.disconnect();
   }, [path]);
@@ -121,10 +142,11 @@ export function Nav({ user }: { user: NavUser }) {
                 href={l.href}
                 data-active={isActive(path, l.href)}
                 className={clsx(
-                  "relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
+                  "relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
                   isActive(path, l.href) ? "text-accent" : "text-muted hover:text-fg",
                 )}
               >
+                <NavIcon icon={l.icon} on={isActive(path, l.href)} className="hidden h-4 w-4 xl:block" />
                 {l.label}
               </Link>
             ))}
@@ -171,10 +193,11 @@ export function Nav({ user }: { user: NavUser }) {
               href={l.href}
               data-active={isActive(path, l.href)}
               className={clsx(
-                "relative whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
+                "relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
                 isActive(path, l.href) ? "text-accent" : "text-muted",
               )}
             >
+              <NavIcon icon={l.icon} on={isActive(path, l.href)} className="h-4 w-4" />
               {l.label}
             </Link>
           ))}
@@ -186,7 +209,7 @@ export function Nav({ user }: { user: NavUser }) {
         {/* A soft glow behind the current tab, and a jelly line along the top edge, both gliding between tabs. */}
         <PillBg pill={dock.pill} className="left-0 top-1 h-[calc(100%-env(safe-area-inset-bottom)-0.5rem)] rounded-2xl bg-accent/12" />
         <PillBg pill={dock.pill && { ...dock.pill, x: dock.pill.x + dock.pill.w / 4, w: dock.pill.w / 2 }} className={clsx("-top-px", LINE)} />
-        {LINKS.filter((l) => l.icon).map((l) => {
+        {LINKS.filter((l) => l.dock).map((l) => {
           const on = isActive(path, l.href);
           return (
             <Link
@@ -198,19 +221,7 @@ export function Nav({ user }: { user: NavUser }) {
                 on ? "text-accent" : "text-muted",
               )}
             >
-              {/* Re-keyed when it becomes the current tab, so the hop plays each time you switch to it. */}
-              <svg
-                key={on ? "on" : "off"}
-                viewBox="0 0 24 24"
-                className={clsx("h-5 w-5", on && "tab-pop")}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={on ? 2.1 : 1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {ICON[l.icon!]}
-              </svg>
+              <NavIcon icon={l.icon} on={on} className="h-5 w-5" />
               {l.label}
             </Link>
           );
@@ -259,7 +270,7 @@ function UserMenu({ user, links, path }: { user: NavUser; links: typeof LINKS; p
           <div className="my-1 border-t border-line" />
           {/* On phones these aren't in the tab bar. */}
           {links
-            .filter((l) => !l.icon)
+            .filter((l) => !l.dock)
             .map((l) => (
               <Link key={l.href} href={l.href} className={clsx(item, "sm:hidden")}>
                 {l.label}
