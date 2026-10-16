@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { Card } from "@/lib/cards";
 import { ShelfHeader } from "../MediaCard";
