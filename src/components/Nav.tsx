@@ -12,23 +12,19 @@ type NavUser = { displayName: string; avatar: string | null; role: string; hasAn
 const ICON: Record<string, React.ReactNode> = {
   discover: <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3.5 5.5-2 5-5 2 2-5 5-2Z" />,
   library: <path d="M5 4v16M9 4v16M13 6.5l3.6-1.9 4.4 13.9-3.6 1.9zM3 20h18" />,
-  anime: <path d="M4 7h16v10H4zM9 4l3 3 3-3M10 10.5v3l2.5-1.5z" />,
-  movies: <path d="M4 5h16v14H4zM4 9h16M4 15h16M8 5v4M16 5v4M8 15v4M16 15v4" />,
-  series: <path d="M3 6h18v11H3zM8 20h8M12 17v3" />,
+  browse: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
   requests: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
   lists: <path d="M6 3.5h12v17l-6-4-6 4zM9 9.5l2 2 4-4" />,
-  ratings: <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
 };
 
 const LINKS = [
-  { href: "/", label: "Discover", icon: "discover", dock: true },
-  { href: "/library", label: "Library", icon: "library", dock: true },
-  { href: "/discover/anime", label: "Anime", icon: "anime", dock: true },
-  { href: "/discover/movies", label: "Movies", icon: "movies", dock: true },
-  { href: "/discover/tv", label: "Series", icon: "series", dock: true },
-  { href: "/my-lists", label: "My AniList", icon: "lists", anilist: true },
-  { href: "/ratings", label: "Ratings", icon: "ratings" },
-  { href: "/requests", label: "Requests", icon: "requests", dock: true },
+  { href: "/", label: "Discover", icon: "discover" },
+  { href: "/library", label: "Library", icon: "library" },
+  // Anime, movies and series, switched on the page.
+  { href: "/discover/anime", label: "Browse", icon: "browse", match: ["/discover/"] },
+  // Your lists and your ratings.
+  { href: "/my-lists", label: "My AniList", icon: "lists", match: ["/my-lists", "/ratings"] },
+  { href: "/requests", label: "Requests", icon: "requests" },
 ];
 
 /** A link's icon; re-keyed when it becomes the current one, so the hop plays each time you switch to it. */
@@ -54,7 +50,8 @@ const LINE = "left-0 h-0.5 rounded-full bg-[linear-gradient(90deg,#aa5cc3,#00a4d
 /** The jelly line under a header link spans its text, not its padding (px-3). */
 const underText = (p: Pill | null) => p && { ...p, x: p.x + 12, w: p.w - 24 };
 
-const isActive = (path: string, href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+const isActive = (path: string, l: { href: string; match?: string[] }) =>
+  l.href === "/" ? path === "/" : (l.match ?? [l.href]).some((m) => path.startsWith(m));
 
 type Pill = { x: number; y: number; w: number; h: number; animate: boolean };
 
@@ -106,7 +103,6 @@ export function Nav({ user }: { user: NavUser }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const search = useRef<HTMLInputElement>(null);
-  const links = LINKS.filter((l) => !l.anilist || user.hasAnilist);
   const desk = useSlidingPill<HTMLElement>(path);
   const tab = useSlidingPill<HTMLElement>(path);
   const dock = useSlidingPill<HTMLElement>(path);
@@ -137,17 +133,17 @@ export function Nav({ user }: { user: NavUser }) {
           <nav ref={desk.box} className="relative -my-3 hidden items-center gap-1 self-stretch lg:flex">
             <PillBg pill={desk.pill} fitY className="left-0 rounded-lg bg-accent/12" />
             <PillBg pill={underText(desk.pill)} className={clsx("-bottom-px", LINE)} />
-            {links.map((l) => (
+            {LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                data-active={isActive(path, l.href)}
+                data-active={isActive(path, l)}
                 className={clsx(
                   "relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
-                  isActive(path, l.href) ? "text-accent" : "text-muted hover:text-fg",
+                  isActive(path, l) ? "text-accent" : "text-muted hover:text-fg",
                 )}
               >
-                <NavIcon icon={l.icon} on={isActive(path, l.href)} className="hidden h-4 w-4 xl:block" />
+                <NavIcon icon={l.icon} on={isActive(path, l)} className="hidden h-4 w-4 xl:block" />
                 {l.label}
               </Link>
             ))}
@@ -181,24 +177,24 @@ export function Nav({ user }: { user: NavUser }) {
               /
             </kbd>
           </form>
-          <UserMenu user={user} links={links} path={path} />
+          <UserMenu user={user} path={path} />
         </div>
         {/* Tablet: the links get their own scrolling row. It reaches 1px down over the header's border, so the line
             can sit on it without overflowing (the row clips, being a scroller). */}
         <nav ref={tab.box} className="relative mx-auto -mb-px hidden [scrollbar-width:none] max-w-[1600px] gap-1 overflow-x-auto px-4 pb-[9px] sm:flex sm:px-6 lg:hidden">
           <PillBg pill={tab.pill} className="bottom-[9px] left-0 top-0 rounded-lg bg-accent/12" />
           <PillBg pill={underText(tab.pill)} className={clsx("bottom-0", LINE)} />
-          {links.map((l) => (
+          {LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              data-active={isActive(path, l.href)}
+              data-active={isActive(path, l)}
               className={clsx(
                 "relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition-colors duration-300",
-                isActive(path, l.href) ? "text-accent" : "text-muted",
+                isActive(path, l) ? "text-accent" : "text-muted",
               )}
             >
-              <NavIcon icon={l.icon} on={isActive(path, l.href)} className="h-4 w-4" />
+              <NavIcon icon={l.icon} on={isActive(path, l)} className="h-4 w-4" />
               {l.label}
             </Link>
           ))}
@@ -208,13 +204,13 @@ export function Nav({ user }: { user: NavUser }) {
         </Suspense>
       </header>
 
-      {/* Phone: a bottom tab bar for the main sections; the rest lives in the avatar menu. */}
+      {/* Phone: the same five as a bottom tab bar. */}
       <nav ref={dock.box} className="fixed inset-x-0 bottom-0 z-30 flex transform-gpu border-t border-line bg-bg/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden">
         {/* A soft glow behind the current tab, and a jelly line along the top edge, both gliding between tabs. */}
         <PillBg pill={dock.pill} className="left-0 top-1 h-[calc(100%-env(safe-area-inset-bottom)-0.5rem)] rounded-2xl bg-accent/12" />
         <PillBg pill={dock.pill && { ...dock.pill, x: dock.pill.x + dock.pill.w / 4, w: dock.pill.w / 2 }} className={clsx("-top-px", LINE)} />
-        {LINKS.filter((l) => l.dock).map((l) => {
-          const on = isActive(path, l.href);
+        {LINKS.map((l) => {
+          const on = isActive(path, l);
           return (
             <Link
               key={l.href}
@@ -235,7 +231,7 @@ export function Nav({ user }: { user: NavUser }) {
   );
 }
 
-function UserMenu({ user, links, path }: { user: NavUser; links: typeof LINKS; path: string }) {
+function UserMenu({ user, path }: { user: NavUser; path: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -272,14 +268,6 @@ function UserMenu({ user, links, path }: { user: NavUser; links: typeof LINKS; p
             <div className="text-xs text-muted">{user.role === "admin" ? "Admin" : "Member"}</div>
           </div>
           <div className="my-1 border-t border-line" />
-          {/* On phones these aren't in the tab bar. */}
-          {links
-            .filter((l) => !l.dock)
-            .map((l) => (
-              <Link key={l.href} href={l.href} className={clsx(item, "sm:hidden")}>
-                {l.label}
-              </Link>
-            ))}
           {!user.hasAnilist && (
             // A plain link: the OAuth round-trip is a full navigation.
             <a href="/api/auth/anilist" className={clsx(item, "text-anilist")}>

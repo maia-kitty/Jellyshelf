@@ -1,5 +1,6 @@
 import { CardGrid } from "@/components/MediaCard";
 import { Pager, Tabs } from "@/components/Tabs";
+import { BrowseHeader } from "@/components/BrowseHeader";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { decorate, tvCard } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
@@ -19,7 +20,7 @@ export default async function TvDiscover({ searchParams }: { searchParams: Searc
   const cards = await decorate(res.results.map(tvCard), user);
   return (
     <>
-      <h1 className="mb-4 text-2xl font-bold">Series</h1>
+      <BrowseHeader active="tv" />
       <Tabs active={list} tabs={Object.entries(LISTS).map(([key, v]) => ({ key, label: v.label, href: `/discover/tv?list=${key}` }))} />
       <CardGrid cards={cards} />
       <Pager page={page} hasNext={page < Math.min(res.total_pages, 500)} href={(p) => `/discover/tv?list=${list}&page=${p}`} />

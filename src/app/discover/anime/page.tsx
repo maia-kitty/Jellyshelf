@@ -1,5 +1,6 @@
 import { CardGrid } from "@/components/MediaCard";
 import { Pager, Tabs } from "@/components/Tabs";
+import { BrowseHeader } from "@/components/BrowseHeader";
 import { anilist, currentSeason, seasonLabel, shiftSeason, type AniSeason } from "@/lib/clients/anilist";
 import { animeCard, decorate } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
@@ -30,7 +31,7 @@ export default async function AnimeDiscover({ searchParams }: { searchParams: Se
 
   return (
     <>
-      <h1 className="mb-4 text-2xl font-bold">Anime</h1>
+      <BrowseHeader active="anime" />
       <Tabs
         active={list}
         tabs={[
