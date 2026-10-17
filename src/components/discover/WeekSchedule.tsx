@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { ShelfHeader } from "../MediaCard";
+import { Tabs } from "../PillTabs";
 import { sized } from "@/lib/img";
 
 export interface ScheduleSlot {
@@ -74,18 +75,19 @@ export function WeekSchedule({ slots, hasList }: { slots: ScheduleSlot[]; hasLis
       <ShelfHeader
         title="This week"
         actions={
-          hasList && (
-            <span className="inline-flex gap-1 align-middle">
-              {[false, true].map((v) => (
-                <button
-                  key={String(v)}
-                  onClick={() => toggle(v)}
-                  className={clsx("rounded-md px-2 py-0.5 text-xs", onlyMine === v ? "bg-accent/15 text-fg ring-1 ring-inset ring-accent" : "text-muted hover:text-fg")}
-                >
-                  {v ? "My list" : "Everything"}
-                </button>
-              ))}
-            </span>
+          // Once mounted: the saved choice is only known then, and the jelly shouldn't slide to it on every visit.
+          hasList &&
+          days && (
+            <Tabs
+              small
+              className="flex gap-1.5 self-center"
+              tabs={[
+                { key: "all", label: "Everything" },
+                { key: "mine", label: "My list" },
+              ]}
+              active={onlyMine ? "mine" : "all"}
+              onSelect={(k) => toggle(k === "mine")}
+            />
           )
         }
       />

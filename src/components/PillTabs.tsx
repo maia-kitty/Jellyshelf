@@ -26,11 +26,16 @@ export function Tabs({
   tabs,
   active,
   className = "mb-6 flex flex-wrap gap-2",
+  onSelect,
+  small,
   children,
 }: {
-  tabs: { key: string; label: string; href: string }[];
+  /** Links to pages; without an href, a button that calls onSelect. */
+  tabs: { key: string; label: string; href?: string }[];
   active: string;
   className?: string;
+  onSelect?: (key: string) => void;
+  small?: boolean;
   /** Rendered before the tabs (a heading). */
   children?: React.ReactNode;
 }) {
@@ -44,7 +49,7 @@ export function Tabs({
     setClicked(null);
   }
   const shown = clicked ?? active;
-  const group = tabs.map((t) => `${t.href.split("?")[0]}#${t.key}`).join();
+  const group = tabs.map((t) => `${t.href?.split("?")[0] ?? ""}#${t.key}`).join();
 
   useLayoutEffect(() => {
     const b = blob.current;
@@ -105,29 +110,37 @@ export function Tabs({
           "pointer-events-none absolute rounded-full border border-accent bg-[color-mix(in_srgb,var(--color-accent)_15%,var(--color-bg))]",
           !ready && "hidden",
         )} />
-      {tabs.map((t) => (
-        <Link
-          key={t.key}
-          href={t.href}
-          data-tab={t.key}
-          aria-current={t.key === active ? "page" : undefined}
-          onClick={(e) => !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) && setClicked(t.key)}
-          // Each pill's outline sits beneath the (solid) jelly, so the jelly hides the outlines it slides over.
-          className={clsx(
-            "relative shrink-0 rounded-full border border-transparent px-3.5 py-1.5 text-sm transition active:scale-95",
-            "before:absolute before:-inset-px before:-z-10 before:rounded-full before:border before:content-['']",
-            // Only the others fade their outline: the current one's is under the jelly, and fading it would show as a
-            // flicker when a page swap redraws the row before the jelly has got there.
-            t.key !== shown
-              ? "text-muted before:border-line before:transition hover:text-fg hover:before:border-muted"
-              : ready
-                ? "text-fg before:border-transparent"
-                : "text-fg before:border-accent before:bg-accent/15",
-          )}
-        >
-          {t.label}
-        </Link>
-      ))}
+      {tabs.map((t) => {
+        // Each pill's outline sits beneath the (solid) jelly, so the jelly hides the outlines it slides over.
+        const cls = clsx(
+          "relative shrink-0 rounded-full border border-transparent transition active:scale-95",
+          small ? "px-3 py-0.5 text-xs" : "px-3.5 py-1.5 text-sm",
+          "before:absolute before:-inset-px before:-z-10 before:rounded-full before:border before:content-['']",
+          // Only the others fade their outline: the current one's is under the jelly, and fading it would show as a
+          // flicker when a page swap redraws the row before the jelly has got there.
+          t.key !== shown
+            ? "text-muted before:border-line before:transition hover:text-fg hover:before:border-muted"
+            : ready
+              ? "text-fg before:border-transparent"
+              : "text-fg before:border-accent before:bg-accent/15",
+        );
+        return t.href ? (
+          <Link
+            key={t.key}
+            href={t.href}
+            data-tab={t.key}
+            aria-current={t.key === active ? "page" : undefined}
+            onClick={(e) => !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) && setClicked(t.key)}
+            className={cls}
+          >
+            {t.label}
+          </Link>
+        ) : (
+          <button key={t.key} type="button" data-tab={t.key} aria-pressed={t.key === active} onClick={() => onSelect?.(t.key)} className={cls}>
+            {t.label}
+          </button>
+        );
+      })}
     </nav>
   );
 }
