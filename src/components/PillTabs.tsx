@@ -67,7 +67,7 @@ export function Tabs({
           { ...css(from), transform: "scale(1, 1)", easing: "cubic-bezier(0.5, 0, 0.9, 0.6)" },
           { ...css(reach), transform: "scale(1, 0.76)", offset: 0.28, easing: "cubic-bezier(0.2, 0.9, 0.3, 1)" },
           // The wobble is in scale, not position, so it's the same size however far the jelly travelled.
-          { ...css(to), transform: "scale(1.07, 0.9)", offset: 0.55, easing: "ease-in-out" },
+          { ...css(to), transform: "scale(1.05, 0.9)", offset: 0.55, easing: "ease-in-out" },
           { ...css(to), transform: "scale(0.97, 1.06)", offset: 0.75, easing: "ease-in-out" },
           { ...css(to), transform: "scale(1.01, 0.98)", offset: 0.9, easing: "ease-in-out" },
           { ...css(to), transform: "scale(1, 1)" },
@@ -88,9 +88,12 @@ export function Tabs({
   }, [shown, group]);
 
   return (
-    <nav ref={row} className={clsx("relative", className)}>
+    <nav ref={row} className={clsx("relative isolate", className)}>
       {children}
-      <span ref={blob} aria-hidden className={clsx("pointer-events-none absolute rounded-full border border-accent bg-accent/15", !ready && "hidden")} />
+      <span ref={blob} aria-hidden className={clsx(
+          "pointer-events-none absolute rounded-full border border-accent bg-[color-mix(in_srgb,var(--color-accent)_15%,var(--color-bg))]",
+          !ready && "hidden",
+        )} />
       {tabs.map((t) => (
         <Link
           key={t.key}
@@ -98,9 +101,15 @@ export function Tabs({
           data-tab={t.key}
           aria-current={t.key === active ? "page" : undefined}
           onClick={(e) => !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button) && setClicked(t.key)}
+          // Each pill's outline sits beneath the (solid) jelly, so the jelly hides the outlines it slides over.
           className={clsx(
-            "relative shrink-0 rounded-full border px-3.5 py-1.5 text-sm transition active:scale-95",
-            t.key !== shown ? "border-line text-muted hover:border-muted hover:text-fg" : ready ? "border-transparent text-fg" : "border-accent bg-accent/15 text-fg",
+            "relative shrink-0 rounded-full border border-transparent px-3.5 py-1.5 text-sm transition active:scale-95",
+            "before:absolute before:-inset-px before:-z-10 before:rounded-full before:border before:transition before:content-['']",
+            t.key !== shown
+              ? "text-muted before:border-line hover:text-fg hover:before:border-muted"
+              : ready
+                ? "text-fg before:border-transparent"
+                : "text-fg before:border-accent before:bg-accent/15",
           )}
         >
           {t.label}
