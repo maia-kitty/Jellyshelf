@@ -4,6 +4,7 @@ import { anilist, aniTitle, FORMAT_LABEL } from "@/lib/clients/anilist";
 import { looksLikeAnime, tmdbImage, type TmdbMovie, type TmdbTv } from "@/lib/clients/tmdb";
 import { anilistToken } from "@/lib/auth";
 import { statusMap } from "@/lib/media";
+import { listRatings } from "@/lib/ratings";
 
 export interface Card {
   kind: MediaKind;
@@ -73,20 +74,25 @@ export function animeCard(a: AniMediaCard): Card {
   };
 }
 
-/** Attach availability (from our DB) and, for anime, the viewer's AniList list status. */
+/** Attach availability (from our DB) and, for anime, the viewer's AniList list status and their own score. */
 export async function decorate(cards: Card[], user: User | null): Promise<Card[]> {
-  const statuses = await statusMap(cards.map((c) => (c.kind === "anime" ? { kind: c.kind, anilistId: c.id } : { kind: c.kind, tmdbId: c.id })));
   const token = user ? anilistToken(user) : null;
-  const list =
-    token && user?.anilistId && cards.some((c) => c.kind === "anime")
-      ? await anilist.userList(user.anilistId, token).catch(() => null)
-      : null;
+  const anime = !!user && cards.some((c) => c.kind === "anime");
+  const [statuses, list, ratings] = await Promise.all([
+    statusMap(cards.map((c) => (c.kind === "anime" ? { kind: c.kind, anilistId: c.id } : { kind: c.kind, tmdbId: c.id }))),
+    anime && token && user.anilistId ? anilist.userList(user.anilistId, token).catch(() => null) : null,
+    anime ? listRatings(user.id) : [],
+  ]);
+  // Your score: what's on AniList, else your latest rubric rating (rated here but not pushed). Newest first, so first wins.
+  const rubric = new Map<number, number>();
+  for (const r of ratings) if (r.anilistId && !rubric.has(r.anilistId)) rubric.set(r.anilistId, r.total);
   return cards.map((c) => {
     const entry = c.kind === "anime" ? list?.get(c.id) : undefined;
     return {
       ...c,
       status: statuses[`${c.kind}:${c.id}`],
       ...(entry ? { list: { status: entry.status, progress: entry.progress } } : {}),
+      ...(c.kind === "anime" ? { mine: entry?.score || rubric.get(c.id) || null } : {}),
     };
   });
 }
