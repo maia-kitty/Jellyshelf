@@ -12,7 +12,6 @@ type NavUser = { displayName: string; avatar: string | null; role: string; hasAn
 // Split into parts so each icon can move its own way (keyframes in globals.css): the compass needle spins, the
 // leaning book tips up and drops back, the tiles pop in turn, the rows slide in, the bookmark's tick draws itself.
 const tile = (i: number, d: string) => <path key={i} className="ni-tile" style={{ "--i": i } as React.CSSProperties} d={d} />;
-const row = (i: number, y: number) => <path key={i} className="ni-row" style={{ "--i": i } as React.CSSProperties} d={`M4 ${y}h.01M8 ${y}h12`} />;
 const ICON: Record<string, React.ReactNode> = {
   discover: (
     <>
@@ -27,7 +26,14 @@ const ICON: Record<string, React.ReactNode> = {
     </>
   ),
   browse: [tile(0, "M4 4h7v7H4z"), tile(1, "M13 4h7v7h-7z"), tile(2, "M4 13h7v7H4z"), tile(3, "M13 13h7v7h-7z")],
-  requests: [row(0, 6), row(1, 12), row(2, 18)],
+  // The app's own mark: a jar with a play button, whose lid pops open.
+  requests: (
+    <>
+      <rect x="5" y="8.5" width="14" height="12.5" rx="3.5" />
+      <rect className="ni-lid" x="7" y="3.5" width="10" height="2.5" rx="1" />
+      <path className="ni-play" d="M10.5 12v5.5l4.5-2.75z" />
+    </>
+  ),
   lists: (
     <>
       <path className="ni-mark" d="M6 3.5h12v17l-6-4-6 4z" />
@@ -53,6 +59,7 @@ function NavIcon({ icon, on, className }: { icon: string; on: boolean; className
       key={on ? "on" : "off"}
       aria-hidden
       viewBox="0 0 24 24"
+      overflow="visible"
       className={clsx("nav-icon shrink-0", className, on && "tab-pop")}
       fill="none"
       stroke="currentColor"
