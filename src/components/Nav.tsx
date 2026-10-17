@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
+import { DRAG_KEY, dragOn } from "./DragScroll";
 import { unreachable } from "@/lib/unreachable";
 
 type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean };
@@ -293,6 +294,10 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
     };
   }, [open]);
 
+  const [drag, setDrag] = useState(true);
+  useEffect(() => {
+    if (open) setDrag(dragOn());
+  }, [open]);
   const item = "block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-2";
   const plain = clsx(item, "text-muted hover:text-fg");
   return (
@@ -334,6 +339,21 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
               Disconnect AniList
             </button>
           )}
+          {/* Only where there's a mouse to drag with. */}
+          <button
+            role="menuitemcheckbox"
+            aria-checked={drag}
+            className="hidden w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm text-muted hover:bg-panel-2 hover:text-fg pointer-fine:flex"
+            onClick={() => {
+              try {
+                localStorage.setItem(DRAG_KEY, drag ? "0" : "1");
+              } catch {}
+              setDrag(!drag);
+            }}
+          >
+            Drag rows with the mouse
+            <span className={clsx("text-accent", !drag && "invisible")}>✓</span>
+          </button>
           {user.role === "admin" && (
             <Link href="/settings" className={plain}>
               Settings
