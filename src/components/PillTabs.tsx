@@ -6,10 +6,16 @@ import clsx from "clsx";
 
 type Box = { x: number; y: number; w: number; h: number };
 
-/** Where each row's jelly last sat, so when a page swap remounts the row it slides on from there instead of popping. */
-const lastAt = new Map<string, Box & { t: number }>();
+const DURATION = 750;
+
+/**
+ * Each row's latest move, and when that copy of the row was last on screen. When a page swap remounts the row, the new
+ * copy carries on the same move mid-flight (or, coming back some other way, slides over from where it was left).
+ */
+const moves = new Map<string, { from: Box; to: Box; start: number; seen: number }>();
 
 const boxOf = (el: HTMLElement): Box => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+const same = (a: Box, b: Box) => a.x === b.x && a.y === b.y && a.w === b.w;
 const css = (b: Box) => ({ left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
 
 /**
@@ -45,20 +51,24 @@ export function Tabs({
     const el = row.current?.querySelector<HTMLElement>(`[data-tab="${CSS.escape(shown)}"]`);
     if (!b) return;
     if (!el) {
-      // None of these is the current page (a library item, say): no blob, and it slides in from the last spot later.
-      if (b.style.width) lastAt.set(group, { ...boxOf(b), t: Date.now() });
+      // None of these is the current page (a library item, say): no blob until one is.
       b.style.width = "";
       return setReady(false);
     }
     const to = boxOf(el);
-    const stored = lastAt.get(group);
-    // Mid-move it's wherever the running animation has it; on mount, where the last copy of this row left it.
-    const from = b.style.width ? boxOf(b) : stored && Date.now() - stored.t < 4000 ? stored : null;
+    const now = performance.now();
+    const last = moves.get(group);
+    const placed = !!b.style.width;
+    let from: Box | null = null;
+    let at = 0;
+    if (placed) from = boxOf(b); // wherever it is, mid-move or at rest
+    else if (last && now - last.start < DURATION && same(last.to, to)) [from, at] = [last.from, now - last.start];
+    else if (last && now - last.seen < 4000) from = last.to;
     b.getAnimations().forEach((a) => a.cancel());
     Object.assign(b.style, css(to));
     setReady(true);
-    const still = !from || (from.x === to.x && from.y === to.y && from.w === to.w);
-    if (!still && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (from && !same(from, to) && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (!at) moves.set(group, { from, to, start: now, seen: now });
       const x = Math.min(from.x, to.x);
       // Same line: reach across first. Wrapped onto another line: just glide there.
       const reach = Math.abs(from.y - to.y) < 4 ? { ...to, x, w: Math.max(from.x + from.w, to.x + to.w) - x } : to;
@@ -72,18 +82,19 @@ export function Tabs({
           { ...css(to), transform: "scale(1.01, 0.98)", offset: 0.9, easing: "ease-in-out" },
           { ...css(to), transform: "scale(1, 1)" },
         ],
-        { duration: 750 },
-      );
-    }
+        { duration: DURATION },
+      ).currentTime = at;
+    } else if (!at) moves.set(group, { from: to, to, start: -Infinity, seen: now });
     const r = row.current!;
     // A row that scrolls sideways (phones) centres the current tab, so the jelly never lands off-screen.
-    if (r.scrollWidth > r.clientWidth) r.scrollTo({ left: to.x - (r.clientWidth - to.w) / 2, behavior: from ? "smooth" : "instant" });
+    if (r.scrollWidth > r.clientWidth) r.scrollTo({ left: to.x - (r.clientWidth - to.w) / 2, behavior: placed ? "smooth" : "instant" });
     // Fonts arriving or the row wrapping differently move the tab; follow it (a running move keeps its own path).
     const ro = new ResizeObserver(() => Object.assign(b.style, css(boxOf(el))));
     ro.observe(row.current!);
     return () => {
       ro.disconnect();
-      lastAt.set(group, { ...boxOf(b), t: Date.now() });
+      const m = moves.get(group);
+      if (m) m.seen = performance.now();
     };
   }, [shown, group]);
 
@@ -104,9 +115,11 @@ export function Tabs({
           // Each pill's outline sits beneath the (solid) jelly, so the jelly hides the outlines it slides over.
           className={clsx(
             "relative shrink-0 rounded-full border border-transparent px-3.5 py-1.5 text-sm transition active:scale-95",
-            "before:absolute before:-inset-px before:-z-10 before:rounded-full before:border before:transition before:content-['']",
+            "before:absolute before:-inset-px before:-z-10 before:rounded-full before:border before:content-['']",
+            // Only the others fade their outline: the current one's is under the jelly, and fading it would show as a
+            // flicker when a page swap redraws the row before the jelly has got there.
             t.key !== shown
-              ? "text-muted before:border-line hover:text-fg hover:before:border-muted"
+              ? "text-muted before:border-line before:transition hover:text-fg hover:before:border-muted"
               : ready
                 ? "text-fg before:border-transparent"
                 : "text-fg before:border-accent before:bg-accent/15",
