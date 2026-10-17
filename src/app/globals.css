@@ -275,6 +275,14 @@ body {
 @keyframes ni-mark { 40% { transform: translateY(-2px); } }
 @keyframes ni-check { from { stroke-dashoffset: 1; } }
 
+/* Dropdowns (Select): the list drops open like a dollop of jelly, overshooting a little and settling. */
+@keyframes jelly-drop {
+  0% { opacity: 0; transform: scale(0.94, 0.5); }
+  45% { opacity: 1; transform: scale(1.02, 1.06); }
+  70% { transform: scale(0.99, 0.97); }
+}
+.jelly-drop { animation: jelly-drop 0.45s ease-out; }
+
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
 .simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(78.9px); }
@@ -301,6 +309,7 @@ body {
   .card-in,
   .tab-pop,
   .nav-icon *,
+  .jelly-drop,
   .edge-spill svg,
   .edge-spill-bar,
   .player-root,

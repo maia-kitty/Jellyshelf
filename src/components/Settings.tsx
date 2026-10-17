@@ -5,6 +5,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import type { Settings } from "@/lib/settings";
 import { unreachable } from "@/lib/unreachable";
+import { Select } from "./Select";
 
 type Redacted = Settings; // same shape, secrets masked
 
@@ -199,28 +200,25 @@ function ProfileSelect({
   placeholder?: string;
 }) {
   return (
-    <select className="input" value={value ?? ""} onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}>
-      <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.name}
-        </option>
-      ))}
-      {value !== null && !options.some((o) => o.id === value) && <option value={value}>#{value} (test to load names)</option>}
-    </select>
+    <Select<number | "">
+      value={value ?? ""}
+      onChange={(v) => onChange(v === "" ? null : v)}
+      options={[
+        { value: "", label: placeholder },
+        ...options.map((o) => ({ value: o.id, label: o.name })),
+        ...(value !== null && !options.some((o) => o.id === value) ? [{ value, label: `#${value} (test to load names)` }] : []),
+      ]}
+    />
   );
 }
 
 function FolderSelect({ value, options, onChange, placeholder = "Select…" }: { value: string; options: string[]; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{placeholder}</option>
-      {[...new Set([...options, ...(value ? [value] : [])])].map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
+    <Select
+      value={value}
+      onChange={onChange}
+      options={[{ value: "", label: placeholder }, ...[...new Set([...options, ...(value ? [value] : [])])].map((o) => ({ value: o, label: o }))]}
+    />
   );
 }
 
@@ -295,11 +293,15 @@ export function RadarrSettings({ initial }: { initial: Settings["radarr"] }) {
           <FolderSelect value={v.animeRootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("animeRootFolder", x)} placeholder="Same as movies" />
         </Field>
         <Field label="Minimum availability">
-          <select className="input" value={v.minimumAvailability} onChange={(e) => set("minimumAvailability", e.target.value as typeof v.minimumAvailability)}>
-            <option value="announced">Announced</option>
-            <option value="inCinemas">In cinemas</option>
-            <option value="released">Released</option>
-          </select>
+          <Select
+            value={v.minimumAvailability}
+            onChange={(x) => set("minimumAvailability", x)}
+            options={[
+              { value: "announced", label: "Announced" },
+              { value: "inCinemas", label: "In cinemas" },
+              { value: "released", label: "Released" },
+            ]}
+          />
         </Field>
       </div>
       <SaveBar state={state} onSave={submit} extra={<TestButton onTest={runTest} />} />
@@ -340,10 +342,14 @@ export function BazarrSettings({ initial }: { initial: Settings["bazarr"] }) {
           <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
         </Field>
         <Field label="Who can search and pick subtitles">
-          <select className="input" value={v.fixSubsBy} onChange={(e) => set("fixSubsBy", e.target.value as Settings["bazarr"]["fixSubsBy"])}>
-            <option value="requesters">Admins, and whoever requested the title</option>
-            <option value="admin">Admins only</option>
-          </select>
+          <Select
+            value={v.fixSubsBy}
+            onChange={(x) => set("fixSubsBy", x)}
+            options={[
+              { value: "requesters", label: "Admins, and whoever requested the title" },
+              { value: "admin", label: "Admins only" },
+            ]}
+          />
         </Field>
       </div>
       <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("bazarr", v.url, v.apiKey)} />} />

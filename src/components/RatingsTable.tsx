@@ -7,6 +7,7 @@ import type { RatingRow } from "@/lib/ratings";
 import { scoreOf, sortRatings, type RatingSort as Sort, type RatingSortKey as SortKey } from "@/lib/ratingSort";
 import { sized } from "@/lib/img";
 import { scoreColor } from "@/lib/scoreColor";
+import { Select } from "./Select";
 
 interface Unlinked {
   id: number;
@@ -63,18 +64,18 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
             <input type="checkbox" className="accent-accent" checked={rubricOnly} onChange={(e) => setRubricOnly(e.target.checked)} />
             only with rubric
           </label>
-          <select className="input w-auto" value={sort.key} onChange={(e) => setSort({ key: e.target.value, dir: 1 })}>
-            <option value="date">Newest</option>
-            <option value="score">Highest score</option>
-            <option value="title">Title</option>
-            <optgroup label="Highest in category">
-              {categories.map((c) => (
-                <option key={c.name} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+          <Select
+            aria-label="Sort"
+            className="w-auto"
+            value={sort.key}
+            onChange={(key) => setSort({ key, dir: 1 })}
+            options={[
+              { value: "date", label: "Newest" },
+              { value: "score", label: "Highest score" },
+              { value: "title", label: "Title" },
+              ...categories.map((c) => ({ value: c.name, label: c.name, group: "Highest in category" })),
+            ]}
+          />
         </span>
       </div>
       {msg && <p className={clsx("mb-4 text-sm", msg.ok ? "text-ok" : "text-bad")}>{msg.text}</p>}

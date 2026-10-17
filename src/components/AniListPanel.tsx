@@ -9,6 +9,7 @@ import { patchEntry, type EditableEntry } from "./ListEditor";
 import { LIST_LABEL } from "./StatusBadge";
 import { Modal } from "./Modal";
 import { RatingForm } from "./RatingForm";
+import { Select } from "./Select";
 import { unreachable } from "@/lib/unreachable";
 
 const STATUSES = Object.keys(LIST_LABEL) as AniListStatus[];
@@ -103,19 +104,14 @@ export function AniListPanel(props: {
       ) : (
         <div className="mb-3 space-y-3">
           <div className="flex gap-2">
-            <select
-              className="input min-w-0 flex-1 py-1.5 text-sm"
+            <Select
+              className="min-w-0 flex-1 py-1.5"
               aria-label="Status"
               value={entry.status}
               disabled={busy}
-              onChange={(e) => apply({ kind: "status", value: e.target.value as AniListStatus })}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {LIST_LABEL[s]}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => apply({ kind: "status", value })}
+              options={STATUSES.map((s) => ({ value: s, label: LIST_LABEL[s] }))}
+            />
             <input
               className="input w-16 py-1.5 text-center text-sm"
               inputMode="numeric"

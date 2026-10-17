@@ -3,20 +3,13 @@
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
 import clsx from "clsx";
-
-type Box = { x: number; y: number; w: number; h: number };
-
-const DURATION = 750;
+import { boxOf, jelly, JELLY_MS, place, same, type Box } from "./jelly";
 
 /**
  * Each row's latest move, and when that copy of the row was last on screen. When a page swap remounts the row, the new
  * copy carries on the same move mid-flight (or, coming back some other way, slides over from where it was left).
  */
 const moves = new Map<string, { from: Box; to: Box; start: number; seen: number }>();
-
-const boxOf = (el: HTMLElement): Box => ({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
-const same = (a: Box, b: Box) => a.x === b.x && a.y === b.y && a.w === b.w;
-const css = (b: Box) => ({ left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
 
 /**
  * A row of pill links whose highlight is a blob of jelly: on a switch it stretches out to reach the new tab (thinning
@@ -67,34 +60,21 @@ export function Tabs({
     let from: Box | null = null;
     let at = 0;
     if (placed) from = boxOf(b); // wherever it is, mid-move or at rest
-    else if (last && now - last.start < DURATION && same(last.to, to)) [from, at] = [last.from, now - last.start];
+    else if (last && now - last.start < JELLY_MS && same(last.to, to)) [from, at] = [last.from, now - last.start];
     else if (last && now - last.seen < 4000) from = last.to;
-    b.getAnimations().forEach((a) => a.cancel());
-    Object.assign(b.style, css(to));
     setReady(true);
-    if (from && !same(from, to) && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (from && !same(from, to)) {
       if (!at) moves.set(group, { from, to, start: now, seen: now });
-      const x = Math.min(from.x, to.x);
-      // Same line: reach across first. Wrapped onto another line: just glide there.
-      const reach = Math.abs(from.y - to.y) < 4 ? { ...to, x, w: Math.max(from.x + from.w, to.x + to.w) - x } : to;
-      b.animate(
-        [
-          { ...css(from), transform: "scale(1, 1)", easing: "cubic-bezier(0.5, 0, 0.9, 0.6)" },
-          { ...css(reach), transform: "scale(1, 0.76)", offset: 0.28, easing: "cubic-bezier(0.2, 0.9, 0.3, 1)" },
-          // The wobble is in scale, not position, so it's the same size however far the jelly travelled.
-          { ...css(to), transform: "scale(1.05, 0.9)", offset: 0.55, easing: "ease-in-out" },
-          { ...css(to), transform: "scale(0.97, 1.06)", offset: 0.75, easing: "ease-in-out" },
-          { ...css(to), transform: "scale(1.01, 0.98)", offset: 0.9, easing: "ease-in-out" },
-          { ...css(to), transform: "scale(1, 1)" },
-        ],
-        { duration: DURATION },
-      ).currentTime = at;
     } else if (!at) moves.set(group, { from: to, to, start: -Infinity, seen: now });
+    jelly(b, from ?? to, to, { at });
     const r = row.current!;
-    // A row that scrolls sideways (phones) centres the current tab, so the jelly never lands off-screen.
-    if (r.scrollWidth > r.clientWidth) r.scrollTo({ left: to.x - (r.clientWidth - to.w) / 2, behavior: placed ? "smooth" : "instant" });
+    // A row that scrolls sideways (phones) brings the current tab fully into view, so the jelly never lands off-screen;
+    // only as far as needed, so the heading at the start stays put whenever it can.
+    const pad = 16;
+    const left = to.x - pad < r.scrollLeft ? to.x - pad : to.x + to.w + pad > r.scrollLeft + r.clientWidth ? to.x + to.w + pad - r.clientWidth : null;
+    if (left !== null) r.scrollTo({ left, behavior: placed ? "smooth" : "instant" });
     // Fonts arriving or the row wrapping differently move the tab; follow it (a running move keeps its own path).
-    const ro = new ResizeObserver(() => Object.assign(b.style, css(boxOf(el))));
+    const ro = new ResizeObserver(() => place(b, boxOf(el)));
     ro.observe(row.current!);
     return () => {
       ro.disconnect();
@@ -136,7 +116,7 @@ export function Tabs({
             {t.label}
           </Link>
         ) : (
-          <button key={t.key} type="button" data-tab={t.key} aria-pressed={t.key === active} onClick={() => onSelect?.(t.key)} className={cls}>
+          <button key={t.key} type="button" data-tab={t.key} aria-pressed={t.key === active} onClick={() => (setClicked(t.key), onSelect?.(t.key))} className={cls}>
             {t.label}
           </button>
         );

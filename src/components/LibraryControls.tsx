@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import clsx from "clsx";
 import { usePageLoading } from "./NavProgress";
+import { Tabs } from "./PillTabs";
+import { Select } from "./Select";
 
 /** Sort and filter for a library grid; dims the grid and runs the header's jelly jar while the next page loads, like every other page load. */
 export function LibraryControls({
@@ -28,27 +30,11 @@ export function LibraryControls({
   return (
     <>
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="flex rounded-full border border-line bg-panel p-0.5">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => go(sort, f.key)}
-              className={clsx("rounded-full px-3.5 py-1 text-sm transition", f.key === filter ? "bg-accent/15 text-fg ring-1 ring-inset ring-accent" : "text-muted hover:text-fg")}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <label className="ml-auto flex items-center gap-2 text-sm text-muted">
+        <Tabs className="flex flex-wrap gap-2" tabs={filters} active={filter} onSelect={(f) => go(sort, f)} />
+        <div className="ml-auto flex items-center gap-2 text-sm text-muted">
           Sort
-          <select className="input w-auto py-1.5" value={sort} onChange={(e) => go(e.target.value, filter)}>
-            {sorts.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Select aria-label="Sort" className="w-auto py-1.5" value={sort} onChange={(s) => go(s, filter)} options={sorts.map((s) => ({ value: s.key, label: s.label }))} />
+        </div>
       </div>
       <div className={clsx("transition-opacity duration-200", pending && "pointer-events-none opacity-40")}>{children}</div>
     </>

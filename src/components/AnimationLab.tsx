@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { AppIcon, JarLoader } from "./AppIcon";
+import { Select } from "./Select";
 import { DEBUG_COOKIE, MAX_DEBUG_DELAY, type DebugOptions } from "@/lib/debugShared";
 
 const SPEEDS = [0.1, 0.25, 0.5, 1, 2];
@@ -198,13 +199,12 @@ function SlowLoading({ initial }: { initial: DebugOptions }) {
   const select = (key: keyof DebugOptions, label: string) => (
     <label className="flex items-center gap-3 text-sm">
       <span className="w-40 text-muted">{label}</span>
-      <select className="input w-auto" value={opts[key]} onChange={(e) => save({ ...opts, [key]: Number(e.target.value) })}>
-        {DELAYS.map((ms) => (
-          <option key={ms} value={ms}>
-            {ms === 0 ? "Off" : `+${ms / 1000}s`}
-          </option>
-        ))}
-      </select>
+      <Select
+        className="w-auto"
+        value={opts[key]}
+        onChange={(ms) => save({ ...opts, [key]: ms })}
+        options={DELAYS.map((ms) => ({ value: ms, label: ms === 0 ? "Off" : `+${ms / 1000}s` }))}
+      />
     </label>
   );
 
