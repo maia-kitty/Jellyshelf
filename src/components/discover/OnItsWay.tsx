@@ -25,7 +25,7 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
   return (
     <section className="mb-10">
       <ShelfHeader title="On its way" note={`${items.length} request${items.length === 1 ? "" : "s"}`} href="/requests" />
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="bounce-y grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((it) => (
           <li key={it.id}>
             <Link href={it.href} className="flex gap-3 rounded-xl border border-line bg-panel p-2.5 transition hover:border-muted">

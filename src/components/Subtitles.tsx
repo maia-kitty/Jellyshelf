@@ -194,7 +194,7 @@ export function SubtitlePicker({ target, title, onClose }: { target: SubsTarget;
             </div>
           )}
           {list && !shown.length && <p className="py-10 text-center text-sm text-muted">No subtitles found. Bazarr only asks the providers enabled in its settings.</p>}
-          <ul className="divide-y divide-line">
+          <ul className="bounce-y divide-y divide-line">
             {shown.map((c) => {
               const key = `${c.provider}:${c.subtitle}`;
               return (

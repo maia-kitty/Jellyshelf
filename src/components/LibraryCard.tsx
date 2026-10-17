@@ -72,7 +72,7 @@ export function LibraryRow({ title, href, items }: { title: string; href?: strin
 export function LibraryGrid({ items }: { items: LibraryItem[] }) {
   if (!items.length) return <p className="py-16 text-center text-muted">Nothing here.</p>;
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
+    <div className="bounce-y grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
       {items.map((it, i) => (
         <div key={it.id} className="card-in" style={{ "--i": i } as React.CSSProperties}>
           <LibraryCard item={it} />

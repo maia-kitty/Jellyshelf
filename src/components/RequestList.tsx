@@ -93,7 +93,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
   return (
     <>
       {err && <p className="mb-3 text-sm text-bad">{err}</p>}
-      <ul className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+      <ul className="bounce-y grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {rows.map((r) => (
           <li key={r.id} className={clsx("card relative flex gap-4 overflow-hidden p-3 pl-4", "before:absolute before:inset-y-0 before:left-0 before:w-1", STATUS_BAR[r.status])}>
             <a href={r.media.href} className="h-28 w-[4.7rem] shrink-0 overflow-hidden rounded-lg bg-panel-2">

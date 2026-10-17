@@ -94,7 +94,7 @@ export function CardRow({ title, href, cards, note }: { title: React.ReactNode; 
 export function CardGrid({ cards }: { cards: Card[] }) {
   if (!cards.length) return <p className="py-16 text-center text-muted">Nothing here.</p>;
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
+    <div className="bounce-y grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7">
       {cards.map((c, i) => (
         <div key={`${c.kind}:${c.id}`} className="card-in" style={{ "--i": i } as React.CSSProperties}>
           <MediaCard card={c} />

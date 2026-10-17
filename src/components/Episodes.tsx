@@ -122,7 +122,7 @@ export function EpisodeList({
       {!rows.length ? (
         <p className="py-6 text-center text-sm text-muted">{info.episodes.length ? "Nothing downloaded yet." : "No episode information (not in Sonarr or Jellyfin)."}</p>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="bounce-y divide-y divide-line">
           {shown.map((e, i) => {
             const watched = !!anilist && e.n <= progress;
             const newSeason = groupBySeason && (i === 0 || shown[i - 1].season !== e.season);

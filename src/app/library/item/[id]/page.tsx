@@ -30,7 +30,7 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
       {d.seasons.map((s) => (
         <section key={s.id} className="mb-10">
           <h2 className="mb-3 text-lg font-semibold">{s.name}</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="bounce-y grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {s.episodes.map((e) => (
               <Link key={e.id} href={`/watch/${e.id}`} className="group flex gap-3 rounded-xl border border-line bg-panel p-2 transition hover:border-accent">
                 <span className="relative aspect-video w-32 shrink-0 overflow-hidden rounded-lg bg-panel-2">

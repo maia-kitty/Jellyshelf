@@ -159,7 +159,7 @@ export function Select<T extends string | number>({
             className="jelly-drop fixed z-[60] max-h-72 w-max overflow-y-auto overscroll-contain rounded-xl border border-line bg-panel p-1 shadow-2xl shadow-black/50"
             style={{ left: pos.left, right: pos.right, top: pos.top, bottom: pos.bottom, minWidth: pos.minWidth, maxWidth: pos.maxWidth, transformOrigin: pos.up ? "bottom" : "top" }}
           >
-            <div className="relative">
+            <div className="bounce-y relative">
               <span ref={blob} aria-hidden className="pointer-events-none absolute rounded-lg bg-accent/15 ring-1 ring-inset ring-accent/60" />
               {options.map((o, i) => (
                 <Fragment key={i}>

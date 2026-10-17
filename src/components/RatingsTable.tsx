@@ -104,7 +104,7 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                 <SortTh label="Rated" k="date" sort={sort} onSort={sortBy} align="left" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody className="bounce-y divide-y divide-line">
               {visible.map((r) => {
                 const differs = r.rubric && r.anilistScore !== null && r.rubric.total !== r.anilistScore;
                 return (
