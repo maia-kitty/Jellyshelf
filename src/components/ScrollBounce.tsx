@@ -71,14 +71,17 @@ export function ScrollBounce() {
       if (!across && !el.querySelector(".bounce-y")) return;
       const now = performance.now();
       const x = across ? el.scrollLeft : el.scrollTop;
-      const max = across ? el.scrollWidth - el.clientWidth : el.scrollHeight - el.clientHeight;
+      // The page's bottom is reached sooner once a phone's address bar hides (the screen shows more than the page's
+      // clientHeight says), so measure against whichever is taller; and allow for fractional positions when zoomed.
+      const shown = el === document.scrollingElement ? Math.max(el.clientHeight, innerHeight) : el.clientHeight;
+      const max = across ? el.scrollWidth - el.clientWidth : el.scrollHeight - shown;
       const s = track.get(el) ?? { x, t: now, v: 0, hit: false };
       const v = ((x - s.x) / Math.max(16, now - s.t)) * 1000;
       // Smoothed, so one uneven frame doesn't read as a burst of speed; a fresh scroll after a pause starts from scratch.
       s.v = now - s.t > 150 ? v : s.v * 0.5 + v * 0.5;
       [s.x, s.t] = [x, now];
       track.set(el, s);
-      const atEdge = (s.v < 0 && x <= 0.5) || (s.v > 0 && x >= max - 0.5);
+      const atEdge = (s.v < 0 && x <= 1) || (s.v > 0 && x >= max - 1);
       if (atEdge && !s.hit) bounce(el, s.v, across);
       s.hit = atEdge;
     };
