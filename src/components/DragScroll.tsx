@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** Off when the account menu's "Drag rows with the mouse" is unticked (per browser). */
+/** Off when the account menu's "Drag to scroll with the mouse" is unticked (per browser). */
 export const DRAG_KEY = "dragScroll";
 export const dragOn = () => {
   try {
@@ -12,9 +12,25 @@ export const dragOn = () => {
   }
 };
 
+/** What a press scrolls: a card row sideways, or a list (.bounce-y) up and down in whatever it scrolls in. */
+function grabbed(t: Element): { el: HTMLElement; across: boolean } | null {
+  if (t.closest("input, textarea, select, [contenteditable]")) return null;
+  // Not the tab rows (<nav>): they're for clicking.
+  const row = t.closest(".scroll-row:not(nav)");
+  if (row instanceof HTMLElement) return row.scrollWidth > row.clientWidth ? { el: row, across: true } : null;
+  if (!t.closest(".bounce-y")) return null;
+  for (let el = t.parentElement; el; el = el.parentElement) {
+    const y = getComputedStyle(el).overflowY;
+    if ((y === "auto" || y === "scroll") && el.scrollHeight > el.clientHeight) return { el, across: false };
+  }
+  const page = document.scrollingElement;
+  return page instanceof HTMLElement ? { el: page, across: false } : null;
+}
+
 /**
- * Card rows (.scroll-row, not the tab rows) can be grabbed and dragged with a mouse, and glide on when let go, like a
- * swipe. A click that didn't move still opens the card; one that dragged doesn't. Touch and pens scroll natively.
+ * Card rows and lists can be grabbed and dragged with a mouse (rows sideways, lists up and down), and glide on when let
+ * go, like a swipe. A click that didn't move still opens the card; one that dragged doesn't. Touch and pens scroll
+ * natively.
  */
 export function DragScroll() {
   useEffect(() => {
@@ -24,27 +40,31 @@ export function DragScroll() {
     const onDown = (e: PointerEvent) => {
       dragged = false;
       if (e.pointerType !== "mouse" || e.button !== 0 || !dragOn()) return;
-      const row = (e.target as Element).closest?.(".scroll-row:not(nav)");
-      if (!(row instanceof HTMLElement) || row.scrollWidth <= row.clientWidth) return;
+      const g = e.target instanceof Element ? grabbed(e.target) : null;
+      if (!g) return;
+      const { el, across } = g;
+      const at = (p: PointerEvent) => (across ? p.clientX : p.clientY);
+      const pos = () => (across ? el.scrollLeft : el.scrollTop);
+      const to = (v: number) => (across ? (el.scrollLeft = v) : (el.scrollTop = v));
       cancelAnimationFrame(glide);
-      const x0 = e.clientX;
-      const left0 = row.scrollLeft;
+      const x0 = at(e);
+      const left0 = pos();
       let moving = false;
-      let last = { x: e.clientX, t: e.timeStamp };
+      let last = { x: x0, t: e.timeStamp };
       let v = 0; // px per ms, smoothed
 
-      // No text selection or native image/link dragging while the row is held.
+      // No text selection or native image/link dragging while it's held.
       const block = (ev: Event) => ev.preventDefault();
       const onMove = (m: PointerEvent) => {
-        if (!moving && Math.abs(m.clientX - x0) < 5) return;
+        if (!moving && Math.abs(at(m) - x0) < 5) return;
         if (!moving) {
           moving = true;
           document.documentElement.style.cursor = "grabbing";
         }
-        row.scrollLeft = left0 - (m.clientX - x0);
+        to(left0 - (at(m) - x0));
         const dt = m.timeStamp - last.t;
-        if (dt > 0) v = v * 0.4 + ((m.clientX - last.x) / dt) * 0.6;
-        last = { x: m.clientX, t: m.timeStamp };
+        if (dt > 0) v = v * 0.4 + ((at(m) - last.x) / dt) * 0.6;
+        last = { x: at(m), t: m.timeStamp };
       };
       const onUp = (u: PointerEvent) => {
         window.removeEventListener("pointermove", onMove);
@@ -63,10 +83,10 @@ export function DragScroll() {
         const step = (now: number) => {
           const dt = now - t;
           t = now;
-          const before = row.scrollLeft;
-          row.scrollLeft -= v * dt;
+          const before = pos();
+          to(before - v * dt);
           v *= Math.exp(-dt / 325);
-          if (Math.abs(v) > 0.02 && row.scrollLeft !== before) glide = requestAnimationFrame(step);
+          if (Math.abs(v) > 0.02 && pos() !== before) glide = requestAnimationFrame(step);
         };
         glide = requestAnimationFrame(step);
       };

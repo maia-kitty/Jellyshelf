@@ -351,7 +351,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
               setDrag(!drag);
             }}
           >
-            Drag rows with the mouse
+            Drag to scroll with the mouse
             <span className={clsx("text-accent", !drag && "invisible")}>✓</span>
           </button>
           {user.role === "admin" && (
