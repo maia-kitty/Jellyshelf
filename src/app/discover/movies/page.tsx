@@ -4,6 +4,7 @@ import { BrowseHeader } from "@/components/BrowseHeader";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { decorate, movieCard } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
+import { tmdbPaged } from "@/lib/tmdbPaging";
 
 const LISTS = {
   trending: { label: "Trending", fetch: tmdbClient.trendingMovies },
@@ -16,14 +17,15 @@ export default async function MoviesDiscover({ searchParams }: { searchParams: S
   const sp = await searchParams;
   const list = (param(sp, "list") ?? "trending") as keyof typeof LISTS;
   const page = Math.max(1, Number(param(sp, "page")) || 1);
-  const res = await (LISTS[list] ?? LISTS.trending).fetch(page);
+  // 42 to a page, like Anime: it fills rows of 2, 3, 6 and 7, so the grid has no gap at the end on phones or desktops.
+  const res = await tmdbPaged((LISTS[list] ?? LISTS.trending).fetch, page, 42);
   const cards = await decorate(res.results.map(movieCard), user);
   return (
     <>
       <BrowseHeader active="movies" />
       <Tabs active={list} tabs={Object.entries(LISTS).map(([key, v]) => ({ key, label: v.label, href: `/discover/movies?list=${key}` }))} />
       <CardGrid cards={cards} />
-      <Pager page={page} hasNext={page < Math.min(res.total_pages, 500)} href={(p) => `/discover/movies?list=${list}&page=${p}`} />
+      <Pager page={page} hasNext={res.hasNext} href={(p) => `/discover/movies?list=${list}&page=${p}`} />
     </>
   );
 }
