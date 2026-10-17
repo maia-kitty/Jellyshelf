@@ -294,6 +294,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
   }, [open]);
 
   const item = "block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-2";
+  const plain = clsx(item, "text-muted hover:text-fg");
   return (
     <div ref={box} className="relative shrink-0">
       <button onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open} className="block rounded-full ring-accent focus-visible:ring-2">
@@ -321,7 +322,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
           {/* Not for an account that signs in with AniList alone: it would have no way back in. */}
           {user.hasAnilist && user.canUnlinkAnilist && (
             <button
-              className={clsx(item, "text-muted")}
+              className={plain}
               onClick={async () => {
                 if (!confirm("Disconnect AniList? Your lists stop showing here and episodes stop syncing. Your ratings stay, and you can connect again any time.")) return;
                 const res = await fetch("/api/auth/anilist", { method: "DELETE" }).catch(unreachable);
@@ -334,12 +335,12 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             </button>
           )}
           {user.role === "admin" && (
-            <Link href="/settings" className={item}>
+            <Link href="/settings" className={plain}>
               Settings
             </Link>
           )}
           <button
-            className={clsx(item, "text-muted")}
+            className={plain}
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });
               router.push("/login");
