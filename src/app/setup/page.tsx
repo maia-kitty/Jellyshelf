@@ -36,7 +36,7 @@ export default async function Setup() {
           <JellyfinSettings initial={s.jellyfin} />
           <section className="card p-5">
             <h2 className="text-lg font-semibold">Create the admin account</h2>
-            {raw.jellyfin.url && raw.jellyfin.allowLogin ? (
+            {raw.jellyfin.url ? (
               <>
                 <p className="mt-1 mb-4 text-sm text-muted">
                   Sign in with your Jellyfin account; the first account becomes the admin. You can link AniList to it afterwards.
@@ -44,15 +44,7 @@ export default async function Setup() {
                 <JellyfinLogin />
               </>
             ) : (
-              <>
-                <p className="mt-1 mb-4 text-sm text-muted">
-                  The first account to sign in becomes the admin. Save the sections above first. Set up Jellyfin above to use Jellyfin accounts
-                  (recommended); otherwise accounts come from AniList.
-                </p>
-                <a href="/api/auth/anilist" className="btn bg-anilist text-white hover:brightness-110">
-                  Sign in with AniList
-                </a>
-              </>
+              <p className="mt-1 text-sm text-muted">Accounts are Jellyfin accounts: save the Jellyfin section above first, then sign in here.</p>
             )}
           </section>
         </>

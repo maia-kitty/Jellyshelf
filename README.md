@@ -43,7 +43,7 @@ npm install && npm run dev
 The setup wizard asks for:
 1. The public URL, a TMDB key and an AniList API client. Create the client at https://anilist.co/settings/developer, with redirect
    URL `<public url>/api/auth/anilist/callback`.
-2. The first sign-in. This account becomes the admin.
+2. Jellyfin, then the first sign-in with a Jellyfin account. That account becomes the admin.
 3. Jellyfin, Sonarr, Radarr and (optionally) Bazarr connection details.
 
 All state lives in `/config` (`CONFIG_DIR`): the SQLite database plus the generated session/encryption secret.

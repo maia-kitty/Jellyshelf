@@ -3,7 +3,8 @@ import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
 
 /**
- * Fold an AniList-only account into a (Jellyfin) account that is linking the same AniList user:
+ * Fold a leftover AniList-only account (they can't be created or signed in to any more) into the Jellyfin account
+ * that is linking the same AniList user:
  * its requests and ratings move over, the stronger role and auto-approve flags are kept, and the
  * old account is deleted. `link` is the AniList fields to set on the surviving account.
  */

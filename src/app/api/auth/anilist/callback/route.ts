@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { encrypt, getSession, isFirstUser } from "@/lib/auth";
+import { encrypt, getSession } from "@/lib/auth";
 import { ANILIST_TOKEN, anilist, anilistRedirectUri as redirectUri } from "@/lib/clients/anilist";
 import { fetchJson } from "@/lib/clients/http";
 import { getSettings } from "@/lib/settings";
@@ -47,33 +47,20 @@ export async function GET(req: NextRequest) {
     // Linking AniList as an add-on to the signed-in (Jellyfin) account. The Jellyfin name stays; the avatar fills a gap.
     const linkFields = { ...link, avatar: me.avatar ?? viewer.avatar.large };
     if (owner && owner.id !== me.id) {
-      // An older AniList-only account for the same person gets folded in; one tied to another Jellyfin user is someone else's.
+      // A leftover AniList-only account for the same person gets folded in; one tied to another Jellyfin user is someone else's.
       if (owner.jellyfinUserId) return fail("anilist_already_linked");
       await mergeAnilistAccount(owner, me, linkFields);
     } else {
       await db.update(schema.users).set(linkFields).where(eq(schema.users.id, me.id));
     }
-  } else if (owner) {
-    // Signing in with an AniList account that's already linked.
+  } else if (owner?.jellyfinUserId) {
+    // Signing in with an AniList account that's linked to a Jellyfin one.
     await db.update(schema.users).set({ ...link, avatar: owner.avatar ?? viewer.avatar.large }).where(eq(schema.users.id, owner.id));
     userId = owner.id;
   } else {
-    // A brand-new person. With Jellyfin login available, accounts come from Jellyfin and AniList is linked afterwards.
-    if (s.jellyfin.url && s.jellyfin.allowLogin) return fail("anilist_needs_jellyfin");
-    const first = await isFirstUser();
-    const [row] = await db
-      .insert(schema.users)
-      .values({
-        ...link,
-        displayName: viewer.name,
-        avatar: viewer.avatar.large,
-        role: first ? "admin" : "user",
-        autoApproveAnime: first || s.general.defaultAutoApprove,
-        autoApproveMovie: first || s.general.defaultAutoApprove,
-        autoApproveTv: first || s.general.defaultAutoApprove,
-      })
-      .returning();
-    userId = row.id;
+    // Accounts come from Jellyfin; AniList is linked to one afterwards. A leftover AniList-only account (from before
+    // they were dropped) can't sign in either: linking this AniList from the Jellyfin account folds it in.
+    return fail("anilist_needs_jellyfin");
   }
   session.userId = userId;
   await session.save();

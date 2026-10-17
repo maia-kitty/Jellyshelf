@@ -11,6 +11,7 @@ const ERRORS: Record<string, string> = {
   anilist_not_configured: "AniList sign-in isn't configured yet.",
   anilist_already_linked: "That AniList account is already linked to another user.",
   anilist_needs_jellyfin: "No account is linked to that AniList user yet. Sign in with Jellyfin, then link AniList from your account menu.",
+  jellyfin_not_configured: "Jellyfin isn't set up on this server yet, so nobody can sign in. Ask your admin.",
 };
 
 export default async function Login({ searchParams }: { searchParams: SearchParams }) {
@@ -19,7 +20,7 @@ export default async function Login({ searchParams }: { searchParams: SearchPara
   if (!s.general.setupComplete && (await isFirstUser())) redirect("/setup");
   const error = param(await searchParams, "error");
   // Jellyfin is the account; AniList is an add-on linked to it (and a sign-in shortcut once linked).
-  const jellyfinLogin = !!(s.jellyfin.url && s.jellyfin.allowLogin);
+  const jellyfinLogin = !!s.jellyfin.url;
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
@@ -30,22 +31,19 @@ export default async function Login({ searchParams }: { searchParams: SearchPara
       </div>
       <div className="card space-y-5 p-6">
         {error && <p className="text-sm text-bad">{ERRORS[error] ?? error}</p>}
-        {jellyfinLogin && <JellyfinLogin />}
+        {jellyfinLogin ? <JellyfinLogin /> : <p className="text-sm text-muted">{ERRORS.jellyfin_not_configured}</p>}
         {s.anilist.clientId && jellyfinLogin && (
-          <div className="flex items-center gap-3 text-xs text-muted">
-            <div className="h-px flex-1 bg-line" /> or <div className="h-px flex-1 bg-line" />
-          </div>
-        )}
-        {s.anilist.clientId && (
-          <div>
-            <a
-              href="/api/auth/anilist"
-              className={jellyfinLogin ? "btn w-full border border-anilist/50 text-anilist hover:bg-anilist/10" : "btn w-full bg-anilist text-white hover:brightness-110"}
-            >
-              Sign in with AniList
-            </a>
-            {jellyfinLogin && <p className="mt-2 text-center text-xs text-muted">Works once you&apos;ve linked AniList to your Jellyfin account.</p>}
-          </div>
+          <>
+            <div className="flex items-center gap-3 text-xs text-muted">
+              <div className="h-px flex-1 bg-line" /> or <div className="h-px flex-1 bg-line" />
+            </div>
+            <div>
+              <a href="/api/auth/anilist" className="btn w-full border border-anilist/50 text-anilist hover:bg-anilist/10">
+                Sign in with AniList
+              </a>
+              <p className="mt-2 text-center text-xs text-muted">Works once you&apos;ve linked AniList to your Jellyfin account.</p>
+            </div>
+          </>
         )}
       </div>
     </div>

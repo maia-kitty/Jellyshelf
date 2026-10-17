@@ -10,14 +10,14 @@ import { getSettings } from "@/lib/settings";
 const body = z.object({ username: z.string().min(1), password: z.string() });
 
 /**
- * Sign in with Jellyfin. Also used while signed in: to refresh the token playback runs on, or to attach a Jellyfin
- * account to an AniList-only one.
+ * Sign in with Jellyfin: every account is a Jellyfin account. Also used while signed in, to refresh the token playback
+ * runs on, or to give a leftover AniList-only account (from before they were dropped) its Jellyfin account.
  */
 export function POST(req: Request) {
   return handle(async () => {
     const { username, password } = body.parse(await req.json());
     const s = await getSettings();
-    if (!s.jellyfin.url || !s.jellyfin.allowLogin) throw new ApiError(400, "Jellyfin login is not enabled");
+    if (!s.jellyfin.url) throw new ApiError(400, "Jellyfin isn't set up yet");
     const deviceId = deviceIdFor(username);
     let auth;
     try {
@@ -31,7 +31,7 @@ export function POST(req: Request) {
     const me = await currentUser();
 
     if (me && !existing && !me.jellyfinUserId) {
-      // Signed in (AniList only) and linking this Jellyfin account.
+      // A leftover AniList-only session: it becomes this Jellyfin account, keeping its ratings and requests.
       await db.update(schema.users).set({ jellyfinUserId: auth.User.Id, jellyfinToken: token, updatedAt: new Date() }).where(eq(schema.users.id, me.id));
       return { ok: true, redirect: "/" };
     }

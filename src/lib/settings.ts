@@ -47,8 +47,6 @@ export const settingsSchema = z.object({
       apiKey: z.string().default(""),
       /** Address your browser uses for Jellyfin (for "Play" links), if different from the URL Jellyshelf uses. */
       publicUrl: z.string().default(""),
-      /** Allow logging in with Jellyfin credentials. */
-      allowLogin: z.boolean().default(true),
     })
     .prefault({}),
   bazarr: z

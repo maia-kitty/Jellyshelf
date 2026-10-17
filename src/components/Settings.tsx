@@ -312,7 +312,7 @@ export function RadarrSettings({ initial }: { initial: Settings["radarr"] }) {
 export function JellyfinSettings({ initial }: { initial: Settings["jellyfin"] }) {
   const { v, set, submit, state } = useSection("jellyfin", initial);
   return (
-    <Section title="Jellyfin" desc="Used to show what's already in your library, and (optionally) to sign in with Jellyfin accounts.">
+    <Section title="Jellyfin" desc="Your library, playback, and the accounts people sign in with.">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="URL">
           <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://jellyfin:8096" />
@@ -324,7 +324,6 @@ export function JellyfinSettings({ initial }: { initial: Settings["jellyfin"] })
           <input className="input" value={v.publicUrl} onChange={(e) => set("publicUrl", e.target.value)} placeholder="https://jellyfin.example.com" />
         </Field>
       </div>
-      <Toggle label="Allow signing in with Jellyfin accounts" checked={v.allowLogin} onChange={(x) => set("allowLogin", x)} />
       <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("jellyfin", v.url, v.apiKey)} />} />
     </Section>
   );
