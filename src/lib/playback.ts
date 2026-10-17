@@ -371,8 +371,16 @@ async function absoluteNumber(tvdb: number, season: number, ep: number) {
 // ---------- reporting ----------
 
 /** Sessions that already moved AniList, so a long tail of progress reports doesn't repeat it. */
-const g = globalThis as unknown as { __scrobbled?: Set<string> };
-const scrobbled = (g.__scrobbled ??= new Set());
+const g = globalThis as unknown as { __scrobbledAt?: Map<string, number> };
+const scrobbled = (g.__scrobbledAt ??= new Map());
+/** A session's reports stop once the player closes, so a day later its id is only taking up memory. */
+const SCROBBLE_MEMORY_MS = 24 * 60 * 60 * 1000;
+
+function markScrobbled(playSessionId: string) {
+  const now = Date.now();
+  for (const [id, at] of scrobbled) if (now - at > SCROBBLE_MEMORY_MS) scrobbled.delete(id);
+  scrobbled.set(playSessionId, now);
+}
 
 export async function report(user: User, r: PlayReport) {
   const jf = await asUser(user);
@@ -397,7 +405,7 @@ export async function report(user: User, r: PlayReport) {
 
   let anilistUpdate: { mediaId: number; episode: number } | null = null;
   if (r.duration > 0 && r.position / r.duration >= 0.9 && !scrobbled.has(r.playSessionId)) {
-    scrobbled.add(r.playSessionId);
+    markScrobbled(r.playSessionId);
     anilistUpdate = await scrobble(user, jf, r.itemId).catch((e) => {
       console.warn("[anilist sync]", (e as Error).message);
       return null;
