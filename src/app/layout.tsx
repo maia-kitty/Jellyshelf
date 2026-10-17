@@ -20,7 +20,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className="min-h-screen antialiased">
         {user && (
-          <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId, canLinkAnilist: !!settings.anilist.clientId }} />
+          <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId, canLinkAnilist: !!settings.anilist.clientId, canUnlinkAnilist: !!user.jellyfinUserId }} />
         )}
         {/* Full-bleed banners reach 100vw, which includes the scrollbar; clip that here rather than on <body>, whose
             overflow the browser applies to the whole viewport (and which knocks out fixed bars like the phone dock). */}

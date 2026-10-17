@@ -6,8 +6,9 @@ import clsx from "clsx";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
+import { unreachable } from "@/lib/unreachable";
 
-type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean };
+type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean };
 
 // Split into parts so each icon can move its own way (keyframes in globals.css): the compass needle spins, the
 // leaning book tips up and drops back, the tiles pop in turn, the rows slide in, the bookmark's tick draws itself.
@@ -316,6 +317,21 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             <a href="/api/auth/anilist" className={clsx(item, "text-anilist")}>
               Link AniList
             </a>
+          )}
+          {/* Not for an account that signs in with AniList alone: it would have no way back in. */}
+          {user.hasAnilist && user.canUnlinkAnilist && (
+            <button
+              className={clsx(item, "text-muted")}
+              onClick={async () => {
+                if (!confirm("Disconnect AniList? Your lists stop showing here and episodes stop syncing. Your ratings stay, and you can connect again any time.")) return;
+                const res = await fetch("/api/auth/anilist", { method: "DELETE" }).catch(unreachable);
+                if (!res.ok) return alert((await res.json().catch(() => ({}))).error ?? "Couldn't disconnect AniList.");
+                setOpen(false);
+                router.refresh();
+              }}
+            >
+              Disconnect AniList
+            </button>
           )}
           {user.role === "admin" && (
             <Link href="/settings" className={item}>
