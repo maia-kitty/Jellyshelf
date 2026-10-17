@@ -47,6 +47,8 @@ The setup wizard asks for:
 3. Jellyfin, Sonarr, Radarr and (optionally) Bazarr connection details.
 
 All state lives in `/config` (`CONFIG_DIR`): the SQLite database plus the generated session/encryption secret.
+The app runs as user 1000:1000 (set `PUID`/`PGID` to match whoever owns your config folder); on start it hands
+`/config` to that user, so installs from when it ran as root carry on as they are.
 
 ## Development
 
