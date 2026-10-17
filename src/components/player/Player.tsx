@@ -13,7 +13,14 @@ import { sized } from "@/lib/img";
 import { Modal } from "../Modal";
 import { RatingForm } from "../RatingForm";
 
-type HlsLike = { destroy(): void; loadSource(u: string): void; attachMedia(v: HTMLVideoElement): void; on(ev: string, cb: (e: string, d: { fatal?: boolean }) => void): void };
+type HlsLike = {
+  destroy(): void;
+  loadSource(u: string): void;
+  attachMedia(v: HTMLVideoElement): void;
+  on(ev: string, cb: (e: string, d: { fatal?: boolean }) => void): void;
+  stopLoad(): void;
+  startLoad(at: number): void;
+};
 type JassubLike = { destroy(): void | Promise<void> };
 
 const QUALITIES: { label: string; bitrate?: number }[] = [
@@ -101,6 +108,11 @@ export function Player({ meta }: { meta: WatchMeta }) {
     window.setTimeout(() => setToast((x) => (x === t ? null : x)), 3500);
   }, []);
 
+  // Where playback should be while a stream is still loading: the resume point, the spot a switch left off, or a seek
+  // made meanwhile. Until the video catches up its own position reads 0, so reloads, seeks and reports use this.
+  const pending = useRef<number | null>(null);
+  const here = useCallback(() => pending.current ?? video.current?.currentTime ?? 0, []);
+
   // ---------- reporting ----------
   const reportBody = useCallback(
     (event: PlayReport["event"]): PlayReport | null => {
@@ -113,14 +125,14 @@ export function Player({ meta }: { meta: WatchMeta }) {
         mediaSourceId: s.mediaSourceId,
         playSessionId: s.playSessionId,
         playMethod: s.playMethod,
-        position: v.currentTime || 0,
+        position: here(),
         duration: v.duration || meta.runTime,
         paused: v.paused,
         audioIndex: s.audioIndex,
         subtitleIndex: subIndexRef.current,
       };
     },
-    [meta.runTime],
+    [meta.runTime, here],
   );
   const subIndexRef = useRef<number | null>(null);
   subIndexRef.current = subIndex;
@@ -190,6 +202,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
       teardown();
       source.current = s;
       setSrc(s);
+      pending.current = at;
       const v = video.current!;
       if (s.mode === "hls" && !caps.current.nativeHls) {
         const { default: Hls } = await import("hls.js");
@@ -201,8 +214,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
         h.attachMedia(v);
         hls.current = h;
       } else {
+        // The start position is applied on loadedmetadata (Safari ignores one set before then).
         v.src = s.url;
-        if (at) v.currentTime = at;
       }
       const wait = splashUntil.current - Date.now();
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -255,7 +268,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
       if (src.subtitleIndex !== sub.index) {
         const c = { ...choice, subtitleIndex: sub.index };
         setChoice(c);
-        load(c, v.currentTime);
+        load(c, here());
       }
       return;
     }
@@ -263,7 +276,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
       // Leaving a burned-in track: back to a clean stream.
       const c = { ...choice, subtitleIndex: -1 };
       setChoice(c);
-      load(c, v.currentTime);
+      load(c, here());
       return;
     }
     if (sub.kind === "ass" && sub.url) {
@@ -290,23 +303,22 @@ export function Player({ meta }: { meta: WatchMeta }) {
     const c = { ...choice, audioIndex: index };
     setChoice(c);
     setMenu(null);
-    load(c, video.current?.currentTime ?? 0);
+    load(c, here());
   };
   const chooseQuality = (bitrate?: number) => {
     const c = { ...choice, maxBitrate: bitrate };
     setChoice(c);
     setMenu(null);
-    load(c, video.current?.currentTime ?? 0);
+    load(c, here());
   };
 
   // ---------- video events ----------
   const onError = () => {
-    const v = video.current!;
     // The browser couldn't play the file as it is after all: let Jellyfin remux/transcode it.
     if (source.current?.mode === "direct" && !choice.noDirectPlay) {
       const c = { ...choice, noDirectPlay: true };
       setChoice(c);
-      load(c, v.currentTime || meta.resumeAt);
+      load(c, here());
       return;
     }
     setError("This video can't be played here.");
@@ -336,13 +348,21 @@ export function Player({ meta }: { meta: WatchMeta }) {
     (t: number) => {
       const v = video.current;
       if (!v) return;
-      v.currentTime = Math.max(0, Math.min(t, (v.duration || duration) - 0.5));
-      setTime(v.currentTime);
+      const to = Math.max(0, Math.min(t, (v.duration || duration || Infinity) - 0.5));
+      if (pending.current !== null) pending.current = to;
+      setTime(to);
+      if (v.readyState >= 1) v.currentTime = to;
+      // Still loading, so there's nothing to seek in yet (and seeking hls.js mid-setup can wedge it): it starts from
+      // here instead. hls.js is told directly; anything else is moved here once it has loaded (onLoadedMetadata).
+      else if (hls.current) {
+        hls.current.stopLoad();
+        hls.current.startLoad(to);
+      }
       poke();
     },
     [duration, poke],
   );
-  const seekBy = useCallback((d: number) => video.current && seekTo(video.current.currentTime + d), [seekTo]);
+  const seekBy = useCallback((d: number) => seekTo(here() + d), [seekTo, here]);
   const setVol = (v: number) => {
     const el = video.current!;
     el.volume = Math.max(0, Math.min(1, v));
@@ -470,7 +490,12 @@ export function Player({ meta }: { meta: WatchMeta }) {
         ref={video}
         className="absolute inset-0 h-full w-full"
         playsInline
+        onLoadedMetadata={(e) => {
+          const v = e.currentTarget;
+          if (pending.current !== null && Math.abs(v.currentTime - pending.current) > 1) v.currentTime = pending.current;
+        }}
         onPlaying={() => {
+          pending.current = null;
           endIntro();
           setLoading(false);
           setPlaying(true);
@@ -547,7 +572,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
             <div className="pointer-events-auto max-w-sm rounded-2xl bg-black/70 p-5 text-center backdrop-blur">
               <p className="mb-4 text-sm">{error}</p>
               <div className="flex justify-center gap-2">
-                <button className="btn-primary" onClick={() => load(choice, video.current?.currentTime ?? meta.resumeAt)}>
+                <button className="btn-primary" onClick={() => load(choice, here())}>
                   Try again
                 </button>
                 <Link className="btn-ghost" href={meta.backHref}>
