@@ -21,8 +21,10 @@ export function detectCaps(): BrowserCaps {
       ac3: either('audio/mp4; codecs="ac-3"'),
       eac3: either('audio/mp4; codecs="ec-3"'),
     },
-    // Chromium and recent Firefox play Matroska with codecs they know even when canPlayType is shy about saying so.
-    mkv: can("video/x-matroska") || can('video/webm; codecs="avc1.640029"') || /Chrome\//.test(navigator.userAgent),
+    // Chromium plays Matroska with codecs it knows even when canPlayType is shy about saying so. Firefox (and Zen and
+    // other forks) says "maybe" and does play it, but seeks inside it land minutes off (6:29 → 0:16, 10:55 → 15:44),
+    // so it gets Jellyfin's repackaged stream instead, which seeks properly.
+    mkv: !/Firefox\//.test(navigator.userAgent) && (can("video/x-matroska") || can('video/webm; codecs="avc1.640029"') || /Chrome\//.test(navigator.userAgent)),
     nativeHls: can("application/vnd.apple.mpegurl") && !/Chrome\/|Firefox\//.test(navigator.userAgent),
     maxChannels: 2,
   };
