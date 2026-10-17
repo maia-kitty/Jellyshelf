@@ -52,11 +52,23 @@ const LINKS = [
   { href: "/requests", label: "Requests", icon: "requests" },
 ];
 
-/** A link's icon; re-keyed when it becomes the current one, so the hop (and its own move) plays each time you switch to it. */
+/** A link's icon; re-keyed when it becomes the current one (or is hovered as it), so the hop and its move play again. */
 function NavIcon({ icon, on, className }: { icon: string; on: boolean; className: string }) {
+  const svg = useRef<SVGSVGElement>(null);
+  const [replay, setReplay] = useState(0);
+  // Hovering the current tab plays its move again. CSS :hover can't (its animation is already the one hover would set,
+  // so nothing restarts); drawing the icon afresh does. Other tabs get theirs from :hover in globals.css.
+  useEffect(() => {
+    const link = svg.current?.closest(".nav-link");
+    if (!on || !link || !matchMedia("(hover: hover)").matches) return;
+    const again = () => setReplay((n) => n + 1);
+    link.addEventListener("mouseenter", again);
+    return () => link.removeEventListener("mouseenter", again);
+  }, [on]);
   return (
     <svg
-      key={on ? "on" : "off"}
+      ref={svg}
+      key={on ? `on${replay}` : "off"}
       aria-hidden
       viewBox="0 0 24 24"
       overflow="visible"
