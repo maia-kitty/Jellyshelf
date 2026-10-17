@@ -8,6 +8,7 @@ const list: ListEntries = new Map(
     { mediaId: 101922, score: 81, media: { title: t("Demon Slayer: Kimetsu no Yaiba", "Kimetsu no Yaiba") } },
     { mediaId: 142329, score: 80, media: { title: t("Demon Slayer: Kimetsu no Yaiba Entertainment District Arc", "Kimetsu no Yaiba: Yuukaku-hen") } },
     { mediaId: 431, score: 83, media: { title: t("Howl's Moving Castle", "Howl no Ugoku Shiro") } },
+    { mediaId: 527, score: 70, media: { title: t("Pokémon: The First Movie", "Pokémon: Mewtwo no Gyakushuu") } },
   ].map((e) => [e.mediaId, e]),
 );
 const noSearch = vi.fn(async () => null);
@@ -30,5 +31,10 @@ describe("matchTitle", () => {
     const search = vi.fn(async (q: string) => (q === "Chainsaw Man" ? 127230 : null));
     expect(await matchTitle("Chainsaw Man", 96, list, search)).toBe(127230);
     expect(noSearch).not.toHaveBeenCalled();
+  });
+  it("ignores accents either way round", async () => {
+    const search = vi.fn(async () => null);
+    expect(await matchTitle("Pokemon: The First Movie", 70, list, search)).toBe(527);
+    expect(search).not.toHaveBeenCalled();
   });
 });

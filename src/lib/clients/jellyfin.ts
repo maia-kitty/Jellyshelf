@@ -23,6 +23,8 @@ export interface JellyfinItem {
   ProviderIds?: Record<string, string>;
   Path?: string;
   IndexNumber?: number;
+  /** Last episode of a file holding several ("S01E01-E02"). */
+  IndexNumberEnd?: number;
   ParentIndexNumber?: number;
   SeriesId?: string;
   SeriesName?: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listPatch } from "./listEntry";
+import { fuzzyToday, listPatch } from "./listEntry";
 
 const today = { year: 2026, month: 10, day: 14 };
 const none = { year: null, month: null, day: null };
@@ -44,5 +44,17 @@ describe("listPatch", () => {
   });
   it("rating something not on the list adds it as completed", () => {
     expect(listPatch(undefined, 12, { kind: "score", value: 96 }, today)).toEqual({ scoreRaw: 96, status: "COMPLETED" });
+  });
+});
+
+describe("fuzzyToday", () => {
+  const halfPastMidnightInPrague = new Date("2026-10-17T22:30:00Z");
+  it("dates by the viewer's time zone, not the server's", () => {
+    expect(fuzzyToday(halfPastMidnightInPrague, "Europe/Prague")).toEqual({ year: 2026, month: 10, day: 18 });
+    expect(fuzzyToday(halfPastMidnightInPrague, "America/Los_Angeles")).toEqual({ year: 2026, month: 10, day: 17 });
+  });
+  it("falls back to the server's zone for a zone it doesn't know", () => {
+    const d = halfPastMidnightInPrague;
+    expect(fuzzyToday(d, "Mars/Olympus_Mons")).toEqual({ year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() });
   });
 });

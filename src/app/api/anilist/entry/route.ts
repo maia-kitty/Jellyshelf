@@ -4,6 +4,7 @@ import { apiUser } from "@/lib/auth";
 import { anilist } from "@/lib/clients/anilist";
 import { listPatch } from "@/lib/listEntry";
 import { requireAnilist } from "@/lib/ratings";
+import { viewerToday } from "@/lib/today";
 
 const STATUS = z.enum(["CURRENT", "PLANNING", "COMPLETED", "DROPPED", "PAUSED", "REPEATING"]);
 const body = z.object({
@@ -26,7 +27,7 @@ export function PATCH(req: Request) {
     // For airing shows, cap progress at what has actually aired.
     const aired = media.nextAiringEpisode ? media.nextAiringEpisode.episode - 1 : null;
     const episodes = media.episodes ?? aired;
-    const patch = listPatch(list.get(mediaId), media.episodes ?? null, change);
+    const patch = listPatch(list.get(mediaId), media.episodes ?? null, change, await viewerToday());
     if (patch.progress !== undefined && episodes) patch.progress = Math.min(patch.progress, episodes);
     return anilist.updateListEntry(anilistId, token, mediaId, patch);
   });

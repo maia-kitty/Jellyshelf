@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
 import { anilistToken, jellyfinToken, type JellyfinCredentials } from "@/lib/auth";
 import { latestRating } from "@/lib/ratings";
+import { viewerToday } from "@/lib/today";
 import { authHeader } from "@/lib/clients/jellyfin";
 import { fetchJson, joinUrl } from "@/lib/clients/http";
 import { sonarr } from "@/lib/clients/sonarr";
@@ -426,7 +427,7 @@ async function scrobble(user: User, jf: Awaited<ReturnType<typeof asUser>>, item
   const entry = list.get(target.mediaId);
   // Only ever forward: rewatching episode 3 shouldn't undo progress at 10.
   if (entry && entry.progress >= target.episode && entry.status !== "REPEATING") return null;
-  const patch = listPatch(entry, media?.episodes ?? null, { kind: "progress", value: target.episode });
+  const patch = listPatch(entry, media?.episodes ?? null, { kind: "progress", value: target.episode }, await viewerToday());
   if (!entry) patch.status = media?.episodes && target.episode >= media.episodes ? "COMPLETED" : "CURRENT";
   await anilist.updateListEntry(user.anilistId, token, target.mediaId, patch);
   return { mediaId: target.mediaId, episode: target.episode };

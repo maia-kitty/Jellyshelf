@@ -400,7 +400,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
       if ((e.target as HTMLElement).closest("input, select, textarea, [role=dialog]") || e.metaKey || e.ctrlKey || e.altKey) return;
       const v = video.current;
       if (!v) return;
-      const k = e.key.toLowerCase();
+      // On a Cyrillic or Greek layout "k" types "л": go by the physical key for letters the layout doesn't have.
+      const k = /^Key[A-Z]$/.test(e.code) && !/^[a-z]$/i.test(e.key) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
       const map: Record<string, () => void> = {
         " ": toggle,
         k: toggle,

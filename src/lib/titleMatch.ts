@@ -4,6 +4,8 @@ const SUFFIX = /\s*[-:]?\s*(s\d+|season\s*\d+|part\s*\d+|cour\s*\d+)\s*$/i;
 const norm = (t: string) =>
   t
     .normalize("NFKD")
+    // Drop the accents NFKD splits off; left in, "Pokémon" would become "pokem on" and miss a typed "Pokemon".
+    .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/[\u2018\u2019\u02bb`]/g, "'")
     .replace(/[^\p{L}\p{N}']+/gu, " ")

@@ -5,7 +5,8 @@ import { ApiError } from "./api";
 import { anilistToken } from "./auth";
 import { anilist, aniTitle } from "./clients/anilist";
 import { matchTitle } from "./titleMatch";
-import { fuzzyToday, listPatch } from "./listEntry";
+import { listPatch } from "./listEntry";
+import { viewerToday } from "./today";
 import { total, validateScores, type ImportedRating } from "./rating";
 
 /** The viewer's AniList credentials, or a 400 explaining they need to link AniList. */
@@ -21,9 +22,10 @@ export async function pushScore(user: User, mediaId: number, score: number, mark
   const [list, media] = await Promise.all([anilist.userList(anilistId, token), anilist.media(mediaId)]);
   const current = list.get(mediaId);
   const episodes = media?.episodes ?? null;
+  const today = await viewerToday();
   const patch = {
-    ...(markCompleted && current?.status !== "COMPLETED" ? listPatch(current, episodes, { kind: "status", value: "COMPLETED" }) : {}),
-    ...listPatch(current, episodes, { kind: "score", value: score }),
+    ...(markCompleted && current?.status !== "COMPLETED" ? listPatch(current, episodes, { kind: "status", value: "COMPLETED" }, today) : {}),
+    ...listPatch(current, episodes, { kind: "score", value: score }, today),
   };
   return anilist.updateListEntry(anilistId, token, mediaId, patch);
 }
@@ -57,7 +59,7 @@ export async function createRating(
   const media = await anilist.media(input.anilistId);
   if (!media) throw new ApiError(404, "Anime not found on AniList");
   const sum = total(scores);
-  const t = fuzzyToday();
+  const t = await viewerToday();
   const [row] = await db
     .insert(schema.ratings)
     .values({
@@ -159,7 +161,8 @@ export async function ratingsOverview(user: User): Promise<{ rows: RatingRow[]; 
       sub: [m.seasonYear, m.format].filter(Boolean).join(" · "),
       anilistScore: e.score || null,
       rubric: rubricOf(e.mediaId),
-      date: latest.get(e.mediaId)?.ratedOn ?? iso(e.completedAt) ?? new Date(e.updatedAt * 1000).toISOString().slice(0, 10),
+      // updatedAt is 0 on some old entries: no date beats 1970-01-01.
+      date: latest.get(e.mediaId)?.ratedOn ?? iso(e.completedAt) ?? (e.updatedAt ? new Date(e.updatedAt * 1000).toISOString().slice(0, 10) : null),
     });
   }
 

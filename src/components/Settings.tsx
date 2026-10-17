@@ -6,6 +6,7 @@ import clsx from "clsx";
 import type { Settings } from "@/lib/settings";
 import { unreachable } from "@/lib/unreachable";
 import { Select } from "./Select";
+import { initial } from "@/lib/initial";
 
 type Redacted = Settings; // same shape, secrets masked
 
@@ -466,7 +467,7 @@ export function UsersTable({ users, selfId }: { users: UserRow[]; selfId: number
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={u.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
                   ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{u.displayName[0]}</div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{initial(u.displayName)}</div>
                   )}
                   <span className="font-medium">{u.displayName}</span>
                   {u.id === selfId && <span className="text-xs text-muted">(you)</span>}

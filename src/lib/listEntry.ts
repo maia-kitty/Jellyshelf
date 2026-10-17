@@ -5,7 +5,20 @@ export type ListChange =
   | { kind: "status"; value: AniListStatus }
   | { kind: "score"; value: number };
 
-export function fuzzyToday(d = new Date()): FuzzyDate {
+/**
+ * Today's date where the viewer is. The server usually runs in UTC (Docker), so without the viewer's time zone an
+ * episode watched at 00:30 in Prague would be dated the day before.
+ */
+export function fuzzyToday(d = new Date(), timeZone?: string): FuzzyDate {
+  if (timeZone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(d);
+      const part = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+      return { year: part("year"), month: part("month"), day: part("day") };
+    } catch {
+      // Not a time zone this runtime knows: fall back to the server's.
+    }
+  }
   return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
 }
 

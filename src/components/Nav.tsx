@@ -7,6 +7,7 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
 import { unreachable } from "@/lib/unreachable";
+import { initial } from "@/lib/initial";
 
 type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean };
 
@@ -302,7 +303,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{user.displayName[0]}</div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{initial(user.displayName)}</div>
         )}
       </button>
       {open && (

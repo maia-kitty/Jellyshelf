@@ -160,7 +160,8 @@ async function acquire() {
 function learn(res: Response) {
   const limit = Number(res.headers.get("x-ratelimit-limit"));
   const remaining = Number(res.headers.get("x-ratelimit-remaining"));
-  if (limit > 0) limiter.limit = limit;
+  // At least 2: one is kept as headroom, and with none left acquire() would wait on an empty queue forever.
+  if (limit > 0) limiter.limit = Math.max(2, limit);
   // AniList's own count is the truth (other apps may share the IP); back off when it says we're nearly out.
   if (res.headers.has("x-ratelimit-remaining") && remaining <= 1) {
     limiter.pausedUntil = Math.max(limiter.pausedUntil, Date.now() + WINDOW_MS / 2);

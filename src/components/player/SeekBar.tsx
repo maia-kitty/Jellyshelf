@@ -39,7 +39,8 @@ export function SeekBar({
     return Math.min(1, Math.max(0, (clientX - r.left) / r.width));
   };
   const pct = (t: number) => (duration ? `${Math.min(100, (t / duration) * 100)}%` : "0%");
-  const shown = drag ?? (duration ? time / duration : 0);
+  // Jellyfin's runtime can be a little short of the real file, so the time can pass it near the end.
+  const shown = drag ?? (duration ? Math.min(1, time / duration) : 0);
   const peek = drag ?? hover;
 
   // Trickplay: thumbnails are tiled into sheets; find this moment's sheet and offset.

@@ -170,7 +170,12 @@ export async function seriesEpisodes(opts: {
 
   const item = jf && findItem(jf.library, "Series", { itemId: opts.jellyfinItemId, tvdbId: opts.tvdbId, tmdbId: opts.tmdbId, anilistId: opts.anilistId, path: series?.path });
   const jfEps = item ? await cached(`jellyfin:eps:${item.Id}`, 120, () => jf!.api.episodes(item.Id)).catch(() => []) : [];
-  const jfByKey = new Map(jfEps.map((e) => [`${e.ParentIndexNumber}x${e.IndexNumber}`, e]));
+  // A double-episode file is one Jellyfin item covering both; each of Sonarr's episodes plays it.
+  const jfByKey = new Map(
+    jfEps.flatMap((e) =>
+      Array.from({ length: Math.max(1, (e.IndexNumberEnd ?? e.IndexNumber ?? 0) - (e.IndexNumber ?? 0) + 1) }, (_, i) => [`${e.ParentIndexNumber}x${(e.IndexNumber ?? 0) + i}`, e] as const),
+    ),
+  );
   const playUrl = item ? jf!.seriesLink(item.Id) : null;
 
   if (sonarrEps.length) {
