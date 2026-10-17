@@ -115,16 +115,18 @@ export function RatingForm(props: {
             </span>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <label className={clsx("flex items-center gap-2", !props.canPush && "opacity-50")}>
-              <input type="checkbox" className="accent-accent" disabled={!props.canPush} checked={push && props.canPush} onChange={(e) => setPush(e.target.checked)} />
-              Push score to AniList {!props.canPush && "(link AniList first)"}
-            </label>
-            <label className={clsx("flex items-center gap-2", !(push && props.canPush) && "opacity-50")}>
-              <input type="checkbox" className="accent-accent" disabled={!(push && props.canPush)} checked={markCompleted} onChange={(e) => setMarkCompleted(e.target.checked)} />
-              Mark as completed
-            </label>
-          </div>
+          {props.canPush && (
+            <div className="space-y-2 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" className="accent-accent" checked={push} onChange={(e) => setPush(e.target.checked)} />
+                Push score to AniList
+              </label>
+              <label className={clsx("flex items-center gap-2", !push && "opacity-50")}>
+                <input type="checkbox" className="accent-accent" disabled={!push} checked={markCompleted} onChange={(e) => setMarkCompleted(e.target.checked)} />
+                Mark as completed
+              </label>
+            </div>
+          )}
 
           <button className="btn-primary w-full" disabled={busy} onClick={save}>
             {busy ? "Saving…" : props.previous ? "Save new rating" : "Save rating"}

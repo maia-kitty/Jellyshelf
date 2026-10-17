@@ -13,14 +13,13 @@ export default async function RatingsPage() {
     ratingsOverview(user),
     token && user.anilistId ? anilist.userList(user.anilistId, token).catch(() => null) : null,
   ]);
-  const canPush = !!token;
+  const canPush = !!token && !!user.anilistId;
   return (
     <>
-      <MyAniListTabs active="ratings" list={list} />
+      <MyAniListTabs active="ratings" list={list} linked={canPush} />
       <div className="mb-6">
         <p className="text-sm text-muted">
-          {canPush ? "Your scores from AniList, with your rubric breakdown where you have one." : "Link AniList to see your AniList scores here."}{" "}
-          Rate from any anime page.
+          {canPush ? "Your scores from AniList, with your rubric breakdown where you have one." : "Your rubric ratings."} Rate from any anime page.
         </p>
       </div>
       <RatingsTable

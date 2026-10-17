@@ -7,7 +7,7 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
 
-type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean };
+type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean };
 
 // Split into parts so each icon can move its own way (keyframes in globals.css): the compass needle spins, the
 // leaning book tips up and drops back, the tiles pop in turn, the rows slide in, the bookmark's tick draws itself.
@@ -310,7 +310,8 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             <div className="text-xs text-muted">{user.role === "admin" ? "Admin" : "Member"}</div>
           </div>
           <div className="my-1 border-t border-line" />
-          {!user.hasAnilist && (
+          {/* Only once the server is set up for AniList; until then the link would just fail. */}
+          {!user.hasAnilist && user.canLinkAnilist && (
             // A plain link: the OAuth round-trip is a full navigation.
             <a href="/api/auth/anilist" className={clsx(item, "text-anilist")}>
               Link AniList

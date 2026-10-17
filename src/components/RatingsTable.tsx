@@ -129,21 +129,17 @@ export function RatingsTable(props: { rows: RatingRow[]; unlinked: Unlinked[]; c
                       <span className="text-base font-semibold tabular-nums" style={{ color: scoreColor(scoreOf(r), 100) }}>
                         {scoreOf(r)}
                       </span>
-                      {r.anilistScore === null && (
+                      {r.anilistScore === null && canPush && (
                         <span className="block text-[11px] leading-tight">
-                          {canPush ? (
-                            <button
-                              className="text-anilist hover:underline"
-                              disabled={busy === `push${r.anilistId}`}
-                              onClick={() =>
-                                run(`push${r.anilistId}`, () => send(`/api/ratings/${r.rubric!.id}`, { method: "PATCH", body: JSON.stringify({ push: true }) }), `Pushed ${r.rubric!.total} to AniList`)
-                              }
-                            >
-                              {busy === `push${r.anilistId}` ? "…" : "push"}
-                            </button>
-                          ) : (
-                            <span className="text-muted">local</span>
-                          )}
+                          <button
+                            className="text-anilist hover:underline"
+                            disabled={busy === `push${r.anilistId}`}
+                            onClick={() =>
+                              run(`push${r.anilistId}`, () => send(`/api/ratings/${r.rubric!.id}`, { method: "PATCH", body: JSON.stringify({ push: true }) }), `Pushed ${r.rubric!.total} to AniList`)
+                            }
+                          >
+                            {busy === `push${r.anilistId}` ? "…" : "push"}
+                          </button>
                         </span>
                       )}
                       {differs && (

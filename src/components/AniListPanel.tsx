@@ -75,20 +75,16 @@ export function AniListPanel(props: {
   return (
     <div className={clsx("rounded-2xl border border-line bg-panel/80 p-4 backdrop-blur", busy && "opacity-70")}>
       <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-sm font-semibold">Your AniList</h3>
-        <a className="ml-auto text-xs text-anilist hover:underline" href={`https://anilist.co/anime/${props.mediaId}`} target="_blank" rel="noreferrer">
-          Open ↗
-        </a>
+        {/* Without AniList linked, all that's left here is your own rating. */}
+        <h3 className="text-sm font-semibold">{props.linked ? "Your AniList" : "Your rating"}</h3>
+        {props.linked && (
+          <a className="ml-auto text-xs text-anilist hover:underline" href={`https://anilist.co/anime/${props.mediaId}`} target="_blank" rel="noreferrer">
+            Open ↗
+          </a>
+        )}
       </div>
 
-      {!props.linked ? (
-        <p className="mb-3 text-sm text-muted">
-          <a className="text-anilist hover:underline" href="/api/auth/anilist">
-            Link AniList
-          </a>{" "}
-          to track episodes and status here.
-        </p>
-      ) : !entry ? (
+      {!props.linked ? null : !entry ? (
         <div className="mb-3 grid grid-cols-3 gap-1.5">
           {(["PLANNING", "CURRENT", "COMPLETED"] as const).map((s) => (
             <button

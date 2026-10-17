@@ -14,9 +14,12 @@ export const LIST_TABS: { key: AniListStatus; label: string }[] = [
 export function MyAniListTabs({
   active,
   list,
+  linked = true,
   href = (s) => `/my-lists?status=${s}`,
 }: {
-  active: AniListStatus | "ratings";
+  active: AniListStatus | "ratings" | "connect";
+  /** Without AniList there are no lists to tab between: just the connect prompt, and your own ratings. */
+  linked?: boolean;
   /** Your AniList entries, for the counts (null when AniList isn't linked). */
   list: Map<number, Pick<AniListEntry, "status">> | null;
   href?: (status: AniListStatus) => string;
@@ -28,7 +31,9 @@ export function MyAniListTabs({
       <Tabs
         active={active}
         tabs={[
-          ...LIST_TABS.map((s) => ({ key: s.key, label: s.label + count(s.key), href: href(s.key) })),
+          ...(linked
+            ? LIST_TABS.map((s) => ({ key: s.key, label: s.label + count(s.key), href: href(s.key) }))
+            : [{ key: "connect", label: "Lists", href: "/my-lists" }]),
           { key: "ratings", label: "Ratings", href: "/ratings" },
         ]}
       />

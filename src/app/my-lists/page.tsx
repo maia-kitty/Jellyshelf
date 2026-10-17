@@ -2,8 +2,10 @@ import Link from "next/link";
 import { CardGrid, MediaCard } from "@/components/MediaCard";
 import { ProgressBump } from "@/components/ListEditor";
 import { MyAniListTabs } from "@/components/MyAniListTabs";
+import { AniListConnect } from "@/components/AniListConnect";
 import { anilist, type AniListStatus } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
+import { getSettings } from "@/lib/settings";
 import { animeCard, decorate } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
 
@@ -13,15 +15,11 @@ export default async function MyLists({ searchParams }: { searchParams: SearchPa
   const sp = await searchParams;
   const token = anilistToken(user);
   if (!token || !user.anilistId) {
+    const configured = !!(await getSettings()).anilist.clientId;
     return (
       <>
-        <MyAniListTabs active={(param(sp, "status") ?? "PLANNING") as AniListStatus} list={null} />
-        <div className="card mx-auto max-w-md p-6 text-center">
-          <p className="mb-4">Link your AniList account to see your lists here.</p>
-          <a className="btn-primary" href="/api/auth/anilist">
-            Connect AniList
-          </a>
-        </div>
+        <MyAniListTabs active="connect" list={null} linked={false} />
+        <AniListConnect configured={configured} admin={user.role === "admin"} />
       </>
     );
   }
