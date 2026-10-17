@@ -28,8 +28,8 @@ const SPRING = (() => {
 /**
  * When a sideways row of cards runs into its start or end, the cards wobble on a spring as if they had momentum of their
  * own: the faster it hit, the further they swing. The wobble goes the way you were scrolling: it starts at the edge it
- * hit, and the row squishes up into that edge (the far cards travelling furthest) and springs back, leaning as it
- * moves. Stopping anywhere else does nothing. Tab rows (<nav>) stay still.
+ * hit, and the row squishes into that edge like one piece of jelly (the cards there squashing most, the far ones
+ * sliding furthest) and springs back, leaning as it moves. Stopping anywhere else does nothing. Tab rows (<nav>) stay still.
  */
 export function ScrollBounce() {
   useEffect(() => {
@@ -39,23 +39,32 @@ export function ScrollBounce() {
     const row = (e: Event) => (e.target instanceof HTMLElement && e.target.matches(".scroll-row:not(nav)") ? e.target : null);
 
     const bounce = (el: HTMLElement, speed: number) => {
-      // How far the furthest card swings.
+      // How far the furthest card slides.
       const amp = Math.min(24, Math.abs(speed) / 150);
       if (amp < 1.5) return;
       const d = Math.sign(speed);
       const box = el.getBoundingClientRect();
-      // Only the cards in view, counted from the edge it hit: that one moves first and least, held by the edge; each one
-      // further off swings further, so the row squishes up like jelly against the edge and springs back out.
-      const cards = [...el.children].filter((c) => {
-        const r = c.getBoundingClientRect();
-        return r.right > box.left && r.left < box.right;
-      });
-      if (d > 0) cards.reverse();
-      cards.forEach((c, i) => {
-        const a = amp * (0.15 + (0.85 * i) / Math.max(1, cards.length - 1));
-        const lean = Math.min(3, a * 0.22);
-        // They swing the way you were scrolling, into the edge it hit, leaning into the move.
-        const frames = SPRING.map(({ p, v }) => ({ transform: `translateX(${d * a * p}px) skewX(${-d * lean * v}deg)` }));
+      // The row squishes into the edge it hit like one piece of jelly: hardest at the edge and easing off over about
+      // SOFT px, so the cards there squash (and bulge) the most and the further ones slide the most.
+      const SOFT = 300;
+      const squash = amp / SOFT;
+      const lean = Math.min(2.5, amp * 0.12);
+      // Only the cards in view, by how far each one's middle is from the edge it hit; nearest moves first.
+      const cards = [...el.children]
+        .map((c) => {
+          const r = c.getBoundingClientRect();
+          const mid = (r.left + r.right) / 2;
+          return { c, r, far: d > 0 ? box.right - mid : mid - box.left };
+        })
+        .filter(({ r }) => r.right > box.left && r.left < box.right)
+        .sort((a, b) => a.far - b.far);
+      cards.forEach(({ c, far }, i) => {
+        const strain = squash * Math.exp(-far / SOFT);
+        const slide = amp * (1 - Math.exp(-far / SOFT));
+        // Towards the edge the way you were scrolling, squashed along the row and bulging a little, leaning into the move.
+        const frames = SPRING.map(({ p, v }) => ({
+          transform: `translateX(${d * slide * p}px) scale(${1 - strain * p}, ${1 + strain * p * 0.5}) skewX(${-d * lean * v}deg)`,
+        }));
         c.animate(frames, { duration: MS, delay: i * 28, easing: "linear" });
       });
     };
