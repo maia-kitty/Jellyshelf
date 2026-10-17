@@ -26,73 +26,51 @@ const SPRING = (() => {
 })();
 
 /**
- * When a sideways row of cards comes to rest, the cards wobble on a spring as if they had momentum of their own: the
- * faster you were scrolling (or the harder the row hit its end), the further they swing. They lean while they move, and
- * the wobble ripples along the row from the front. Tab rows (<nav>) stay still.
+ * When a sideways row of cards runs into its start or end, the cards wobble on a spring as if they had momentum of their
+ * own: the faster it hit, the further they swing. They lean while they move, and the wobble ripples along the row from
+ * the edge it hit. Stopping anywhere else does nothing. Tab rows (<nav>) stay still.
  */
 export function ScrollBounce() {
   useEffect(() => {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const track = new WeakMap<Element, { x: number; t: number; v: number; peak: number }>();
-    const timers = new WeakMap<Element, number>();
-    const hasEnd = "onscrollend" in document.documentElement;
+    // Per row: where it last was and when, how fast it's going (px/s), and whether it's already bounced off this edge.
+    const track = new WeakMap<Element, { x: number; t: number; v: number; hit: boolean }>();
     const row = (e: Event) => (e.target instanceof HTMLElement && e.target.matches(".scroll-row:not(nav)") ? e.target : null);
 
-    const settle = (el: HTMLElement) => {
-      const s = track.get(el);
-      track.delete(el);
-      if (!s) return;
-      // How fast it was going, px/s: mostly the top speed of this scroll, so a quick flick that glides to a stop still
-      // counts, plus the speed right at the end, which is what a row slamming into its end has.
-      const speed = Math.max(Math.abs(s.peak) * 0.6, Math.abs(s.v));
-      const amp = Math.min(16, speed / 220);
+    const bounce = (el: HTMLElement, speed: number) => {
+      const amp = Math.min(16, Math.abs(speed) / 220);
       if (amp < 1) return;
-      const d = Math.sign(s.peak || s.v);
+      const d = Math.sign(speed);
       const lean = Math.min(3, amp * 0.22);
       const frames = SPRING.map(({ p, v }) => ({ transform: `translateX(${-d * amp * p}px) skewX(${d * lean * v}deg)` }));
       const box = el.getBoundingClientRect();
-      // Only the cards in view, counted from the edge they're heading towards: that one moves first, the rest follow.
+      // Only the cards in view, counted from the edge it hit: that one moves first, the rest follow.
       const cards = [...el.children].filter((c) => {
         const r = c.getBoundingClientRect();
         return r.right > box.left && r.left < box.right;
       });
-      if (d < 0) cards.reverse();
+      if (d > 0) cards.reverse();
       cards.forEach((c, i) => c.animate(frames, { duration: MS, delay: i * 28, easing: "linear" }));
     };
 
-    // "Stopped" is still for a moment: a mouse wheel reports an end after every notch, which isn't the end of the scroll.
-    const later = (el: HTMLElement, ms: number) => {
-      clearTimeout(timers.get(el));
-      timers.set(el, window.setTimeout(() => settle(el), ms));
-    };
     const onScroll = (e: Event) => {
       const el = row(e);
       if (!el) return;
       const now = performance.now();
-      const s = track.get(el);
-      if (!s) track.set(el, { x: el.scrollLeft, t: now, v: 0, peak: 0 });
-      else {
-        // Smoothed, so one uneven frame doesn't read as a burst of speed.
-        const v = ((el.scrollLeft - s.x) / Math.max(16, now - s.t)) * 1000;
-        s.v = s.v * 0.5 + v * 0.5;
-        if (Math.abs(s.v) > Math.abs(s.peak)) s.peak = s.v;
-        s.x = el.scrollLeft;
-        s.t = now;
-      }
-      // Browsers without a scrollend event (older Safari) only get the quiet spell to go on.
-      later(el, hasEnd ? 400 : 120);
-    };
-    const onEnd = (e: Event) => {
-      const el = row(e);
-      if (el && track.has(el)) later(el, 60);
+      const x = el.scrollLeft;
+      const s = track.get(el) ?? { x, t: now, v: 0, hit: false };
+      const v = ((x - s.x) / Math.max(16, now - s.t)) * 1000;
+      // Smoothed, so one uneven frame doesn't read as a burst of speed; a fresh scroll after a pause starts from scratch.
+      s.v = now - s.t > 150 ? v : s.v * 0.5 + v * 0.5;
+      [s.x, s.t] = [x, now];
+      track.set(el, s);
+      const atEdge = (s.v < 0 && x <= 0.5) || (s.v > 0 && x >= el.scrollWidth - el.clientWidth - 0.5);
+      if (atEdge && !s.hit) bounce(el, s.v);
+      s.hit = atEdge;
     };
     // Scroll events don't bubble; listening in the capture phase catches every row on every page.
     document.addEventListener("scroll", onScroll, true);
-    document.addEventListener("scrollend", onEnd, true);
-    return () => {
-      document.removeEventListener("scroll", onScroll, true);
-      document.removeEventListener("scrollend", onEnd, true);
-    };
+    return () => document.removeEventListener("scroll", onScroll, true);
   }, []);
   return null;
 }
