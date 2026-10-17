@@ -14,8 +14,9 @@ export default async function LibraryView({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const sort = (param(sp, "sort") ?? "added") as SortKey;
   const filter = (param(sp, "filter") ?? "all") as FilterKey;
-  const page = Math.max(1, Number(param(sp, "page") ?? "1") || 1);
-  if (!(sort in SORTS) || !(filter in FILTERS)) notFound();
+  const page = Math.max(1, Math.floor(Number(param(sp, "page") ?? "1")) || 1);
+  // Not `in`: that also finds Object.prototype members like "constructor".
+  if (!Object.hasOwn(SORTS, sort) || !Object.hasOwn(FILTERS, filter)) notFound();
 
   const views = await libraryViews(user);
   const view = views.find((v) => v.id === viewId);

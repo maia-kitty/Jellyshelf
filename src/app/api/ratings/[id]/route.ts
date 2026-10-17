@@ -29,7 +29,8 @@ export function PATCH(req: Request, { params }: Ctx) {
     const row = await own(user.id, Number((await params).id));
     const v = body.parse(await req.json());
     if (v.anilist !== undefined) {
-      const m = v.anilist.match(/(?:anime\/)?(\d+)/);
+      // Not just any number in it: a MyAnimeList link or an anilist.co/manga one would link some other title.
+      const m = v.anilist.trim().match(/^(?:(?:https?:\/\/)?(?:www\.)?anilist\.co\/anime\/)?(\d+)(?:[/?#].*)?$/i);
       const anilistId = v.anilist.trim() === "" ? null : m ? Number(m[1]) : NaN;
       if (Number.isNaN(anilistId)) throw new ApiError(400, "Paste an AniList URL or id");
       await db.update(schema.ratings).set({ anilistId, updatedAt: new Date() }).where(eq(schema.ratings.id, row.id));

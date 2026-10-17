@@ -14,6 +14,8 @@ export async function tmdbPaged<T extends { id: number }>(fetch: (page: number) 
   // One spare page: lists shift between requests, so a title can turn up on two TMDB pages. It's shown once, and the
   // spare tops the page back up so the grid stays full.
   const last = Math.floor((start + size - 1) / PER) + 2;
+  // Past TMDB's last page (a hand-typed ?page=300): it answers those with an error, so there's nothing to show.
+  if (first > LAST) return { results: [], hasNext: false };
   const head = await fetch(first);
   const end = Math.min(head.total_pages, LAST);
   const rest = await Promise.all(Array.from({ length: Math.min(last, end) - first }, (_, i) => fetch(first + 1 + i)));

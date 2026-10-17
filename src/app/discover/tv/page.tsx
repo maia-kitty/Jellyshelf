@@ -15,10 +15,12 @@ const LISTS = {
 export default async function TvDiscover({ searchParams }: { searchParams: SearchParams }) {
   const user = await pageUser();
   const sp = await searchParams;
-  const list = (param(sp, "list") ?? "trending") as keyof typeof LISTS;
-  const page = Math.max(1, Number(param(sp, "page")) || 1);
+  // hasOwn: "?list=constructor" would otherwise find Object.prototype.constructor, which has no fetch.
+  const asked = param(sp, "list") ?? "trending";
+  const list = (Object.hasOwn(LISTS, asked) ? asked : "trending") as keyof typeof LISTS;
+  const page = Math.max(1, Math.floor(Number(param(sp, "page"))) || 1);
   // 42 to a page, like Anime: it fills rows of 2, 3, 6 and 7, so the grid has no gap at the end on phones or desktops.
-  const res = await tmdbPaged((LISTS[list] ?? LISTS.trending).fetch, page, 42);
+  const res = await tmdbPaged(LISTS[list].fetch, page, 42);
   const cards = await decorate(res.results.map(tvCard), user);
   return (
     <>

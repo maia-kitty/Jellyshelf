@@ -11,10 +11,11 @@ export default async function AnimeDiscover({ searchParams }: { searchParams: Se
   const user = await pageUser();
   const sp = await searchParams;
   const list = param(sp, "list") ?? "trending";
-  const page = Math.max(1, Number(param(sp, "page")) || 1);
+  // Whole numbers: AniList's GraphQL rejects "?page=1.5" as an Int.
+  const page = Math.max(1, Math.floor(Number(param(sp, "page"))) || 1);
   const now = currentSeason();
   const season = (SEASONS.includes(param(sp, "season") as AniSeason) ? param(sp, "season") : now.season) as AniSeason;
-  const year = Number(param(sp, "year")) || now.year;
+  const year = Math.floor(Number(param(sp, "year"))) || now.year;
 
   const res =
     list === "seasonal"

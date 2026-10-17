@@ -154,6 +154,9 @@ export interface ImportedRating {
  * The script only writes a header when creating the file, so an old-layout file can contain newer rows with an
  * extra anilist_id column; those are detected by their length and read with the current layout.
  */
+/** A score cell: digits only. Number() would read a blank cell as 0 and accept "0x5" or "1e1". */
+const scoreCell = (s: string | undefined) => (s !== undefined && /^\s*\d+\s*$/.test(s) ? Number(s) : NaN);
+
 export function parseRatingsCsv(text: string): { rows: ImportedRating[]; errors: string[] } {
   const [header, ...body] = parseCsv(text.replace(/^﻿/, ""));
   if (!header) return { rows: [], errors: ["Empty file"] };
@@ -169,7 +172,7 @@ export function parseRatingsCsv(text: string): { rows: ImportedRating[]; errors:
     const layout = upgraded && r.length === CSV_HEADER.length ? CSV_HEADER : header;
     const col = (name: string) => find(layout, name);
     try {
-      const scores = validateScores(Object.fromEntries(CATEGORIES.map((c) => [c.name, Number(r[col(c.name)])])));
+      const scores = validateScores(Object.fromEntries(CATEGORIES.map((c) => [c.name, scoreCell(r[col(c.name)])])));
       const idRaw = col("anilist_id") >= 0 ? r[col("anilist_id")]?.trim() : "";
       rows.push({
         ratedOn: r[col("date")].trim(),

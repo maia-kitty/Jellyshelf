@@ -11,18 +11,15 @@ export async function decideRequest(id: number, admin: User, action: "approve" |
   const [media] = await db.select().from(schema.media).where(eq(schema.media.id, req.mediaId));
 
   if (action === "decline") {
+    // Only what hasn't gone to the *arr: declining from a stale page after someone approved it would leave it
+    // downloading under a "declined" request.
+    if (req.status !== "pending" && req.status !== "failed") throw new ApiError(409, `Request is already ${req.status}`);
     const [row] = await db
       .update(schema.requests)
       .set({ status: "declined", decidedBy: admin.id, updatedAt: new Date() })
       .where(eq(schema.requests.id, id))
       .returning();
-    const others = await db
-      .select()
-      .from(schema.requests)
-      .where(and(eq(schema.requests.mediaId, media.id), inArray(schema.requests.status, ["pending", "approved", "completed"])));
-    if (!others.length && media.status === "pending") {
-      await db.update(schema.media).set({ status: "unknown" }).where(eq(schema.media.id, media.id));
-    }
+    await releaseMedia(media.id);
     return row;
   }
 
@@ -45,4 +42,17 @@ export async function decideRequest(id: number, admin: User, action: "approve" |
       .returning();
     return row;
   }
+}
+
+/** A title shown as requested goes back to plain once no request for it is left (declined or withdrawn). */
+export async function releaseMedia(mediaId: number) {
+  const others = await db
+    .select()
+    .from(schema.requests)
+    .where(and(eq(schema.requests.mediaId, mediaId), inArray(schema.requests.status, ["pending", "approved", "completed"])));
+  if (others.length) return;
+  await db
+    .update(schema.media)
+    .set({ status: "unknown" })
+    .where(and(eq(schema.media.id, mediaId), eq(schema.media.status, "pending")));
 }

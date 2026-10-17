@@ -32,6 +32,13 @@ describe("tmdbPaged", () => {
     expect(Math.max(...l.asked)).toBe(3);
   });
 
+  it("returns nothing for a page past TMDB's 500th instead of asking for it", async () => {
+    const l = list(100_000);
+    const res = await tmdbPaged(l.fetch, 300, 42);
+    expect(res).toEqual({ results: [], hasNext: false });
+    expect(l.asked).toEqual([]);
+  });
+
   it("shows a title once when the list shifted between pages, and still fills the page", async () => {
     const fetch = async (page: number) => ({ page, total_pages: 5, total_results: 100, results: Array.from({ length: 20 }, (_, i) => ({ id: page === 2 && i === 0 ? 20 : (page - 1) * 20 + i + 1 })) });
     const ids = (await tmdbPaged(fetch, 1, 42)).results.map((r) => r.id);

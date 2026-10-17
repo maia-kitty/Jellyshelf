@@ -43,4 +43,10 @@ describe("ratings CSV", () => {
     expect(rows.map((r) => r.title)).toEqual(["B"]);
     expect(errors[0]).toMatch(/Line 2: Story/);
   });
+  it("treats a blank or non-decimal score as an error, not 0", () => {
+    const head = "date,title,Story,Characters,Enjoyment,Animation/Art,Sound,Ending/Impact,Originality,total\n";
+    const { rows, errors } = parseRatingsCsv(`${head}x,Blank,,1,1,1,1,1,1,6\nx,Space, ,1,1,1,1,1,1,6\nx,Hex,0x5,1,1,1,1,1,1,11\nx,Exp,1e1,1,1,1,1,1,1,16\nx,Ok, 7 ,1,1,1,1,1,1,13\n`);
+    expect(rows.map((r) => [r.title, r.scores.Story])).toEqual([["Ok", 7]]);
+    expect(errors).toHaveLength(4);
+  });
 });

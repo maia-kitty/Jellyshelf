@@ -100,7 +100,11 @@ export async function importRatings(user: User, rows: ImportedRating[], autoMatc
   }
   const existing = await listRatings(user.id);
   const seen = new Set(existing.map((e) => `${e.ratedOn}|${e.title}|${e.total}`));
-  const fresh = rows.filter((r) => !seen.has(`${r.ratedOn}|${r.title}|${r.total}`));
+  // Also catches the same row twice in one file.
+  const fresh = rows.filter((r) => {
+    const key = `${r.ratedOn}|${r.title}|${r.total}`;
+    return !seen.has(key) && !!seen.add(key);
+  });
   if (fresh.length) {
     await db.insert(schema.ratings).values(fresh.map((r) => ({ ...r, userId: user.id })));
   }

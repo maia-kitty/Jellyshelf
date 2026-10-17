@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { ApiError, handle } from "@/lib/api";
 import { apiUser } from "@/lib/auth";
-import { decideRequest } from "@/lib/requests/decide";
+import { decideRequest, releaseMedia } from "@/lib/requests/decide";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,6 +26,7 @@ export function DELETE(_req: Request, { params }: Ctx) {
     if (!r) throw new ApiError(404, "Request not found");
     if (user.role !== "admin" && (r.userId !== user.id || r.status !== "pending")) throw new ApiError(403, "Not allowed");
     await db.delete(schema.requests).where(eq(schema.requests.id, id));
+    await releaseMedia(r.mediaId);
     return { ok: true };
   });
 }

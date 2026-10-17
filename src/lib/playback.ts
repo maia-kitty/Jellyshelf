@@ -392,7 +392,7 @@ export async function report(user: User, r: PlayReport) {
   await jf.call(path, { method: "POST", body });
   if (r.event === "stop") {
     // Stop any transcode for this session right away rather than when Jellyfin notices.
-    await jf.call(`/Videos/ActiveEncodings?deviceId=${encodeURIComponent(jf.creds.deviceId)}&playSessionId=${r.playSessionId}`, { method: "DELETE" }).catch(() => {});
+    await jf.call(`/Videos/ActiveEncodings?deviceId=${encodeURIComponent(jf.creds.deviceId)}&playSessionId=${encodeURIComponent(r.playSessionId)}`, { method: "DELETE" }).catch(() => {});
   }
 
   let anilistUpdate: { mediaId: number; episode: number } | null = null;
