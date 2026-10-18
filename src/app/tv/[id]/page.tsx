@@ -19,6 +19,7 @@ import { animeCard, decorate, tvCard } from "@/lib/cards";
 import { anilistIdsFor } from "@/lib/mapping";
 import { findMedia, requestedSeasons } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { resumeHint } from "@/lib/playback";
 import { seriesEpisodes, type EpisodesInfo } from "@/lib/episodes";
 import { debugSleep } from "@/lib/debug";
 import { canFixSubs } from "@/lib/subtitles";
@@ -97,7 +98,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             <Suspense fallback={null}>
-              <PlayButton library={library} />
+              <PlayButton library={library} user={user} />
             </Suspense>
             {tvdbId ? (
               <TvRequestAll tmdbId={id} seasons={seasons} />
@@ -123,8 +124,9 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
   );
 }
 
-async function PlayButton({ library }: { library: Promise<EpisodesInfo | null> }) {
-  return <JellyfinButton href={(await library)?.playUrl ?? null} />;
+async function PlayButton({ library, user }: { library: Promise<EpisodesInfo | null>; user: User }) {
+  const href = (await library)?.playUrl ?? null;
+  return <JellyfinButton href={href} resume={await resumeHint(user, href)} />;
 }
 
 async function TvEpisodes({ library, title, user }: { library: Promise<EpisodesInfo | null>; title: string; user: User }) {

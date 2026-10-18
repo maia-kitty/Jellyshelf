@@ -19,6 +19,7 @@ import { decorate, movieCard } from "@/lib/cards";
 import { anilistIdsFor } from "@/lib/mapping";
 import { findMedia } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { resumeHint } from "@/lib/playback";
 import { movieInfo, type MovieLibraryInfo } from "@/lib/episodes";
 import { langName } from "@/lib/langs";
 
@@ -70,7 +71,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
           <div className="flex flex-wrap items-start gap-3">
             {/* In the library, the thing to do is watch it; otherwise, request it. */}
             <Suspense fallback={null}>
-              <PlayButton library={library} />
+              <PlayButton library={library} user={user} />
             </Suspense>
             {!available && <MovieRequest tmdbId={id} status={media?.status ?? "unknown"} requested={active.length > 0} />}
           </div>
@@ -86,8 +87,9 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
   );
 }
 
-async function PlayButton({ library }: { library: Promise<MovieLibraryInfo | null> }) {
-  return <JellyfinButton href={(await library)?.playUrl ?? null} />;
+async function PlayButton({ library, user }: { library: Promise<MovieLibraryInfo | null>; user: User }) {
+  const href = (await library)?.playUrl ?? null;
+  return <JellyfinButton href={href} resume={await resumeHint(user, href)} />;
 }
 
 async function LibraryCard({ library, title, user }: { library: Promise<MovieLibraryInfo | null>; title: string; user: User }) {

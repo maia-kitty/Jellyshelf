@@ -33,6 +33,8 @@ const QUALITIES: { label: string; bitrate?: number }[] = [
   { label: "1.5 Mbps", bitrate: 1_500_000 },
 ];
 
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
 const fmt = (s: number) => {
   if (!Number.isFinite(s)) return "0:00";
   s = Math.max(0, Math.floor(s));
@@ -91,7 +93,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [controls, setControls] = useState(true);
-  const [menu, setMenu] = useState<null | "subs" | "audio" | "quality">(null);
+  const [menu, setMenu] = useState<null | "subs" | "audio" | "quality" | "speed">(null);
+  const [speed, setSpeed] = useState(1);
   const [subIndex, setSubIndex] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -237,6 +240,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
     v.muted = store.get("muted") === "1";
     setVolume(v.volume);
     setMuted(v.muted);
+    applySpeed(Number(store.get("speed")) || 1);
     splashUntil.current = Date.now() + 1200;
     load({}, meta.resumeAt);
     if (meta.resumeAt) say(`Resuming from ${fmt(meta.resumeAt)}`);
@@ -307,6 +311,19 @@ export function Player({ meta }: { meta: WatchMeta }) {
     setChoice(c);
     setMenu(null);
     load(c, here());
+  };
+
+  const applySpeed = (x: number) => {
+    const v = video.current!;
+    // defaultPlaybackRate too: switching streams (audio, quality) reloads the video, which resets the rate to it.
+    v.playbackRate = v.defaultPlaybackRate = x;
+    setSpeed(x);
+    store.set("speed", String(x));
+  };
+  const stepSpeed = (d: number) => {
+    const x = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, SPEEDS.indexOf(speed) + d))] ?? 1;
+    applySpeed(x);
+    say(`Speed ${x}×`);
   };
 
   // ---------- video events ----------
@@ -391,7 +408,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
     return () => document.removeEventListener("fullscreenchange", fs);
   }, []);
 
-  // Keyboard: space/k play, ←/→ 5 s, j/l 10 s, ↑/↓ volume, f fullscreen, m mute, c subtitles, n next.
+  // Keyboard: space/k play, ←/→ 5 s, j/l 10 s, ↑/↓ volume, f fullscreen, m mute, c subtitles, n next, </> speed.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("input, select, textarea, [role=dialog]") || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -411,6 +428,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
         f: toggleFullscreen,
         m: toggleMute,
         n: goNext,
+        "<": () => stepSpeed(-1),
+        ">": () => stepSpeed(1),
         c: () => {
           const list = source.current?.subtitles ?? [];
           const i = list.findIndex((s) => s.index === subIndexRef.current);
@@ -426,7 +445,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toggle, seekBy, goNext, poke]);
+  }, [toggle, seekBy, goNext, poke, speed]);
 
   // Taps: one toggles the controls (or play on desktop), a double tap on either side seeks 10 s.
   const lastTap = useRef<{ t: number; x: number } | null>(null);
@@ -743,6 +762,9 @@ export function Player({ meta }: { meta: WatchMeta }) {
                 <Icon name="audio" />
               </Btn>
             )}
+            <Btn label="Speed (< >)" active={menu === "speed"} onClick={() => setMenu(menu === "speed" ? null : "speed")}>
+              <span className={clsx("text-xs font-semibold tabular-nums", speed !== 1 && "text-[#00a4dc]")}>{speed}×</span>
+            </Btn>
             <Btn label="Quality" active={menu === "quality"} onClick={() => setMenu(menu === "quality" ? null : "quality")}>
               <Icon name="gear" />
             </Btn>
@@ -772,6 +794,19 @@ export function Player({ meta }: { meta: WatchMeta }) {
                   src.audio.map((t) => (
                     <MenuItem key={t.index} on={src.audioIndex === t.index} onClick={() => chooseAudio(t.index)}>
                       {t.label}
+                    </MenuItem>
+                  ))}
+                {menu === "speed" &&
+                  SPEEDS.map((x) => (
+                    <MenuItem
+                      key={x}
+                      on={speed === x}
+                      onClick={() => {
+                        applySpeed(x);
+                        setMenu(null);
+                      }}
+                    >
+                      {x === 1 ? "Normal" : `${x}×`}
                     </MenuItem>
                   ))}
                 {menu === "quality" &&

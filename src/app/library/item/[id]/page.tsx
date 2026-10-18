@@ -6,7 +6,7 @@ import { PlaybackSignIn } from "@/components/PlaybackSignIn";
 import { HttpError } from "@/lib/clients/http";
 import { libraryDetail } from "@/lib/library";
 import { pageUser } from "@/lib/page";
-import { canPlay } from "@/lib/playback";
+import { canPlay, resumeHint } from "@/lib/playback";
 import { sized } from "@/lib/img";
 
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
@@ -21,11 +21,12 @@ export default async function LibraryItemPage({ params }: { params: Promise<{ id
     if (e instanceof HttpError && e.status === 404) notFound();
     throw e;
   });
+  const resume = await resumeHint(user, d.playHref);
 
   return (
     <>
       <Hero title={d.title} poster={d.poster} backdrop={d.backdrop} facts={[d.year?.toString(), d.runtime ? `${d.runtime} min` : null, d.type === "Series" ? "Series" : "Movie"]} genres={d.genres} overview={d.overview}>
-        <JellyfinButton href={d.playHref} />
+        <JellyfinButton href={d.playHref} resume={resume} />
       </Hero>
       {d.seasons.map((s) => (
         <section key={s.id} className="mb-10">

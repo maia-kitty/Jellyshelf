@@ -31,17 +31,22 @@ function audioSummary(eps: EpisodesInfo["episodes"]) {
 }
 
 /** Opens Jellyshelf's player (the name stays: it plays from Jellyfin). */
-export function JellyfinButton({ href, label = "Play" }: { href: string | null; label?: string }) {
+export function JellyfinButton({ href, label = "Play", resume }: { href: string | null; label?: string; resume?: { label: string; progress: number | null } | null }) {
   if (!href) return null;
   return (
     <Link
       href={href}
-      className="btn bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)] px-5 text-white shadow-[0_8px_24px_-10px_#00a4dc] hover:brightness-110"
+      className="btn relative overflow-hidden bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)] px-5 text-white shadow-[0_8px_24px_-10px_#00a4dc] hover:brightness-110"
     >
       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
         <path d="M8 5.5v13l11-6.5z" />
       </svg>
-      {label}
+      {resume?.label ?? label}
+      {resume?.progress != null && (
+        <span className="absolute inset-x-0 bottom-0 h-1 bg-black/30" aria-hidden>
+          <span className="block h-full bg-white/90" style={{ width: `${Math.round(resume.progress * 100)}%` }} />
+        </span>
+      )}
     </Link>
   );
 }

@@ -24,6 +24,7 @@ import { getMapping, resolveAnime } from "@/lib/mapping";
 import { describeTarget } from "@/lib/mapping/resolve";
 import { animeMediaMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
+import { resumeHint } from "@/lib/playback";
 import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
@@ -77,12 +78,14 @@ async function HeroActions({
   requests,
   media,
   progress,
+  user,
 }: {
   library: Promise<Library>;
   current: AnimeEntryOption;
   requests: Request[];
   media: Media | undefined;
   progress: number | null;
+  user: User;
 }) {
   const lib = await library;
   // A series entry starts at the episode after your AniList progress (or its first), not wherever the series left off.
@@ -92,7 +95,7 @@ async function HeroActions({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start gap-3">
-        <JellyfinButton href={playUrl} label={label} />
+        <JellyfinButton href={playUrl} label={label} resume={await resumeHint(user, playUrl, nextEp && `episode ${nextEp.n}`)} />
         {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={current} />}
       </div>
       <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} />
@@ -203,7 +206,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         }
       >
         <Suspense fallback={<RequestThis entry={current} />}>
-          <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} />
+          <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} />
         </Suspense>
       </Hero>
 
