@@ -33,6 +33,8 @@ export interface SubtitleTrack {
   language: string | null;
   isDefault: boolean;
   isForced: boolean;
+  /** SDH / hearing impaired: sound cues and speaker names as well as the dialogue. */
+  hi: boolean;
   /** "ass": rendered by JASSUB from the original file; "vtt": a plain <track>; "burn": drawn into the video by Jellyfin. */
   kind: "ass" | "vtt" | "burn";
   /** Relay URL for ass/vtt. */

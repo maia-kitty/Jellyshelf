@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import type { BrowserCaps, PlayReport, PlaySource, SubtitleTrack, WatchMeta } from "@/lib/playbackTypes";
 import { detectCaps } from "./caps";
+import { pickSubtitle } from "@/lib/subtitlePick";
 import { SeekBar } from "./SeekBar";
 import { Icon } from "./icons";
 import { JarLoader } from "../AppIcon";
@@ -243,17 +244,12 @@ export function Player({ meta }: { meta: WatchMeta }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Once tracks are known: pick the remembered subtitle language (or the file's default).
+  // Once tracks are known: the subtitles you last picked (language, and SDH or not), or the file's default.
   const pickedInitialSubs = useRef(false);
   useEffect(() => {
     if (!src || pickedInitialSubs.current) return;
     pickedInitialSubs.current = true;
-    const want = store.get("subLang");
-    const byLang = want === "off" ? null : want ? src.subtitles.find((s) => s.language === want && !s.isForced) : undefined;
-    const chosen = byLang === null ? null : (byLang ?? src.subtitles.find((s) => s.index === src.subtitleIndex) ?? src.subtitles.find((s) => s.isDefault) ?? null);
-    // Prefer the styled track when the default is a plain one for the same language.
-    const styled = chosen && chosen.kind !== "ass" ? src.subtitles.find((s) => s.kind === "ass" && s.language === chosen.language) : undefined;
-    setSubIndex((styled ?? chosen)?.index ?? null);
+    setSubIndex(pickSubtitle(src.subtitles, { lang: store.get("subLang"), hi: store.get("subHi") === "1" }, src.subtitleIndex)?.index ?? null);
   }, [src]);
 
   // ---------- subtitles ----------
@@ -262,8 +258,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
     jassub.current?.destroy();
     jassub.current = null;
     const v = video.current;
-    if (!v || !src || !sub) return;
-    if (sub.kind === "burn") {
+    if (!v || !src) return;
+    if (sub?.kind === "burn") {
       // Drawn in by the server: that's a different stream.
       if (src.subtitleIndex !== sub.index) {
         const c = { ...choice, subtitleIndex: sub.index };
@@ -273,13 +269,13 @@ export function Player({ meta }: { meta: WatchMeta }) {
       return;
     }
     if (src.subtitleIndex !== null && src.subtitles.find((s) => s.index === src.subtitleIndex)?.kind === "burn") {
-      // Leaving a burned-in track: back to a clean stream.
+      // Leaving a burned-in track (for another, or for Off): back to a clean stream.
       const c = { ...choice, subtitleIndex: -1 };
       setChoice(c);
       load(c, here());
       return;
     }
-    if (sub.kind === "ass" && sub.url) {
+    if (sub?.kind === "ass" && sub.url) {
       let cancelled = false;
       import("jassub").then(({ default: JASSUB }) => {
         if (cancelled) return;
@@ -295,6 +291,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
   const chooseSub = (t: SubtitleTrack | null) => {
     setSubIndex(t?.index ?? null);
     store.set("subLang", t ? (t.language ?? "") : "off");
+    if (t) store.set("subHi", t.hi ? "1" : "0");
     setMenu(null);
   };
   const chooseAudio = (index: number) => {

@@ -89,6 +89,7 @@ interface JfStream {
   DisplayTitle?: string | null;
   IsDefault?: boolean;
   IsForced?: boolean;
+  IsHearingImpaired?: boolean;
   DeliveryMethod?: "External" | "Encode" | "Embed" | "Hls" | null;
   DeliveryUrl?: string | null;
   Width?: number;
@@ -186,6 +187,8 @@ export async function playSource(user: User, itemId: string, req: PlayRequest): 
         language: lang(s.Language),
         isDefault: !!s.IsDefault,
         isForced: !!s.IsForced,
+        // Older Jellyfin only says so in the title.
+        hi: !!s.IsHearingImpaired || /\bsdh\b|hearing/i.test(`${s.Title ?? ""} ${s.DisplayTitle ?? ""}`),
         kind,
         url:
           kind === "burn"
