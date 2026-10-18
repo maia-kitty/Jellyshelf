@@ -365,8 +365,8 @@ body {
 .pi-go .pi-nudge-l { animation: pi-nudge-l 0.5s ease-in-out; }
 .pi-go .pi-nudge-r { animation: pi-nudge-r 0.5s ease-in-out; }
 .pi-go .pi-bump { animation: pi-bump 0.5s ease-in-out 0.12s; }
-.pi-go .pi-turn-l { animation: pi-turn-l 0.6s cubic-bezier(0.3, 1.25, 0.5, 1); }
-.pi-go .pi-turn-r { animation: pi-turn-r 0.6s cubic-bezier(0.3, 1.25, 0.5, 1); }
+.pi-go .pi-turn-l { animation: pi-turn-l 0.8s cubic-bezier(0.3, 1.25, 0.5, 1); }
+.pi-go .pi-turn-r { animation: pi-turn-r 0.8s cubic-bezier(0.3, 1.25, 0.5, 1); }
 .pi-go .pi-wave { animation: pi-wave 0.5s ease-out backwards; animation-delay: calc(var(--i) * 110ms); }
 .pi-go .pi-draw { animation: ni-check 0.35s ease-out backwards; animation-delay: calc(var(--i) * 90ms); }
 .pi-go .pi-eq { animation: pi-eq 0.55s ease-in-out; animation-delay: calc(var(--i) * 60ms); }
@@ -380,8 +380,8 @@ body {
 @keyframes pi-nudge-l { 40% { transform: translateX(-3px); } }
 @keyframes pi-nudge-r { 40% { transform: translateX(2.5px); } }
 @keyframes pi-bump { 40% { transform: scaleY(1.2); } }
-@keyframes pi-turn-l { from { transform: rotate(70deg); } }
-@keyframes pi-turn-r { from { transform: rotate(-70deg); } }
+@keyframes pi-turn-l { from { transform: rotate(360deg); } }
+@keyframes pi-turn-r { from { transform: rotate(-360deg); } }
 @keyframes pi-wave { from { transform: scale(0.4); opacity: 0; } }
 @keyframes pi-eq { 30% { transform: scaleY(0.4); } 65% { transform: scaleY(1.25); } }
 @keyframes pi-spin { from { transform: rotate(-180deg); } }
