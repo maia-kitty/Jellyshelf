@@ -29,7 +29,8 @@ export function jelly(blob: HTMLElement, from: Box, to: Box, { at = 0, duration 
       ? { ...to, y, h: Math.max(from.y + from.h, to.y + to.h) - y }
       : to;
   // Squash across the way it travels. The wobble is in scale, not position, so it's the same however far it went.
-  const s = (along: number, side: number) => (down ? `scale(${side}, ${along})` : `scale(${along}, ${side})`);
+  // A list's highlight already fills its width, so it never bulges sideways there: the list would clip it.
+  const s = (along: number, side: number) => (down ? `scale(${Math.min(side, 1)}, ${along})` : `scale(${along}, ${side})`);
   blob.animate(
     [
       { ...css(from), transform: "scale(1, 1)", easing: "cubic-bezier(0.5, 0, 0.9, 0.6)" },
