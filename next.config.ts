@@ -18,6 +18,18 @@ const nextConfig: NextConfig = {
   // The DB/secret path is computed from cwd, which makes the tracer pull the whole runtime config dir
   // (database, secret.key) into the standalone output. It's runtime data, never part of the build.
   outputFileTracingExcludes: { "*": ["config/**"] },
+  // No framing (clickjacking a signed-in admin), no MIME sniffing, and no full URLs leaked to other sites.
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: [
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      ],
+    },
+  ],
 };
 
 export default nextConfig;
