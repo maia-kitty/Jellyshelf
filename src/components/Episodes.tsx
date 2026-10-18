@@ -146,6 +146,17 @@ export function EpisodeList({
                       ]
                         .filter(Boolean)
                         .join(" · ")}
+                      {anilist && !watched && (
+                        // Phones have no hover to reveal it.
+                        <button
+                          className="ml-2 text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100 max-sm:hidden"
+                          disabled={busy !== null}
+                          onClick={() => markUpTo(e.n)}
+                          title={`Set AniList progress to ${e.n}`}
+                        >
+                          {busy === e.n ? "…" : "watched up to here"}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {e.subs &&
@@ -160,23 +171,6 @@ export function EpisodeList({
                     ) : (
                       <SubsChips subs={e.subs} />
                     ))}
-                  {/* Kept (invisible) on watched rows too, so the chips and Play line up down the list. */}
-                  {anilist && (
-                    <button
-                      className={clsx(
-                        // Phones have no hover to reveal it, and the row needs the room.
-                        "shrink-0 text-xs text-muted opacity-0 hover:text-anilist group-hover:opacity-100 focus:opacity-100 max-sm:hidden",
-                        watched && "invisible",
-                      )}
-                      tabIndex={watched ? -1 : undefined}
-                      aria-hidden={watched || undefined}
-                      disabled={busy !== null || watched}
-                      onClick={() => markUpTo(e.n)}
-                      title={`Set AniList progress to ${e.n}`}
-                    >
-                      {busy === e.n ? "…" : "watched up to here"}
-                    </button>
-                  )}
                   {e.playUrl ? (
                     <Link href={e.playUrl} className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs transition hover:border-[#00a4dc] hover:text-[#00a4dc]">
                       ▶ Play
