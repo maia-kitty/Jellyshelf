@@ -15,7 +15,10 @@ export const place = (blob: HTMLElement, to: Box) => Object.assign(blob.style, c
  * it, and it wobbles to rest. `at` starts it part-way through (carrying on a move another copy of the row began).
  */
 export function jelly(blob: HTMLElement, from: Box, to: Box, { at = 0, duration = JELLY_MS } = {}) {
-  blob.getAnimations().forEach((a) => a.cancel());
+  const running = blob.getAnimations();
+  // Caught mid-move (the pointer sweeping down a list): its squash, read before it's cancelled, to carry on from.
+  const squash = running.length && !at ? getComputedStyle(blob).transform : null;
+  running.forEach((a) => a.cancel());
   place(blob, to);
   if (same(from, to) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const across = Math.abs(from.y - to.y) < 4;
@@ -31,6 +34,20 @@ export function jelly(blob: HTMLElement, from: Box, to: Box, { at = 0, duration 
   // Squash across the way it travels. The wobble is in scale, not position, so it's the same however far it went.
   // A list's highlight already fills its width, so it never bulges sideways there: the list would clip it.
   const s = (along: number, side: number) => (down ? `scale(${Math.min(side, 1)}, ${along})` : `scale(${along}, ${side})`);
+  if (squash) {
+    // Starting over would stretch it again from wherever it got to, so a quick sweep leaves it a shaking smear that
+    // only lands once the pointer stops. Instead it heads straight for the new spot and only wobbles when it gets there.
+    blob.animate(
+      [
+        { ...css(from), transform: squash === "none" ? "scale(1, 1)" : squash, easing: "cubic-bezier(0.2, 0.9, 0.3, 1)" },
+        { ...css(to), transform: s(1.03, 0.94), offset: 0.45, easing: "ease-in-out" },
+        { ...css(to), transform: s(0.99, 1.02), offset: 0.7, easing: "ease-in-out" },
+        { ...css(to), transform: "scale(1, 1)" },
+      ],
+      { duration },
+    );
+    return;
+  }
   blob.animate(
     [
       { ...css(from), transform: "scale(1, 1)", easing: "cubic-bezier(0.5, 0, 0.9, 0.6)" },
