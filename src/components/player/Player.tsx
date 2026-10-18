@@ -621,7 +621,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
 
       {/* Top bar */}
       <div className={clsx("absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))] transition-opacity duration-300 sm:px-6", controls ? "opacity-100" : "pointer-events-none opacity-0")}>
-        <Link href={meta.backHref} className="rounded-full p-2 hover:bg-white/10" aria-label="Back">
+        <Link href={meta.backHref} className="player-back rounded-full p-2 hover:bg-white/10" aria-label="Back">
           <Icon name="back" />
         </Link>
         {/* the splash shows the title big while it's up */}
@@ -836,6 +836,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
 }
 
 function Btn({ label, onClick, children, active, className }: { label: string; onClick: () => void; children: React.ReactNode; active?: boolean; className?: string }) {
+  // Bumped on mouse hover and on press: re-drawing the icon under .pi-go plays its move again.
+  const [replay, setReplay] = useState(0);
   return (
     <button
       type="button"
@@ -843,11 +845,15 @@ function Btn({ label, onClick, children, active, className }: { label: string; o
       title={label}
       onClick={(e) => {
         e.stopPropagation();
+        setReplay((n) => n + 1);
         onClick();
       }}
+      onPointerEnter={(e) => e.pointerType === "mouse" && setReplay((n) => n + 1)}
       className={clsx("inline-flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/15 active:scale-90", active && "bg-white/15", className)}
     >
-      {children}
+      <span key={replay} className={clsx("contents", replay > 0 && "pi-go")}>
+        {children}
+      </span>
     </button>
   );
 }

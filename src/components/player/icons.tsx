@@ -1,58 +1,100 @@
+import { useState } from "react";
+import clsx from "clsx";
+
+// Split into parts so each icon can move its own way (keyframes in globals.css, under .pi-go): the play triangle
+// pops, the pause bars drop in, the rewind arrow turns back, the sound waves ripple out, the audio bars bounce…
+const at = (i: number) => ({ "--i": i }) as React.CSSProperties;
+const corner = (d: string, dx: number, dy: number) => <path key={d} className="pi-corner" style={{ "--dx": `${dx}px`, "--dy": `${dy}px` } as React.CSSProperties} d={d} />;
+const SPEAKER = "M4 9.5h3.5L12 5.5v13L7.5 14.5H4z";
+
 const PATHS: Record<string, React.ReactNode> = {
-  play: <path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
+  play: <path className="pi-pop" d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
   pause: (
     <g fill="currentColor" stroke="none">
-      <rect x="6.5" y="5" width="4" height="14" rx="1" />
-      <rect x="13.5" y="5" width="4" height="14" rx="1" />
+      <rect className="pi-drop" style={at(0)} x="6.5" y="5" width="4" height="14" rx="1" />
+      <rect className="pi-drop" style={at(1)} x="13.5" y="5" width="4" height="14" rx="1" />
     </g>
   ),
-  back: <path d="M15 5l-7 7 7 7" />,
+  back: <path className="pi-nudge-l" d="M15 5l-7 7 7 7" />,
   rewind: (
     <>
-      <path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" />
+      <path className="pi-turn-l" d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" />
       <text x="12" y="15.5" fontSize="7" textAnchor="middle" fill="currentColor" stroke="none" fontWeight="700">10</text>
     </>
   ),
   forward: (
     <>
-      <path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4" />
+      <path className="pi-turn-r" d="M20 12a8 8 0 1 1-2.3-5.6M20 4v4h-4" />
       <text x="12" y="15.5" fontSize="7" textAnchor="middle" fill="currentColor" stroke="none" fontWeight="700">10</text>
     </>
   ),
   next: (
     <>
-      <path d="M6 5.5v13l9-6.5z" fill="currentColor" stroke="none" />
-      <path d="M18 5v14" strokeWidth="2.4" />
+      <path className="pi-nudge-r" d="M6 5.5v13l9-6.5z" fill="currentColor" stroke="none" />
+      <path className="pi-bump" d="M18 5v14" strokeWidth="2.4" />
     </>
   ),
-  volume: <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />,
-  muted: <path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4zM16 9.5l5 5M21 9.5l-5 5" />,
+  volume: (
+    <>
+      <path d={SPEAKER} />
+      <path className="pi-wave" style={at(0)} d="M15.5 9a4 4 0 0 1 0 6" />
+      <path className="pi-wave" style={at(1)} d="M18 6.5a7.5 7.5 0 0 1 0 11" />
+    </>
+  ),
+  muted: (
+    <>
+      <path d={SPEAKER} />
+      <path className="pi-draw" style={at(0)} pathLength={1} d="M16 9.5l5 5" />
+      <path className="pi-draw" style={at(1)} pathLength={1} d="M21 9.5l-5 5" />
+    </>
+  ),
   subs: (
     <>
       <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
-      <path d="M7 13.5h4M13 13.5h4M7 10.5h6" />
+      <path className="pi-draw" style={at(0)} pathLength={1} d="M7 10.5h6" />
+      <path className="pi-draw" style={at(1)} pathLength={1} d="M7 13.5h4" />
+      <path className="pi-draw" style={at(2)} pathLength={1} d="M13 13.5h4" />
     </>
   ),
-  audio: <path d="M5 10v4M9 7v10M13 4.5v15M17 8v8M21 10.5v3" />,
+  audio: ["M5 10v4", "M9 7v10", "M13 4.5v15", "M17 8v8", "M21 10.5v3"].map((d, i) => <path key={d} className="pi-eq" style={at(i)} d={d} />),
   gear: (
-    <>
+    <g className="pi-spin">
       <circle cx="12" cy="12" r="3" />
       <path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" />
-    </>
+    </g>
   ),
   pip: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
-      <rect x="12" y="11" width="7" height="6" rx="1" fill="currentColor" stroke="none" />
+      <rect className="pi-slide" x="12" y="11" width="7" height="6" rx="1" fill="currentColor" stroke="none" />
     </>
   ),
-  fullscreen: <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />,
-  unfullscreen: <path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" />,
+  // Corners push out to go fullscreen, and pull in to leave it.
+  fullscreen: [corner("M4 9V4h5", -1.5, -1.5), corner("M15 4h5v5", 1.5, -1.5), corner("M20 15v5h-5", 1.5, 1.5), corner("M9 20H4v-5", -1.5, 1.5)],
+  unfullscreen: [corner("M9 4v5H4", 1.5, 1.5), corner("M20 9h-5V4", -1.5, 1.5), corner("M15 20v-5h5", -1.5, -1.5), corner("M4 15h5v5", 1.5, -1.5)],
 };
 
+/** A player icon. When it changes (play → pause, muted…) the new one makes its move; buttons replay it on hover and press. */
 export function Icon({ name }: { name: string }) {
+  const [prev, setPrev] = useState(name);
+  const [changed, setChanged] = useState(false);
+  if (name !== prev) {
+    setPrev(name);
+    setChanged(true);
+  }
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      key={name}
+      viewBox="0 0 24 24"
+      overflow="visible"
+      className={clsx("player-icon h-6 w-6", changed && "pi-go")}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       {PATHS[name]}
     </svg>
   );
