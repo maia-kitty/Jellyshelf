@@ -150,8 +150,10 @@ export function Player({ meta }: { meta: WatchMeta }) {
       );
       const j = res && res.ok ? await res.json().catch(() => null) : null;
       if (j?.anilist && meta.anilist) say(`AniList: ${meta.anilist.title} — episode ${j.anilist.episode} watched`);
+      // Drops the browser's copies of pages seen before, so going back shows the new progress.
+      if (j?.anilist) router.refresh();
     },
-    [reportBody, meta.anilist, say],
+    [reportBody, meta.anilist, say, router],
   );
 
   // Progress every 10 s while playing; stop when leaving (including closing the tab).
