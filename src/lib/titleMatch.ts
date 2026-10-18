@@ -1,7 +1,7 @@
 import type { AniTitle } from "./clients/anilist";
 
 const SUFFIX = /\s*[-:]?\s*(s\d+|season\s*\d+|part\s*\d+|cour\s*\d+)\s*$/i;
-const norm = (t: string) =>
+export const norm = (t: string) =>
   t
     .normalize("NFKD")
     // Drop the accents NFKD splits off; left in, "Pokémon" would become "pokem on" and miss a typed "Pokemon".

@@ -112,7 +112,11 @@ export const tmdbClient = {
   movie: (id: number) => tmdb<TmdbMovieDetails>(`/movie/${id}`, { append_to_response: "external_ids,recommendations" }),
   tv: (id: number) => tmdb<TmdbTvDetails>(`/tv/${id}`, { append_to_response: "external_ids,recommendations" }),
   search: (query: string, page = 1) => tmdb<TmdbPage<TmdbMultiResult>>("/search/multi", { query, page }, 600),
+  searchMovie: (query: string, year: number) => tmdb<TmdbPage<TmdbMovie>>("/search/movie", { query, year }, 86400),
   /** Used by the setup wizard's test button. */
+  /** TMDB's movie for an IMDb id, if it has one. */
+  movieByImdb: async (imdbId: string) =>
+    (await tmdb<{ movie_results: { id: number }[] }>(`/find/${imdbId}`, { external_source: "imdb_id" }, 86400)).movie_results[0]?.id ?? null,
   ping: () => tmdb<unknown>("/configuration", {}, 0),
 };
 

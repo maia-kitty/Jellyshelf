@@ -100,7 +100,7 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
       result.skipped.push({ id, reason: "Not found on AniList" });
       continue;
     }
-    const { target } = await resolveAnime({ id, format: entry.format, episodes: entry.episodes });
+    const { target } = await resolveAnime(entry);
     if (target.service === "unmapped") {
       result.skipped.push({ id, reason: target.reason });
       continue;

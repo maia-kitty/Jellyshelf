@@ -116,6 +116,9 @@ export function episodesInRequest(episodes: SonarrEpisode[], req: Pick<Request, 
  * Returns false when Sonarr has no episodes yet (series still refreshing).
  */
 export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSeries, req: Request): Promise<boolean> {
+  // Until Sonarr finishes adding a series (it clears addOptions then), its last step resets every episode's monitoring
+  // to the seasons', which would undo ours: a film filed as a special ended up unmonitored and never downloaded.
+  if ((await api.series(series.id!)).addOptions) return false;
   const all = await api.episodes(series.id!);
   if (!all.length) return false;
   const wanted = episodesInRequest(all, req);

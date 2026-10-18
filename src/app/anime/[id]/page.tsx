@@ -37,7 +37,7 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
   ]);
   return Promise.all(
     entries.map(async (e) => {
-      const { target } = await resolveAnime({ id: e.id, format: e.format, episodes: e.episodes });
+      const { target } = await resolveAnime(e);
       const m = mediaMap.get(e.id);
       const l = list?.get(e.id);
       return {
@@ -61,7 +61,7 @@ type Library = { kind: "series"; info: EpisodesInfo } | { kind: "movie"; info: M
 /** What Sonarr/Radarr/Jellyfin have of this entry: its episodes, or the film's file. */
 async function loadLibrary(entry: AniMediaCard, media: Media | undefined): Promise<Library> {
   await debugSleep("episodes");
-  const { target } = await resolveAnime({ id: entry.id, format: entry.format, episodes: entry.episodes });
+  const { target } = await resolveAnime(entry);
   if (target.service === "radarr") {
     const info = await movieInfo({ itemId: media?.jellyfinItemId, tmdbId: target.tmdbId, anilistId: entry.id, radarrId: media?.radarrId }).catch(() => null);
     return info && { kind: "movie", info };
