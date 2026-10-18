@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { Nav } from "@/components/Nav";
 import { ScrollBounce } from "@/components/ScrollBounce";
 import { TimeZoneCookie } from "@/components/TimeZoneCookie";
+import { DragScroll } from "@/components/DragScroll";
 
 // Every page depends on who's signed in and on runtime settings; never prerender at build time
 // (which would also open the database during `next build`).
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             long pages never trigger it, so short ones (e.g. Requests) are given the same scroll room. */}
         <ScrollBounce />
         <TimeZoneCookie />
+        <DragScroll />
         <div className="min-h-[calc(100lvh+6rem)] overflow-x-clip sm:min-h-0">
           <main className="mx-auto max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 sm:pb-6">{children}</main>
         </div>
