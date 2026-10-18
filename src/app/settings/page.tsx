@@ -6,6 +6,7 @@ import {
   GeneralSettings,
   JellyfinSettings,
   JobButtons,
+  NtfySettings,
   RadarrSettings,
   Section,
   SonarrSettings,
@@ -43,6 +44,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <RadarrSettings initial={s.radarr} />
           <JellyfinSettings initial={s.jellyfin} />
           <BazarrSettings initial={s.bazarr} />
+          <NtfySettings initial={s.ntfy} />
         </>
       )}
       {tab === "general" && (

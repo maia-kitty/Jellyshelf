@@ -7,6 +7,7 @@ import { sonarr, type SonarrClient, type SonarrEpisode, type SonarrSeries, type 
 import { jellyfin } from "@/lib/clients/jellyfin";
 import { episodesInRequest, syncEpisodeMonitoring } from "@/lib/requests/push";
 import type { EpisodeRange } from "@/lib/mapping/resolve";
+import { notifyCompleted } from "@/lib/notify";
 
 const RANK: Record<MediaStatus, number> = { unknown: 0, pending: 1, processing: 2, partially_available: 3, available: 4 };
 
@@ -209,6 +210,7 @@ async function syncAvailability(): Promise<SyncReport> {
     }
     report.removedRequests = removed.size;
   });
+  await notifyCompleted([...completed]);
   return report;
 }
 

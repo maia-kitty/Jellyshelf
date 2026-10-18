@@ -7,10 +7,11 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
 import { DRAG_KEY, dragOn } from "./DragScroll";
+import { PhoneNotifications } from "./PhoneNotifications";
 import { unreachable } from "@/lib/unreachable";
 import { initial } from "@/lib/initial";
 
-type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean };
+type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean; ntfyTopic: string | null };
 
 // Split into parts so each icon can move its own way (keyframes in globals.css): the compass needle spins, the
 // leaning book tips up and drops back, the tiles pop in turn, the rows slide in, the bookmark's tick draws itself.
@@ -299,6 +300,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
   useEffect(() => {
     if (open) setDrag(dragOn());
   }, [open]);
+  const [notifs, setNotifs] = useState(false);
   const item = "block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-2";
   const plain = clsx(item, "text-muted hover:text-fg");
   return (
@@ -355,6 +357,18 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             Drag to scroll with the mouse
             <span className={clsx("text-accent", !drag && "invisible")}>✓</span>
           </button>
+          {/* Only once an admin has set up ntfy. */}
+          {user.ntfyTopic && (
+            <button
+              className={plain}
+              onClick={() => {
+                setOpen(false);
+                setNotifs(true);
+              }}
+            >
+              Phone notifications
+            </button>
+          )}
           {user.role === "admin" && (
             <Link href="/settings" className={plain}>
               Settings
@@ -372,6 +386,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
           </button>
         </div>
       )}
+      {notifs && user.ntfyTopic && <PhoneNotifications topic={user.ntfyTopic} admin={user.role === "admin"} onClose={() => setNotifs(false)} />}
     </div>
   );
 }

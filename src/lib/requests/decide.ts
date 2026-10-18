@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Request, User } from "@/db/schema";
 import { ApiError } from "@/lib/api";
+import { mediaPath, notify } from "@/lib/notify";
 import { pushRequest } from "./push";
 
 /** Approve (and push to the *arr) or decline a request. Retrying a failed request is an approve. */
@@ -20,6 +21,7 @@ export async function decideRequest(id: number, admin: User, action: "approve" |
       .where(eq(schema.requests.id, id))
       .returning();
     await releaseMedia(media.id);
+    if (req.userId !== admin.id) void notify([req.userId], { title: "Request declined", message: media.title, path: "/requests", tags: ["no_entry_sign"] });
     return row;
   }
 
@@ -31,6 +33,10 @@ export async function decideRequest(id: number, admin: User, action: "approve" |
       .set({ status: "approved", error: null, decidedBy: admin.id, updatedAt: new Date() })
       .where(eq(schema.requests.id, id))
       .returning();
+    // Not for your own (auto-approved) requests, nor a retry of one that was already approved before it failed.
+    if (req.userId !== admin.id && req.status === "pending") {
+      void notify([req.userId], { title: "Request approved", message: `${media.title}. It's on its way.`, path: mediaPath(media), tags: ["white_check_mark"] });
+    }
     return row;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

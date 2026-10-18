@@ -7,9 +7,10 @@ import { jellyfin } from "@/lib/clients/jellyfin";
 import { bazarr } from "@/lib/clients/bazarr";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { MASK, getSettings } from "@/lib/settings";
+import { topicFor } from "@/lib/notify";
 
 const body = z.object({
-  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr"]),
+  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr", "ntfy"]),
   url: z.string().optional(),
   apiKey: z.string().optional(),
 });
@@ -24,6 +25,21 @@ export function POST(req: Request) {
     if (service === "tmdb") {
       await tmdbClient.ping();
       return { ok: true, message: "TMDB reachable" };
+    }
+    if (service === "ntfy") {
+      // A real notification, to your own topic: the one place it can be checked end to end.
+      if (!user) throw new ApiError(400, "Finish setup and sign in first");
+      const token = apiKey && apiKey !== MASK ? apiKey : s.ntfy.token;
+      const res = await fetch(url || s.ntfy.url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ topic: topicFor(user.id), title: "Jellyshelf", message: "Test notification. If this reached your phone, it works." }),
+        signal: AbortSignal.timeout(10_000),
+      }).catch((e) => {
+        throw new ApiError(502, `Couldn't reach ntfy: ${e instanceof Error ? e.message : e}`);
+      });
+      if (!res.ok) throw new ApiError(502, `ntfy said HTTP ${res.status}${res.status === 403 || res.status === 401 ? ": check the access token" : ""}`);
+      return { ok: true, message: "Sent to your own topic" };
     }
     const saved = s[service];
     const cfg = { url: url || saved.url, apiKey: apiKey && apiKey !== MASK ? apiKey : saved.apiKey };

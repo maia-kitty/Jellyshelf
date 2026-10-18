@@ -57,6 +57,13 @@ export const settingsSchema = z.object({
       fixSubsBy: z.enum(["admin", "requesters"]).default("requesters"),
     })
     .prefault({}),
+  ntfy: z
+    .object({
+      url: z.string().default(""),
+      /** Access token, if the ntfy server doesn't let anyone publish. */
+      token: z.string().default(""),
+    })
+    .prefault({}),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -94,6 +101,7 @@ export function redactSettings(s: Settings) {
     radarr: { ...s.radarr, apiKey: mask(s.radarr.apiKey) },
     jellyfin: { ...s.jellyfin, apiKey: mask(s.jellyfin.apiKey) },
     bazarr: { ...s.bazarr, apiKey: mask(s.bazarr.apiKey) },
+    ntfy: { ...s.ntfy, token: mask(s.ntfy.token) },
   };
 }
 

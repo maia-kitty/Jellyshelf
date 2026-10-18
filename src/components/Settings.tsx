@@ -357,6 +357,26 @@ export function BazarrSettings({ initial }: { initial: Settings["bazarr"] }) {
   );
 }
 
+export function NtfySettings({ initial }: { initial: Settings["ntfy"] }) {
+  const { v, set, submit, state } = useSection("ntfy", initial);
+  return (
+    <Section
+      title="Notifications (ntfy)"
+      desc="Optional. Phone notifications when a request is approved, declined or ready to watch, and for admins when someone requests something. People subscribe in the ntfy app using Jellyshelf's own address (account menu → Phone notifications), so ntfy doesn't need to be reachable from outside."
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="URL" hint="Where Jellyshelf reaches your ntfy server">
+          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://ntfy:80" />
+        </Field>
+        <Field label="Access token (optional)" hint="Only if your ntfy server doesn't let just anyone publish and read. Needs read and write access to topics starting with js_">
+          <input className="input" value={v.token} onChange={(e) => set("token", e.target.value)} placeholder="tk_…" />
+        </Field>
+      </div>
+      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("ntfy", v.url, v.token)} />} />
+    </Section>
+  );
+}
+
 export function FinishSetup() {
   const router = useRouter();
   const [err, setErr] = useState("");

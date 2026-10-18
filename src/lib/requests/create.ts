@@ -10,6 +10,7 @@ import { resolveAnime } from "@/lib/mapping";
 import { describeTarget } from "@/lib/mapping/resolve";
 import { getSettings } from "@/lib/settings";
 import { upsertMedia } from "@/lib/media";
+import { notifyAdmins } from "@/lib/notify";
 import { decideRequest } from "./decide";
 
 export const createRequestInput = z.discriminatedUnion("kind", [
@@ -50,6 +51,17 @@ export interface CreateResult {
 }
 
 export async function createRequests(user: User, input: CreateRequestInput): Promise<CreateResult> {
+  const result = await create(user, input);
+  // One notification for what one click asked for (an anime's whole sequel chain, say), not one per request.
+  const waiting = result.created.filter((r) => r.status === "pending").map((r) => r.mediaId);
+  if (waiting.length) {
+    const titles = (await db.select({ title: schema.media.title }).from(schema.media).where(inArray(schema.media.id, waiting))).map((m) => m.title);
+    void notifyAdmins({ title: "New request", message: `${titles.join(", ")}, from ${user.displayName}`, path: "/requests", tags: ["inbox_tray"] });
+  }
+  return result;
+}
+
+async function create(user: User, input: CreateRequestInput): Promise<CreateResult> {
   if (input.kind === "movie") {
     const m = await tmdbClient.movie(input.tmdbId);
     const media = await upsertMedia(

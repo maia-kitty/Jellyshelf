@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
   // The DB/secret path is computed from cwd, which makes the tracer pull the whole runtime config dir
   // (database, secret.key) into the standalone output. It's runtime data, never part of the build.
   outputFileTracingExcludes: { "*": ["config/**"] },
+  // The ntfy app treats Jellyshelf as its server: /<topic>/json and the like go to the relay (api/ntfy).
+  rewrites: async () => [{ source: "/:topics(js_[0-9a-f]{24}(?:,js_[0-9a-f]{24})*)/:rest*", destination: "/api/ntfy/:topics/:rest*" }],
   // No framing (clickjacking a signed-in admin), no MIME sniffing, and no full URLs leaked to other sites.
   headers: async () => [
     {
