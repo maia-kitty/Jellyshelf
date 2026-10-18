@@ -95,6 +95,9 @@ export function Player({ meta }: { meta: WatchMeta }) {
   const [controls, setControls] = useState(true);
   const [menu, setMenu] = useState<null | "subs" | "audio" | "quality" | "speed">(null);
   const [speed, setSpeed] = useState(1);
+  // The volume slider, held open for a moment after ↑/↓ so you can see it move.
+  const [volPeek, setVolPeek] = useState(false);
+  const volPeekTimer = useRef<number | undefined>(undefined);
   const [subIndex, setSubIndex] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -386,6 +389,12 @@ export function Player({ meta }: { meta: WatchMeta }) {
     store.set("volume", String(el.volume));
     store.set("muted", el.muted ? "1" : "0");
   };
+  const keyVol = (v: number) => {
+    setVol(v);
+    setVolPeek(true);
+    window.clearTimeout(volPeekTimer.current);
+    volPeekTimer.current = window.setTimeout(() => setVolPeek(false), 1500);
+  };
   const toggleMute = () => {
     const el = video.current!;
     el.muted = !el.muted;
@@ -425,8 +434,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
         arrowright: () => seekBy(5),
         j: () => seekBy(-10),
         l: () => seekBy(10),
-        arrowup: () => setVol(v.volume + 0.05),
-        arrowdown: () => setVol(v.volume - 0.05),
+        arrowup: () => keyVol(v.volume + 0.05),
+        arrowdown: () => keyVol(v.volume - 0.05),
         f: toggleFullscreen,
         m: toggleMute,
         n: goNext,
@@ -745,7 +754,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
               step={0.01}
               value={muted ? 0 : volume}
               onChange={(e) => setVol(Number(e.target.value))}
-              className="player-range w-0 opacity-0 transition-all duration-300 group-hover/vol:w-24 group-hover/vol:opacity-100"
+              className={clsx("player-range transition-all duration-300 group-hover/vol:w-24 group-hover/vol:opacity-100", volPeek ? "w-24 opacity-100" : "w-0 opacity-0")}
               aria-label="Volume"
             />
           </div>
