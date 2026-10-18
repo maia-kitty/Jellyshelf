@@ -7,14 +7,23 @@ const at = (i: number) => ({ "--i": i }) as React.CSSProperties;
 const corner = (d: string, dx: number, dy: number) => <path key={d} className="pi-corner" style={{ "--dx": `${dx}px`, "--dy": `${dy}px` } as React.CSSProperties} d={d} />;
 const SPEAKER = "M4 9.5h3.5L12 5.5v13L7.5 14.5H4z";
 
+// Play and pause are one drawing: each half of the triangle and one pause bar have matching corners, so the shapes
+// morph into each other (a CSS transition on `d`; Safari can't, and just swaps them).
+const MORPH = {
+  play: ["M8 5.5L13.5 8.75L13.5 15.25L8 18.5Z", "M13.5 8.75L19 12L19 12L13.5 15.25Z"],
+  pause: ["M7 5.5L10 5.5L10 18.5L7 18.5Z", "M14 5.5L17 5.5L17 18.5L14 18.5Z"],
+};
+const playPause = (name: "play" | "pause") => (
+  <g fill="currentColor" strokeWidth="1.5">
+    {MORPH[name].map((d, i) => (
+      <path key={i} className="pi-morph" d={d} style={{ d: `path("${d}")` } as React.CSSProperties} />
+    ))}
+  </g>
+);
+
 const PATHS: Record<string, React.ReactNode> = {
-  play: <path className="pi-pop" d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
-  pause: (
-    <g fill="currentColor" stroke="none">
-      <rect className="pi-drop" style={at(0)} x="6.5" y="5" width="4" height="14" rx="1" />
-      <rect className="pi-drop" style={at(1)} x="13.5" y="5" width="4" height="14" rx="1" />
-    </g>
-  ),
+  play: playPause("play"),
+  pause: playPause("pause"),
   back: <path className="pi-nudge-l" d="M15 5l-7 7 7 7" />,
   rewind: (
     <>
@@ -84,7 +93,7 @@ export function Icon({ name }: { name: string }) {
   }
   return (
     <svg
-      key={name}
+      key={name === "pause" ? "play" : name}
       viewBox="0 0 24 24"
       overflow="visible"
       className={clsx("player-icon h-6 w-6", changed && "pi-go")}

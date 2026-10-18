@@ -322,6 +322,7 @@ body {
   }
   .nav-pill { transition: none !important; }
   .overview-body,
+  .pi-morph,
   .fade-img { transition: none; }
 }
 
@@ -360,8 +361,7 @@ body {
 .player-icon .pi-wave { transform-origin: 0% 50%; }
 .pi-draw { stroke-dasharray: 1; }
 .pi-go > *, svg.pi-go { animation: tab-pop 0.45s cubic-bezier(0.3, 1.4, 0.5, 1); }
-.pi-go .pi-pop { animation: ni-play 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
-.pi-go .pi-drop { animation: pi-drop 0.4s cubic-bezier(0.3, 1.5, 0.5, 1) backwards; animation-delay: calc(var(--i) * 70ms); }
+.pi-morph { transition: d 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .pi-go .pi-nudge-l { animation: pi-nudge-l 0.5s ease-in-out; }
 .pi-go .pi-nudge-r { animation: pi-nudge-r 0.5s ease-in-out; }
 .pi-go .pi-bump { animation: pi-bump 0.5s ease-in-out 0.12s; }
@@ -376,7 +376,6 @@ body {
 @media (hover: hover) {
   .player-back:hover .pi-nudge-l { animation: pi-nudge-l 0.5s ease-in-out; }
 }
-@keyframes pi-drop { from { transform: translateY(-5px); opacity: 0; } }
 @keyframes pi-nudge-l { 40% { transform: translateX(-3px); } }
 @keyframes pi-nudge-r { 40% { transform: translateX(2.5px); } }
 @keyframes pi-bump { 40% { transform: scaleY(1.2); } }
