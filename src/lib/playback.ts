@@ -466,7 +466,7 @@ export async function firstToPlay(user: User, seriesId: string): Promise<string 
  * Where this user left off, for a Play button pointing at `href` (a /watch link): the half-watched film or episode
  * ("Resume S2 E5 · 12 min left", or `name` in place of "S2 E5") or, for a series, the next episode. Null when there's nothing to resume.
  */
-export async function resumeHint(user: User, href: string | null, name?: string): Promise<{ label: string; progress: number | null } | null> {
+export async function resumeHint(user: User, href: string | null, name?: string): Promise<string | null> {
   const m = href?.match(/^\/watch\/(series\/)?([0-9a-f-]{32,36})$/i);
   if (!m || !canPlay(user)) return null;
   try {
@@ -477,14 +477,15 @@ export async function resumeHint(user: User, href: string | null, name?: string)
       item = (await jf.call<{ Items: JfItem[] }>(`/UserItems/Resume?${q}&ParentId=${m[2]}&IncludeItemTypes=Episode`)).Items[0];
       if (!item) {
         const next = (await jf.call<{ Items: JfItem[] }>(`/Shows/NextUp?${q}&SeriesId=${m[2]}&DisableFirstEpisode=true`)).Items[0];
-        return next ? { label: `Play ${epLabel(next)}`, progress: null } : null;
+        return next ? `Play ${epLabel(next)}` : null;
       }
     } else item = await jf.call<JfItem>(`/Items/${m[2]}?userId=${jf.userId}`);
     const at = item.UserData?.Played ? 0 : (item.UserData?.PlaybackPositionTicks ?? 0);
     // Same 10 s threshold the player uses before it resumes rather than starting over.
     if (at < 10 * TICKS || !item.RunTimeTicks) return null;
     const left = Math.max(1, Math.round((item.RunTimeTicks - at) / TICKS / 60));
-    return { label: `Resume${name ? ` ${name}` : item.Type === "Episode" ? ` ${epLabel(item)}` : ""} · ${left} min left`, progress: at / item.RunTimeTicks };
+    const time = left >= 60 ? `${Math.floor(left / 60)} h${left % 60 ? ` ${left % 60} min` : ""}` : `${left} min`;
+    return `Resume${name ? ` ${name}` : item.Type === "Episode" ? ` ${epLabel(item)}` : ""} · ${time} left`;
   } catch {
     return null;
   }
