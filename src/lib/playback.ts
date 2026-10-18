@@ -10,6 +10,7 @@ import { sonarr } from "@/lib/clients/sonarr";
 import { anilist, aniTitle } from "@/lib/clients/anilist";
 import { cached } from "@/lib/cache";
 import { getSettings } from "@/lib/settings";
+import { trackLabel } from "@/lib/langs";
 import type { BrowserCaps, PlayReport, PlayRequest, PlaySource, Segment, SubtitleTrack, Trickplay, WatchMeta } from "./playbackTypes";
 
 export class NeedsJellyfinLogin extends Error {
@@ -111,6 +112,12 @@ interface JfMediaSource {
 }
 
 const lang = (l?: string | null) => (l && l !== "und" ? l : null);
+/** Tracks that still read the same after trackLabel get a number each ("English 1", "English 2"). */
+const numbered = <T extends { label: string }>(list: T[]) =>
+  list.map((t) => {
+    const same = list.filter((o) => o.label === t.label);
+    return same.length > 1 ? { ...t, label: `${t.label} ${same.indexOf(t) + 1}` } : t;
+  });
 const isStyled = (codec?: string) => codec === "ass" || codec === "ssa";
 
 export async function playSource(user: User, itemId: string, req: PlayRequest): Promise<PlaySource> {
@@ -172,30 +179,33 @@ export async function playSource(user: User, itemId: string, req: PlayRequest): 
     url,
     transcodeReasons: reasons,
     runTimeTicks: src.RunTimeTicks ?? probe.RunTimeTicks ?? 0,
-    audio: src.MediaStreams.filter((s) => s.Type === "Audio").map((s) => ({
-      index: s.Index,
-      label: s.Title || s.DisplayTitle || lang(s.Language)?.toUpperCase() || `Track ${s.Index}`,
-      language: lang(s.Language),
-      isDefault: s.Index === defaultAudio,
-    })),
-    subtitles: subs.map((s): SubtitleTrack => {
+    audio: numbered(
+      src.MediaStreams.filter((s) => s.Type === "Audio").map((s) => ({
+        index: s.Index,
+        label: trackLabel({ title: s.Title, language: lang(s.Language) }, "Audio"),
+        language: lang(s.Language),
+        isDefault: s.Index === defaultAudio,
+      })),
+    ),
+    subtitles: numbered(subs.map((s): SubtitleTrack => {
       const kind = isStyled(s.Codec) ? "ass" : s.DeliveryMethod === "Encode" ? "burn" : "vtt";
+      // Older Jellyfin only says so in the title.
+      const hi = !!s.IsHearingImpaired || /\bsdh\b|hearing/i.test(`${s.Title ?? ""} ${s.DisplayTitle ?? ""}`);
       const delivery = probe.MediaStreams.find((p) => p.Index === s.Index)?.DeliveryUrl ?? s.DeliveryUrl;
       return {
         index: s.Index,
-        label: s.Title || s.DisplayTitle || lang(s.Language)?.toUpperCase() || `Subtitles ${s.Index}`,
+        label: trackLabel({ title: s.Title, language: lang(s.Language), hi, forced: s.IsForced }, "Subtitles"),
         language: lang(s.Language),
         isDefault: !!s.IsDefault,
         isForced: !!s.IsForced,
-        // Older Jellyfin only says so in the title.
-        hi: !!s.IsHearingImpaired || /\bsdh\b|hearing/i.test(`${s.Title ?? ""} ${s.DisplayTitle ?? ""}`),
+        hi,
         kind,
         url:
           kind === "burn"
             ? null
             : relayUrl(delivery ?? `/Videos/${itemId}/${src.Id}/Subtitles/${s.Index}/0/Stream.${kind === "ass" ? s.Codec : "vtt"}`),
       };
-    }),
+    })),
     audioIndex,
     subtitleIndex: subtitleIndex >= 0 ? subtitleIndex : null,
     fonts: (src.MediaAttachments ?? probe.MediaAttachments ?? [])
