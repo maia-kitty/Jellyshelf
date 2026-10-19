@@ -27,7 +27,8 @@ export interface SonarrSeries {
   rootFolderPath?: string;
   path?: string;
   seasonFolder?: boolean;
-  statistics?: SonarrSeasonStats & { seasonCount: number };
+  statistics?: SonarrSeasonStats & { seasonCount: number; sizeOnDisk?: number };
+  tmdbId?: number;
   addOptions?: {
     searchForMissingEpisodes?: boolean;
     monitor?: "all" | "future" | "missing" | "existing" | "firstSeason" | "latestSeason" | "pilot" | "none";

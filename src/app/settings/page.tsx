@@ -13,7 +13,9 @@ import {
   TmdbSettings,
   UsersTable,
 } from "@/components/Settings";
+import { ManageLibrary } from "@/components/ManageLibrary";
 import { Tabs } from "@/components/Tabs";
+import { managedTitles } from "@/lib/manage";
 import { mappingCount } from "@/lib/mapping";
 import { pageAdmin, param, type SearchParams } from "@/lib/page";
 import { getSettings, redactSettings } from "@/lib/settings";
@@ -34,6 +36,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           { key: "services", label: "Services", href: "/settings?tab=services" },
           { key: "general", label: "General & sign-in", href: "/settings?tab=general" },
           { key: "users", label: "Users", href: "/settings?tab=users" },
+          { key: "library", label: "Library", href: "/settings?tab=library" },
           { key: "system", label: "Jobs & webhooks", href: "/settings?tab=system" },
           { key: "debug", label: "Debug", href: "/debug" },
         ]}
@@ -70,6 +73,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
               autoApproveAnime: u.autoApproveAnime,
             }))}
           />
+        </Section>
+      )}
+      {tab === "library" && (
+        <Section title="Library" desc="Everything in Sonarr and Radarr, biggest first. Deleting removes the files too.">
+          <ManageLibrary {...await managedTitles()} />
         </Section>
       )}
       {tab === "system" && (

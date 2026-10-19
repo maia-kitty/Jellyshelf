@@ -13,6 +13,7 @@ export interface RadarrMovie {
   minimumAvailability?: string;
   addOptions?: { searchForMovie: boolean };
   movieFile?: ArrFile;
+  sizeOnDisk?: number;
   [k: string]: unknown;
 }
 

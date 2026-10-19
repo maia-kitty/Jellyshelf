@@ -49,6 +49,8 @@ export function jellyfin(cfg: { url: string; apiKey: string }) {
         "/Users/AuthenticateByName",
         { method: "POST", body: { Username: username, Pw: password }, token: "", deviceId },
       ),
+    /** Rescan every library (picks up files deleted elsewhere). Jellyfin queues it and returns straight away. */
+    refreshLibrary: () => call<void>("/Library/Refresh", { method: "POST" }),
     /** Every movie and series in the library with provider ids. */
     libraryItems: async () => {
       const res = await call<{ Items: JellyfinItem[] }>(
