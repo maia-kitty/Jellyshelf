@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import type { Settings } from "@/lib/settings";
 import { unreachable } from "@/lib/unreachable";
@@ -190,6 +190,13 @@ export function AniListSettings({ initial, appUrl }: { initial: Settings["anilis
   );
 }
 
+/** Fetch Sonarr/Radarr's profile and folder names as the page opens, when it's already set up, instead of waiting for a Test. */
+function useLoadOnOpen(load: () => unknown, configured: boolean) {
+  // Once, with what was saved: later edits are tested by hand.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => void (configured && load()), []);
+}
+
 function ProfileSelect({
   value,
   options,
@@ -232,6 +239,7 @@ export function SonarrSettings({ initial }: { initial: Settings["sonarr"] }) {
     if (r.ok) setMeta(r);
     return r;
   };
+  useLoadOnOpen(runTest, !!(initial.url && initial.apiKey));
   return (
     <Section title="Sonarr" desc="Series and anime series. Anime is added with series type “Anime” (absolute numbering) into its own root folder.">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -273,6 +281,7 @@ export function RadarrSettings({ initial }: { initial: Settings["radarr"] }) {
     if (r.ok) setMeta(r);
     return r;
   };
+  useLoadOnOpen(runTest, !!(initial.url && initial.apiKey));
   return (
     <Section title="Radarr" desc="Movies, including anime films.">
       <div className="grid gap-4 sm:grid-cols-2">
