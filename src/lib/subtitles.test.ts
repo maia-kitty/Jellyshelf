@@ -9,7 +9,7 @@ vi.mock("@/lib/settings", () => ({
     sonarr: { url: "http://sonarr:8989", apiKey: "k" },
   }),
 }));
-const { fileSubs, forgetSubs, requestSubs, subLabel, summarize } = await import("./subtitles");
+const { fileSubs, forgetSubs, requestSubs, subLabel, summarize, withEmbedded } = await import("./subtitles");
 
 const en = { name: "English", code2: "en", code3: "eng", forced: false, hi: false };
 // Shaped like Bazarr 1.6's /api/episodes response.
@@ -36,6 +36,14 @@ describe("labels and summaries", () => {
   it("reads as complete, or as missing for a single film", () => {
     expect(summaryText(summarize([fileSubs(ep(1, [en, { ...en, code2: "ja" }], []))]))).toBe("Subtitles ✓ EN · JA");
     expect(summaryText(summarize([fileSubs(ep(1, [], [en]))]))).toBe("No EN subtitles yet");
+  });
+});
+
+describe("subtitles inside the video file", () => {
+  it("count when Bazarr wasn't told to", () => {
+    const ja = { ...en, name: "Japanese", code2: "ja", code3: "jpn" };
+    expect(fileSubs(withEmbedded(ep(1, [], [en, ja]), "eng/eng/ger"))).toEqual({ have: ["EN"], missing: ["JA"] });
+    expect(fileSubs(withEmbedded(ep(1, [], [en]), undefined))).toEqual({ have: [], missing: ["EN"] });
   });
 });
 
@@ -66,6 +74,11 @@ describe("requestSubs", () => {
     ]);
     const s = await requestSubs(req({ absolute: true, episodeRanges: [{ from: 3, to: null }] }), { sonarrId: 1, radarrId: null });
     expect(s?.files).toBe(2);
+  });
+  it("counts English tracks Sonarr found inside the files", async () => {
+    stub([{ id: 102, episodeFile: { mediaInfo: { subtitles: "eng/jpn" } } }]);
+    const s = await requestSubs(req({ seasons: [1] }), { sonarrId: 1, radarrId: null });
+    expect(s).toEqual({ files: 3, have: ["EN"], missing: [{ lang: "EN", files: 1 }] });
   });
   it("is null without a Sonarr id", async () => {
     expect(await requestSubs(req({ seasons: [1] }), { sonarrId: null, radarrId: null })).toBeNull();

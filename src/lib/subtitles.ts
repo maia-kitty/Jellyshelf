@@ -2,9 +2,11 @@ import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Media, Request, User } from "@/db/schema";
 import { bazarr, type BazarrEpisode, type BazarrSub } from "@/lib/clients/bazarr";
+import { radarr } from "@/lib/clients/radarr";
 import { sonarr } from "@/lib/clients/sonarr";
 import { cached, invalidate } from "@/lib/cache";
 import { inScope } from "@/lib/downloads";
+import { trackLangs } from "@/lib/langs";
 import { getSettings } from "@/lib/settings";
 
 /** Subtitles of one file: languages present and languages Bazarr's profile still wants. */
@@ -39,6 +41,18 @@ export function summarize(files: FileSubs[]): SubsSummary {
   };
 }
 
+/**
+ * Bazarr only counts subtitle tracks inside the video file when its "Use embedded subtitles" is on; count them either way,
+ * from Sonarr/Radarr's read of the file. Its track list has no forced/HI flags, so any track in the language will do.
+ */
+export function withEmbedded<T extends Pick<BazarrEpisode, "subtitles" | "missing_subtitles">>(x: T, tracks: string | null | undefined): T {
+  const inFile = new Set(trackLangs(tracks));
+  const covered = x.missing_subtitles.filter((s) => inFile.has(s.code2.toUpperCase()));
+  if (!covered.length) return x;
+  // A null path is how Bazarr itself marks an embedded subtitle.
+  return { ...x, subtitles: [...x.subtitles, ...covered.map((s) => ({ ...s, path: null }))], missing_subtitles: x.missing_subtitles.filter((s) => !covered.includes(s)) };
+}
+
 export async function bazarrApi() {
   const s = (await getSettings()).bazarr;
   return s.url && s.apiKey ? bazarr(s) : null;
@@ -48,13 +62,25 @@ export async function bazarrApi() {
 export async function seriesSubs(sonarrSeriesId: number): Promise<BazarrEpisode[] | null> {
   const api = await bazarrApi();
   if (!api) return null;
-  return cached(`bazarr:series:${sonarrSeriesId}`, 30, () => api.episodes(sonarrSeriesId)).catch(() => null);
+  return cached(`bazarr:series:${sonarrSeriesId}`, 30, async () => {
+    const s = (await getSettings()).sonarr;
+    const [eps, files] = await Promise.all([
+      api.episodes(sonarrSeriesId),
+      s.url && s.apiKey ? sonarr(s).episodes(sonarrSeriesId, true).catch(() => []) : [],
+    ]);
+    const tracks = new Map(files.map((e) => [e.id, e.episodeFile?.mediaInfo?.subtitles]));
+    return eps.map((e) => withEmbedded(e, tracks.get(e.sonarrEpisodeId)));
+  }).catch(() => null);
 }
 
 export async function movieSubs(radarrId: number): Promise<FileSubs | null> {
   const api = await bazarrApi();
   if (!api) return null;
-  const m = await cached(`bazarr:movie:${radarrId}`, 30, () => api.movie(radarrId)).catch(() => null);
+  const m = await cached(`bazarr:movie:${radarrId}`, 30, async () => {
+    const s = (await getSettings()).radarr;
+    const [m, file] = await Promise.all([api.movie(radarrId), s.url && s.apiKey ? radarr(s).movie(radarrId).catch(() => null) : null]);
+    return m && withEmbedded(m, file?.movieFile?.mediaInfo?.subtitles);
+  }).catch(() => null);
   return m ? fileSubs(m) : null;
 }
 
