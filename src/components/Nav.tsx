@@ -11,7 +11,7 @@ import { PhoneNotifications } from "./PhoneNotifications";
 import { unreachable } from "@/lib/unreachable";
 import { initial } from "@/lib/initial";
 
-type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean; ntfyTopic: string | null };
+type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean; ntfy: { topic: string; server: string | null } | null };
 
 // Split into parts so each icon can move its own way (keyframes in globals.css): the compass needle spins, the
 // leaning book tips up and drops back, the tiles pop in turn, the rows slide in, the bookmark's tick draws itself.
@@ -358,7 +358,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             <span className={clsx("text-accent", !drag && "invisible")}>✓</span>
           </button>
           {/* Only once an admin has set up ntfy. */}
-          {user.ntfyTopic && (
+          {user.ntfy && (
             <button
               className={plain}
               onClick={() => {
@@ -386,7 +386,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
           </button>
         </div>
       )}
-      {notifs && user.ntfyTopic && <PhoneNotifications topic={user.ntfyTopic} admin={user.role === "admin"} onClose={() => setNotifs(false)} />}
+      {notifs && user.ntfy && <PhoneNotifications topic={user.ntfy.topic} server={user.ntfy.server} admin={user.role === "admin"} onClose={() => setNotifs(false)} />}
     </div>
   );
 }

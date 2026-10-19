@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { currentUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
-import { topicFor } from "@/lib/notify";
+import { ntfyServer, topicFor } from "@/lib/notify";
 import { Nav } from "@/components/Nav";
 import { ScrollBounce } from "@/components/ScrollBounce";
 import { TimeZoneCookie } from "@/components/TimeZoneCookie";
@@ -23,7 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className="min-h-screen antialiased">
         {user && (
-          <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId, canLinkAnilist: !!settings.anilist.clientId, canUnlinkAnilist: !!user.jellyfinUserId, ntfyTopic: settings.ntfy.url ? topicFor(user.id) : null }} />
+          <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId, canLinkAnilist: !!settings.anilist.clientId, canUnlinkAnilist: !!user.jellyfinUserId, ntfy: settings.ntfy.url ? { topic: topicFor(user.id), server: ntfyServer(settings.ntfy) } : null }} />
         )}
         {/* Full-bleed banners reach 100vw, which includes the scrollbar; clip that here rather than on <body>, whose
             overflow the browser applies to the whole viewport (and which knocks out fixed bars like the phone dock). */}

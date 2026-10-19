@@ -62,6 +62,8 @@ export const settingsSchema = z.object({
       url: z.string().default(""),
       /** Access token, if the ntfy server doesn't let anyone publish. */
       token: z.string().default(""),
+      /** Phones subscribe at ntfy itself (it's reachable from anywhere, e.g. ntfy.sh) rather than through Jellyshelf. */
+      direct: z.boolean().default(false),
     })
     .prefault({}),
 });

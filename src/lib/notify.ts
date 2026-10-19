@@ -13,6 +13,12 @@ import { getSettings } from "./settings";
  */
 export const topicFor = (userId: number) => `js_${crypto.createHmac("sha256", appSecret()).update(`ntfy:${userId}`).digest("hex").slice(0, 24)}`;
 
+/**
+ * Where phones subscribe: ntfy's own address when it's reachable from anywhere (ntfy.sh, say), or null for
+ * Jellyshelf's address, which relays the topic (so it only works where Jellyshelf can be reached: LAN, VPN).
+ */
+export const ntfyServer = (ntfy: { url: string; direct: boolean }) => (ntfy.direct && ntfy.url ? ntfy.url.replace(/\/+$/, "") : null);
+
 /** Whether every one of these topics belongs to someone here. */
 export async function knownTopics(topics: string[]) {
   const mine = new Set((await db.select({ id: schema.users.id }).from(schema.users)).map((u) => topicFor(u.id)));

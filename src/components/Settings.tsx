@@ -7,6 +7,7 @@ import type { Settings } from "@/lib/settings";
 import { unreachable } from "@/lib/unreachable";
 import { Select } from "./Select";
 import { initial } from "@/lib/initial";
+import { NTFY_SH } from "@/lib/ntfyShared";
 
 type Redacted = Settings; // same shape, secrets masked
 
@@ -362,8 +363,18 @@ export function NtfySettings({ initial }: { initial: Settings["ntfy"] }) {
   return (
     <Section
       title="Notifications (ntfy)"
-      desc="Optional. Phone notifications when a request is approved, declined or ready to watch, and for admins when someone requests something. People subscribe in the ntfy app using Jellyshelf's own address (account menu → Phone notifications), so ntfy doesn't need to be reachable from outside."
+      desc="Optional. Phone notifications when a request is approved, declined or ready to watch, and for admins when someone requests something. People subscribe in the ntfy app (account menu → Phone notifications): at ntfy itself if it's reachable from anywhere, like the free public ntfy.sh, otherwise through Jellyshelf's own address, which only works where Jellyshelf can be reached."
     >
+      <button
+        className="btn-ghost px-3 py-1 text-sm"
+        onClick={() => {
+          set("url", NTFY_SH);
+          set("token", "");
+          set("direct", true);
+        }}
+      >
+        Use ntfy.sh (free, works anywhere)
+      </button>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="URL" hint="Where Jellyshelf reaches your ntfy server">
           <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://ntfy:80" />
@@ -372,6 +383,16 @@ export function NtfySettings({ initial }: { initial: Settings["ntfy"] }) {
           <input className="input" value={v.token} onChange={(e) => set("token", e.target.value)} placeholder="tk_…" />
         </Field>
       </div>
+      <Toggle
+        label="Phones subscribe at this ntfy directly (it's reachable from the internet, like ntfy.sh)"
+        checked={v.direct}
+        onChange={(x) => set("direct", x)}
+      />
+      {v.direct && v.token && (
+        <p className="text-xs text-warn">
+          Phones subscribing directly don&apos;t get the access token, so they can only read topics this ntfy lets anyone read.
+        </p>
+      )}
       <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("ntfy", v.url, v.token)} />} />
     </Section>
   );
