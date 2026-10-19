@@ -9,12 +9,14 @@ import { Modal } from "./Modal";
 const gb = (bytes: number) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`);
 
 /** Settings → Manage library: everything in Sonarr/Radarr, biggest first, each deletable (files and all) after a confirm. */
-export function ManageLibrary({ titles, errors }: { titles: ManagedTitle[]; errors: string[] }) {
+export function ManageLibrary({ titles, errors, qbit }: { titles: ManagedTitle[]; errors: string[]; qbit: boolean }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [confirm, setConfirm] = useState<ManagedTitle | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  /** Left over from a delete that otherwise went through (its torrents are still in qBittorrent). */
+  const [note, setNote] = useState<string | null>(null);
 
   const shown = titles.filter((t) => t.title.toLowerCase().includes(q.trim().toLowerCase()));
   const total = titles.reduce((a, t) => a + t.size, 0);
@@ -22,9 +24,12 @@ export function ManageLibrary({ titles, errors }: { titles: ManagedTitle[]; erro
   const remove = async (t: ManagedTitle) => {
     setBusy(true);
     setErr(null);
+    setNote(null);
     const res = await fetch(`/api/library/${t.service}/${t.id}`, { method: "DELETE" }).catch(unreachable);
     setBusy(false);
-    if (!res.ok) return setErr((await res.json().catch(() => ({}))).error ?? "Couldn't delete it");
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return setErr(j.error ?? "Couldn't delete it");
+    setNote(j.note ? `${t.title}: ${j.note}` : null);
     setConfirm(null);
     router.refresh();
   };
@@ -36,6 +41,7 @@ export function ManageLibrary({ titles, errors }: { titles: ManagedTitle[]; erro
           Couldn&apos;t read {e}
         </p>
       ))}
+      {note && <p className="text-sm text-warn">{note}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <input className="input max-w-xs" placeholder="Filter by title" value={q} onChange={(e) => setQ(e.target.value)} />
         <span className="text-sm text-muted">
@@ -79,7 +85,9 @@ export function ManageLibrary({ titles, errors }: { titles: ManagedTitle[]; erro
                 removes it from {confirm.service === "sonarr" ? "Sonarr" : "Radarr"}
                 {confirm.service === "sonarr" && ", every season"}
               </li>
-              <li>{confirm.size ? `deletes its files from disk, freeing ${gb(confirm.size)}` : "has no files to delete"}, so it leaves Jellyfin too</li>
+              <li>{confirm.size ? `deletes its files from disk${qbit ? `, freeing ${gb(confirm.size)}` : ""}` : "has no files to delete"}, so it leaves Jellyfin too</li>
+              {/* Without qBittorrent set up, a seeding torrent keeps its (hardlinked) copy, so the space doesn't come back. */}
+              {qbit ? <li>removes its torrents from qBittorrent, with their downloads</li> : <li>leaves its torrents in qBittorrent (set it up under Services to have them removed)</li>}
               {confirm.requestedBy.length > 0 && <li>removes its requests (from {confirm.requestedBy.join(", ")}), so it can be requested again</li>}
             </ul>
             {err && <p className="text-bad">{err}</p>}

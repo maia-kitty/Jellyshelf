@@ -62,7 +62,8 @@ const scope = requestScope;
 /** Approved, but the availability sync found nothing coming for it (its reason is the error). */
 const stuck = (r: RequestRow) => r.status === "approved" && !!r.error;
 
-export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isAdmin: boolean; userId: number }) {
+/** `qbit`: qBittorrent is set up, so removing a title clears its torrents too. */
+export function RequestList({ rows, isAdmin, userId, qbit }: { rows: RequestRow[]; isAdmin: boolean; userId: number; qbit: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -90,7 +91,9 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
       headers: { "Content-Type": "application/json" },
       body: action === "delete" ? undefined : JSON.stringify({ action }),
     }).catch(unreachable);
-    if (!res.ok) setErr((await res.json().catch(() => ({}))).error ?? "Failed");
+    const j = await res.json().catch(() => ({}));
+    // A removal that went through can still carry a note (its torrents couldn't be cleared from qBittorrent).
+    setErr(res.ok ? (j.note ?? null) : (j.error ?? "Failed"));
     setBusy(null);
     setConfirm(null);
     router.refresh();
@@ -166,6 +169,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
       </ul>
       {confirm && (
         <RemoveConfirm
+          qbit={qbit}
           r={confirm}
           busy={busy === confirm.id}
           onCancel={() => setConfirm(null)}
@@ -176,7 +180,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
   );
 }
 
-function RemoveConfirm({ r, busy, onCancel, onRemove }: { r: RequestRow; busy: boolean; onCancel: () => void; onRemove: (files: boolean) => void }) {
+function RemoveConfirm({ r, qbit, busy, onCancel, onRemove }: { r: RequestRow; qbit: boolean; busy: boolean; onCancel: () => void; onRemove: (files: boolean) => void }) {
   // Keeping the files is the default: it's the one that can be undone (add it back to Sonarr/Radarr).
   const [files, setFiles] = useState(false);
   const service = r.target === "sonarr" ? "Sonarr" : "Radarr";
@@ -199,6 +203,8 @@ function RemoveConfirm({ r, busy, onCancel, onRemove }: { r: RequestRow; busy: b
         </div>
         <ul className="list-disc space-y-1 pl-5 text-muted">
           <li>This request goes too, so it can be requested again.</li>
+          {/* Either way: with the title gone from Sonarr/Radarr, nothing else would clean them up. */}
+          {qbit && <li>Its torrents are removed from qBittorrent, with their downloads.{!files && " Your library's copy stays."}</li>}
           {r.sharedWith.length > 0 && <li>So do {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}.</li>}
         </ul>
         <p className="text-xs text-muted">If it isn&apos;t in {service} any more, only the request is removed.</p>

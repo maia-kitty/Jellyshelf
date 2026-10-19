@@ -5,14 +5,17 @@ import { radarr } from "@/lib/clients/radarr";
 import { sonarr } from "@/lib/clients/sonarr";
 import { jellyfin } from "@/lib/clients/jellyfin";
 import { bazarr } from "@/lib/clients/bazarr";
+import { qbittorrent } from "@/lib/clients/qbittorrent";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { MASK, getSettings } from "@/lib/settings";
 import { topicFor } from "@/lib/notify";
 
 const body = z.object({
-  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr", "ntfy"]),
+  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr", "ntfy", "qbittorrent"]),
   url: z.string().optional(),
   apiKey: z.string().optional(),
+  /** qBittorrent only (its password comes as apiKey). */
+  username: z.string().optional(),
 });
 
 /** Check connectivity with the values currently in the form (falling back to saved ones). */
@@ -20,7 +23,7 @@ export function POST(req: Request) {
   return handle(async () => {
     const user = await currentUser();
     if (user?.role !== "admin" && !(!user && (await isFirstUser()))) throw new ApiError(403, "Admin only");
-    const { service, url, apiKey } = body.parse(await req.json());
+    const { service, url, apiKey, username } = body.parse(await req.json());
     const s = await getSettings();
     if (service === "tmdb") {
       await tmdbClient.ping();
@@ -40,6 +43,17 @@ export function POST(req: Request) {
       });
       if (!res.ok) throw new ApiError(502, `ntfy said HTTP ${res.status}${res.status === 403 || res.status === 401 ? ": check the access token" : ""}`);
       return { ok: true, message: "Sent to your own topic" };
+    }
+    if (service === "qbittorrent") {
+      const q = s.qbittorrent;
+      const cfg = { url: url || q.url, username: username ?? q.username, password: apiKey && apiKey !== MASK ? apiKey : q.password };
+      const version = await qbittorrent(cfg)
+        .version()
+        .catch((e) => {
+          // Its own sign-in complaint says what's wrong; anything else (network, timeout, HTTP error) is just unreachable.
+          throw new ApiError(502, e instanceof Error && e.message.startsWith("qBittorrent") ? e.message : "Couldn't reach qBittorrent");
+        });
+      return { ok: true, message: `qBittorrent ${version}` };
     }
     const saved = s[service];
     const cfg = { url: url || saved.url, apiKey: apiKey && apiKey !== MASK ? apiKey : saved.apiKey };

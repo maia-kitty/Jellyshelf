@@ -7,6 +7,7 @@ import {
   JellyfinSettings,
   JobButtons,
   NtfySettings,
+  QbittorrentSettings,
   RadarrSettings,
   Section,
   SonarrSettings,
@@ -47,6 +48,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <RadarrSettings initial={s.radarr} />
           <JellyfinSettings initial={s.jellyfin} />
           <BazarrSettings initial={s.bazarr} />
+          <QbittorrentSettings initial={s.qbittorrent} />
           <NtfySettings initial={s.ntfy} />
         </>
       )}
@@ -77,7 +79,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
       )}
       {tab === "library" && (
         <Section title="Manage library" desc="Everything in Sonarr and Radarr, biggest first. Deleting removes the files too.">
-          <ManageLibrary {...await managedTitles()} />
+          <ManageLibrary {...await managedTitles()} qbit={!!s.qbittorrent.url} />
         </Section>
       )}
       {tab === "system" && (

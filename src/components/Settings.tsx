@@ -93,11 +93,11 @@ interface TestResult {
   languageProfiles?: { id: number; name: string }[];
 }
 
-async function test(service: string, url?: string, apiKey?: string): Promise<TestResult> {
+async function test(service: string, url?: string, apiKey?: string, username?: string): Promise<TestResult> {
   const res = await fetch("/api/settings/test", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ service, url, apiKey }),
+    body: JSON.stringify({ service, url, apiKey, username }),
   });
   const j = await res.json().catch(() => ({}));
   return res.ok ? j : { ok: false, error: j.error ?? `HTTP ${res.status}` };
@@ -354,6 +354,30 @@ export function BazarrSettings({ initial }: { initial: Settings["bazarr"] }) {
         </Field>
       </div>
       <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("bazarr", v.url, v.apiKey)} />} />
+    </Section>
+  );
+}
+
+export function QbittorrentSettings({ initial }: { initial: Settings["qbittorrent"] }) {
+  const { v, set, submit, state } = useSection("qbittorrent", initial);
+  return (
+    <Section
+      title="qBittorrent"
+      desc="Optional. When a title is removed from Sonarr or Radarr through Jellyshelf, its torrents are removed from qBittorrent too, with what they downloaded. Without this they'd be left seeding, and the space they share with your library (hardlinks) wouldn't come back."
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="URL" hint="The Web UI's address">
+          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://qbittorrent:8080" />
+        </Field>
+        <div />
+        <Field label="Username">
+          <input className="input" value={v.username} onChange={(e) => set("username", e.target.value)} autoComplete="off" />
+        </Field>
+        <Field label="Password">
+          <input className="input" type="password" value={v.password} onChange={(e) => set("password", e.target.value)} autoComplete="new-password" />
+        </Field>
+      </div>
+      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("qbittorrent", v.url, v.password, v.username)} />} />
     </Section>
   );
 }

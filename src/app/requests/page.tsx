@@ -4,6 +4,7 @@ import { RequestList } from "@/components/RequestList";
 import { sentOn } from "@/lib/requestScope";
 import { downloadQueues, progressFor } from "@/lib/downloads";
 import { Tabs } from "@/components/Tabs";
+import { getSettings } from "@/lib/settings";
 import { pageUser, param, type SearchParams } from "@/lib/page";
 import { bazarrApi, requestSubs } from "@/lib/subtitles";
 
@@ -45,6 +46,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
       />
       <RequestList
         isAdmin={user.role === "admin"}
+        qbit={!!(await getSettings()).qbittorrent.url}
         userId={user.id}
         rows={visible.map((r, i) => ({
           id: r.request.id,

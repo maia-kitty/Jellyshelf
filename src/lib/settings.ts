@@ -57,6 +57,13 @@ export const settingsSchema = z.object({
       fixSubsBy: z.enum(["admin", "requesters"]).default("requesters"),
     })
     .prefault({}),
+  qbittorrent: z
+    .object({
+      url: z.string().default(""),
+      username: z.string().default(""),
+      password: z.string().default(""),
+    })
+    .prefault({}),
   ntfy: z
     .object({
       url: z.string().default(""),
@@ -104,6 +111,7 @@ export function redactSettings(s: Settings) {
     jellyfin: { ...s.jellyfin, apiKey: mask(s.jellyfin.apiKey) },
     bazarr: { ...s.bazarr, apiKey: mask(s.bazarr.apiKey) },
     ntfy: { ...s.ntfy, token: mask(s.ntfy.token) },
+    qbittorrent: { ...s.qbittorrent, password: mask(s.qbittorrent.password) },
   };
 }
 

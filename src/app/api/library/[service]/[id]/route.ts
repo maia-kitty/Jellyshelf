@@ -12,7 +12,6 @@ export function DELETE(_req: Request, { params }: Ctx) {
   return handle(async () => {
     await apiUser({ admin: true });
     const { service, id } = target.parse(await params);
-    await deleteTitle(service, id);
-    return { ok: true };
+    return { ok: true, note: await deleteTitle(service, id) };
   });
 }

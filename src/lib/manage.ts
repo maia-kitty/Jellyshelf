@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { forgetSubs } from "@/lib/subtitles";
 import { jellyfin } from "@/lib/clients/jellyfin";
+import { qbittorrent } from "@/lib/clients/qbittorrent";
 import { radarr } from "@/lib/clients/radarr";
 import { sonarr } from "@/lib/clients/sonarr";
 import { getSettings } from "@/lib/settings";
@@ -67,23 +68,37 @@ export async function managedTitles(): Promise<{ titles: ManagedTitle[]; errors:
   return { titles: titles.sort((a, b) => b.size - a.size), errors };
 }
 
-/** Delete what a request went to (see deleteTitle); false when it isn't in Sonarr/Radarr (any more), or they aren't set up. */
+/** Delete what a request went to (see deleteTitle); null when it isn't in Sonarr/Radarr (any more), or they aren't set up. */
 export async function deleteRequested(target: ManagedService, targetId: number, deleteFiles: boolean) {
   const s = await getSettings();
-  if (!s[target].url || !s[target].apiKey) return false;
+  if (!s[target].url || !s[target].apiKey) return null;
   const found = target === "sonarr" ? await sonarr(s.sonarr).seriesByTvdb(targetId) : await radarr(s.radarr).movieByTmdb(targetId);
-  if (!found) return false;
-  await deleteTitle(target, found.id!, deleteFiles);
-  return true;
+  if (!found) return null;
+  return { note: await deleteTitle(target, found.id!, deleteFiles) };
+}
+
+/** Torrents Sonarr/Radarr grabbed for a title (their ids are the torrent hashes; other clients' ids don't look like one). */
+async function grabbedTorrents(service: ManagedService, id: number) {
+  const s = await getSettings();
+  const path = service === "sonarr" ? `/history/series?seriesId=${id}&eventType=1` : `/history/movie?movieId=${id}&eventType=1`;
+  const grabs = await (service === "sonarr" ? sonarr(s.sonarr) : radarr(s.radarr)).call<{ downloadId?: string }[]>(path);
+  return [...new Set(grabs.map((g) => g.downloadId ?? "").filter((h) => /^[0-9a-f]{40}$/i.test(h)))];
 }
 
 /**
  * Remove a title from Sonarr/Radarr, and its requests, so it can be requested again. Anime seasons sharing one Sonarr
  * series all go with it. With `deleteFiles` its files go too (Jellyfin is asked to rescan, so it leaves there as well);
  * without, they stay where they are and it stays watchable in Jellyfin.
+ *
+ * Its torrents leave qBittorrent either way, with their downloaded copy: Sonarr/Radarr stop tracking them once the
+ * title's gone, so nothing else would ever clean them up. Kept library files are hardlinks (or copies) of that copy,
+ * so they stay. Returns a note when that part couldn't be done.
  */
-export async function deleteTitle(service: ManagedService, id: number, deleteFiles = true) {
+export async function deleteTitle(service: ManagedService, id: number, deleteFiles = true): Promise<string | null> {
   const s = await getSettings();
+  const qbit = s.qbittorrent.url ? qbittorrent(s.qbittorrent) : null;
+  // Read before the delete, which takes the title's history with it.
+  const torrents = qbit ? await grabbedTorrents(service, id).catch(() => null) : [];
   let key: number;
   if (service === "sonarr") {
     const api = sonarr(s.sonarr);
@@ -107,5 +122,16 @@ export async function deleteTitle(service: ManagedService, id: number, deleteFil
     await jellyfin(s.jellyfin)
       .refreshLibrary()
       .catch((e) => console.warn("[manage] Jellyfin rescan failed:", e instanceof Error ? e.message : e));
+  }
+  if (!qbit) return null;
+  if (!torrents) return `Couldn't find its torrents, so they're still in qBittorrent.`;
+  try {
+    await qbit.remove(torrents, true);
+    return null;
+  } catch (e) {
+    console.warn("[manage] qBittorrent:", e instanceof Error ? e.message : e);
+    // Its own sign-in complaint says what's wrong; anything else (network, timeout, HTTP error) is just unreachable.
+    const why = e instanceof Error && e.message.startsWith("qBittorrent") ? e.message : "Couldn't reach qBittorrent";
+    return `${why}, so its ${torrents.length === 1 ? "torrent is" : `${torrents.length} torrents are`} still there.`;
   }
 }
