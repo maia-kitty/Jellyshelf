@@ -10,6 +10,17 @@ import clsx from "clsx";
  */
 export type JarAnimation = "hover" | "intro" | "loading" | "pop";
 
+/** Where each spark flies from the lid (in icon units, so they carry well clear of a button-sized jar), its size, colour and delay. */
+const SPARKS: [number, number, number, string, number][] = [
+  [-62, -44, 6, "#c9a0ff", 0],
+  [-30, -78, 4.5, "#ffffff", 0.05],
+  [0, -96, 7, "#8fe3ff", 0.02],
+  [34, -74, 4.5, "#ffffff", 0.07],
+  [64, -40, 6, "#aa5cc3", 0.03],
+  [-84, -8, 4, "#8fe3ff", 0.09],
+  [86, -6, 4, "#c9a0ff", 0.1],
+];
+
 export function AppIcon({ size = 28, className, animate }: { size?: number; className?: string; animate?: JarAnimation }) {
   return (
     <svg
@@ -34,9 +45,9 @@ export function AppIcon({ size = 28, className, animate }: { size?: number; clas
       {animate === "pop" && (
         // drawn last so the sparks fly in front of the lid
         <g className="jar-sparks">
-          <circle cx="22" cy="16" r="3.5" fill="#c9a0ff" style={{ "--dx": "-16px", "--dy": "-24px" } as React.CSSProperties} />
-          <circle cx="32" cy="14" r="4" fill="#ffffff" style={{ "--dx": "0px", "--dy": "-32px" } as React.CSSProperties} />
-          <circle cx="42" cy="16" r="3.5" fill="#8fe3ff" style={{ "--dx": "16px", "--dy": "-24px" } as React.CSSProperties} />
+          {SPARKS.map(([dx, dy, r, fill, d], i) => (
+            <circle key={i} cx="32" cy="14" r={r} fill={fill} style={{ "--dx": `${dx}px`, "--dy": `${dy}px`, "--d": `${d}s` } as React.CSSProperties} />
+          ))}
         </g>
       )}
     </svg>

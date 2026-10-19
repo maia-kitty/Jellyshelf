@@ -40,8 +40,9 @@ export function Hero(props: {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <StatusBadge status={props.status} className="text-xs" />
+          {/* A badge's height even when empty: one turning up (a request) mustn't push the whole column down. */}
+          <div className="mb-2 flex min-h-5 flex-wrap gap-2">
+            <StatusBadge status={props.status} className="chip-in text-xs" />
             {props.list && <ListBadge {...props.list} className="text-xs" />}
           </div>
           <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{props.title}</h1>

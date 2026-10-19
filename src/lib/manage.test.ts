@@ -48,10 +48,12 @@ it("finds what a request went to, or leaves it to the caller when it's gone", as
       return new Response(body === "" ? "" : JSON.stringify(body), { status: 200 });
     }),
   );
-  expect(await deleteRequested("sonarr", 999)).toBe(false);
-  expect(await deleteRequested("sonarr", 501)).toBe(true);
-  expect(calls).toContain("DELETE http://sonarr:8989/api/v3/series/8?deleteFiles=true&addImportListExclusion=false");
+  expect(await deleteRequested("sonarr", 999, false)).toBe(false);
+  expect(await deleteRequested("sonarr", 501, false)).toBe(true);
+  // Files kept: Sonarr leaves them, and Jellyshelf still counts it as in the library.
+  expect(calls).toContain("DELETE http://sonarr:8989/api/v3/series/8?deleteFiles=false&addImportListExclusion=false");
   expect(await db.select().from(schema.requests)).toEqual([]);
+  expect((await db.select().from(schema.media).where(eq(schema.media.tvdbId, 501)))[0]).toMatchObject({ status: "available", sonarrId: null });
   // Radarr isn't set up here: nothing to delete there, the caller just removes the request.
-  expect(await deleteRequested("radarr", 1)).toBe(false);
+  expect(await deleteRequested("radarr", 1, true)).toBe(false);
 });

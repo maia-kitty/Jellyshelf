@@ -68,39 +68,42 @@ export async function managedTitles(): Promise<{ titles: ManagedTitle[]; errors:
 }
 
 /** Delete what a request went to (see deleteTitle); false when it isn't in Sonarr/Radarr (any more), or they aren't set up. */
-export async function deleteRequested(target: ManagedService, targetId: number) {
+export async function deleteRequested(target: ManagedService, targetId: number, deleteFiles: boolean) {
   const s = await getSettings();
   if (!s[target].url || !s[target].apiKey) return false;
   const found = target === "sonarr" ? await sonarr(s.sonarr).seriesByTvdb(targetId) : await radarr(s.radarr).movieByTmdb(targetId);
   if (!found) return false;
-  await deleteTitle(target, found.id!);
+  await deleteTitle(target, found.id!, deleteFiles);
   return true;
 }
 
 /**
- * Remove a title for good: from Sonarr/Radarr with its files (Jellyfin is asked to rescan, so it goes from there too),
- * and its requests, so it can be requested again. Anime seasons sharing one Sonarr series all go with it.
+ * Remove a title from Sonarr/Radarr, and its requests, so it can be requested again. Anime seasons sharing one Sonarr
+ * series all go with it. With `deleteFiles` its files go too (Jellyfin is asked to rescan, so it leaves there as well);
+ * without, they stay where they are and it stays watchable in Jellyfin.
  */
-export async function deleteTitle(service: ManagedService, id: number) {
+export async function deleteTitle(service: ManagedService, id: number, deleteFiles = true) {
   const s = await getSettings();
   let key: number;
   if (service === "sonarr") {
     const api = sonarr(s.sonarr);
     key = (await api.series(id)).tvdbId;
-    await api.call(`/series/${id}?deleteFiles=true&addImportListExclusion=false`, { method: "DELETE", timeoutMs: 60_000 });
+    await api.call(`/series/${id}?deleteFiles=${deleteFiles}&addImportListExclusion=false`, { method: "DELETE", timeoutMs: 60_000 });
   } else {
     const api = radarr(s.radarr);
     key = (await api.movie(id)).tmdbId;
-    await api.call(`/movie/${id}?deleteFiles=true&addImportExclusion=false`, { method: "DELETE", timeoutMs: 60_000 });
+    await api.call(`/movie/${id}?deleteFiles=${deleteFiles}&addImportExclusion=false`, { method: "DELETE", timeoutMs: 60_000 });
   }
   // Left alone, the next sync would mark these failed ("Removed from Sonarr") instead.
   await db.delete(schema.requests).where(and(eq(schema.requests.target, service), eq(schema.requests.targetId, key)));
+  const unlink = service === "sonarr" ? { sonarrId: null } : { radarrId: null };
+  // Files kept: still in the library as far as Jellyfin goes; the next sync settles its status from there.
   await db
     .update(schema.media)
-    .set({ status: "unknown", seasonStatus: null, jellyfinItemId: null, ...(service === "sonarr" ? { sonarrId: null } : { radarrId: null }) })
+    .set(deleteFiles ? { ...unlink, status: "unknown", seasonStatus: null, jellyfinItemId: null } : unlink)
     .where(eq(service === "sonarr" ? schema.media.sonarrId : schema.media.radarrId, id));
   forgetSubs();
-  if (s.jellyfin.url && s.jellyfin.apiKey) {
+  if (deleteFiles && s.jellyfin.url && s.jellyfin.apiKey) {
     await jellyfin(s.jellyfin)
       .refreshLibrary()
       .catch((e) => console.warn("[manage] Jellyfin rescan failed:", e instanceof Error ? e.message : e));

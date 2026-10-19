@@ -21,16 +21,18 @@ export function POST(req: Request, { params }: Ctx) {
 
 /**
  * Users may withdraw their own pending requests; admins may remove any. Once a request has been sent on, removing it
- * deletes the title from Sonarr/Radarr, files and all (and every request for it), as Settings → Manage library does.
+ * removes the title from Sonarr/Radarr (and every request for it), and with ?files=1 its files as well.
  */
-export function DELETE(_req: Request, { params }: Ctx) {
+export function DELETE(req: Request, { params }: Ctx) {
   return handle(async () => {
     const user = await apiUser();
     const id = Number((await params).id);
     const [r] = await db.select().from(schema.requests).where(eq(schema.requests.id, id));
     if (!r) throw new ApiError(404, "Request not found");
     if (user.role !== "admin" && (r.userId !== user.id || r.status !== "pending")) throw new ApiError(403, "Not allowed");
-    if (sentOn(r) && (await deleteRequested(r.target, r.targetId))) return { ok: true };
+    // ?files=1: its files go too, and with them its place in Jellyfin. Otherwise they stay and it stays watchable.
+    const deleteFiles = new URL(req.url).searchParams.get("files") === "1";
+    if (sentOn(r) && (await deleteRequested(r.target, r.targetId, deleteFiles))) return { ok: true };
     await db.delete(schema.requests).where(eq(schema.requests.id, id));
     await releaseMedia(r.mediaId);
     return { ok: true };

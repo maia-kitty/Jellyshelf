@@ -44,6 +44,10 @@ body {
 @utility btn-ghost {
   @apply btn border border-line bg-panel-2 text-fg hover:border-muted;
 }
+/* A request button once it's done its job ("Requested", "Available"): quiet, but not greyed out like a disabled one. */
+@utility btn-done {
+  @apply btn bg-panel-2 text-fg/90 inset-ring inset-ring-line disabled:cursor-default disabled:opacity-100;
+}
 @utility btn-danger {
   @apply btn border border-bad/40 bg-bad/10 text-bad hover:bg-bad/20;
 }
@@ -91,17 +95,37 @@ body {
   0%, 100% { transform: none; }
   45%, 60% { transform: translateY(-3px) scale(1.08); }
 }
+/* Request sent: the jar squashes down, the lid shoots up spinning, then everything lands with a jelly wobble. */
 @keyframes jar-lid-pop {
   0% { transform: none; }
-  30% { transform: translateY(-16px) rotate(-28deg); }
-  55% { transform: translateY(-13px) rotate(-22deg); }
+  12% { transform: translateY(3px); }
+  38% { transform: translateY(-26px) rotate(-200deg); }
+  62% { transform: translateY(2px) rotate(-360deg); }
+  76% { transform: translateY(-4px) rotate(-360deg); }
+  100% { transform: rotate(-360deg); }
+}
+@keyframes jar-squash {
+  0% { transform: none; }
+  12% { transform: scale(1.14, 0.84); }
+  30% { transform: scale(0.9, 1.12); }
+  48% { transform: scale(1.06, 0.95); }
+  66% { transform: scale(0.98, 1.02); }
   100% { transform: none; }
 }
 @keyframes jar-spark {
-  0% { opacity: 0; transform: translate(0, 0) scale(0.3); }
-  25% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+  0% { opacity: 0; transform: translate(0, 0) scale(0.2); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.9); }
 }
+/* The button it happens on gives the same wobble, a beat later. */
+@keyframes btn-jelly {
+  0%, 15% { transform: none; }
+  35% { transform: scale(1.06, 0.92); }
+  55% { transform: scale(0.97, 1.04); }
+  75% { transform: scale(1.01, 0.99); }
+  100% { transform: none; }
+}
+.btn-jelly { animation: btn-jelly 0.7s ease-out; }
 
 .jar-hover:hover .jar-lid,
 .jar-trigger:hover .jar-hover .jar-lid {
@@ -119,12 +143,18 @@ body {
 .jar-loading .jar-play {
   animation: jar-play-peek 1.3s ease-in-out infinite;
 }
+.jar-pop {
+  transform-origin: 50% 90%;
+  animation: jar-squash 0.9s ease-out;
+}
 .jar-pop .jar-lid {
-  animation: jar-lid-pop 0.9s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: jar-lid-pop 1s cubic-bezier(0.3, 1.2, 0.5, 1) both;
 }
 .jar-pop .jar-sparks circle {
   opacity: 0;
-  animation: jar-spark 0.8s ease-out 0.12s both;
+  animation: jar-spark 0.75s cubic-bezier(0.2, 0.8, 0.4, 1) calc(0.12s + var(--d, 0s)) both;
 }
 
 /* ---------- Spilled-jar loader (JarLoader) ---------- */
@@ -224,6 +254,14 @@ body {
 .edge-spill { transition: opacity 0.3s ease 0.15s; }
 .edge-spill-done { opacity: 0; }
 .edge-spill-done .edge-spill-bar { animation: none; transform: scaleX(1); transition: transform 0.2s ease; }
+
+/* A status chip turning up on a tile (e.g. "Requested" after a request). */
+@keyframes chip-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { transform: none; }
+}
+.chip-in { animation: chip-in 0.35s cubic-bezier(0.3, 1.3, 0.5, 1) backwards; }
 
 /* Cards in a row arrive one after another; the delay comes from --i. */
 @keyframes card-in {

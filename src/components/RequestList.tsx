@@ -82,10 +82,10 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
     };
   }, [active, router]);
 
-  const act = async (id: number, action: "approve" | "decline" | "retry" | "delete") => {
+  const act = async (id: number, action: "approve" | "decline" | "retry" | "delete", files = false) => {
     setBusy(id);
     setErr(null);
-    const res = await fetch(`/api/requests/${id}`, {
+    const res = await fetch(`/api/requests/${id}${files ? "?files=1" : ""}`, {
       method: action === "delete" ? "DELETE" : "POST",
       headers: { "Content-Type": "application/json" },
       body: action === "delete" ? undefined : JSON.stringify({ action }),
@@ -169,33 +169,45 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
           r={confirm}
           busy={busy === confirm.id}
           onCancel={() => setConfirm(null)}
-          onRemove={() => act(confirm.id, "delete")}
+          onRemove={(files) => act(confirm.id, "delete", files)}
         />
       )}
     </>
   );
 }
 
-function RemoveConfirm({ r, busy, onCancel, onRemove }: { r: RequestRow; busy: boolean; onCancel: () => void; onRemove: () => void }) {
+function RemoveConfirm({ r, busy, onCancel, onRemove }: { r: RequestRow; busy: boolean; onCancel: () => void; onRemove: (files: boolean) => void }) {
+  // Keeping the files is the default: it's the one that can be undone (add it back to Sonarr/Radarr).
+  const [files, setFiles] = useState(false);
   const service = r.target === "sonarr" ? "Sonarr" : "Radarr";
+  const what = r.target === "sonarr" ? "the whole series" : "the film";
+  const choice = (value: boolean, title: string, desc: string) => (
+    <label className={clsx("flex cursor-pointer gap-3 rounded-lg border p-3", files === value ? "border-accent bg-accent/10" : "border-line hover:border-muted")}>
+      <input type="radio" name="remove-files" className="mt-0.5 accent-accent" checked={files === value} onChange={() => setFiles(value)} />
+      <span>
+        <span className="block font-medium">{title}</span>
+        <span className="block text-xs text-muted">{desc}</span>
+      </span>
+    </label>
+  );
   return (
     <Modal title={`Remove ${r.media.title}?`} onClose={() => !busy && onCancel()} className="max-w-md">
       <div className="space-y-3 p-5 text-sm">
-        <p>This can&apos;t be undone. It:</p>
+        <div className="space-y-2">
+          {choice(false, `From ${service} only`, `Removes ${what} from ${service}. The files stay, so it's still in Jellyfin to watch.`)}
+          {choice(true, "From Jellyfin too", `Removes ${what} from ${service} and deletes its files, so it's gone from Jellyfin. Can't be undone.`)}
+        </div>
         <ul className="list-disc space-y-1 pl-5 text-muted">
-          <li>
-            removes {r.target === "sonarr" ? "the whole series" : "the film"} from {service} and deletes its files, so it leaves Jellyfin too
-          </li>
-          <li>removes this request, so it can be requested again</li>
-          {r.sharedWith.length > 0 && <li>also removes {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}</li>}
+          <li>This request goes too, so it can be requested again.</li>
+          {r.sharedWith.length > 0 && <li>So do {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}.</li>}
         </ul>
         <p className="text-xs text-muted">If it isn&apos;t in {service} any more, only the request is removed.</p>
         <div className="flex justify-end gap-2 pt-2">
           <button className="btn-ghost px-3 py-1" disabled={busy} onClick={onCancel}>
             Cancel
           </button>
-          <button className="btn-danger px-3 py-1" disabled={busy} onClick={onRemove}>
-            {busy ? "Removing…" : "Remove"}
+          <button className="btn-danger px-3 py-1" disabled={busy} onClick={() => onRemove(files)}>
+            {busy ? "Removing…" : files ? "Remove and delete files" : "Remove"}
           </button>
         </div>
       </div>

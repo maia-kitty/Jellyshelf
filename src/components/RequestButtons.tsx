@@ -14,54 +14,79 @@ async function postRequest(body: unknown) {
   return json as { created: { status: string }[]; skipped: { id: number; reason: string }[] };
 }
 
-function useSubmit() {
+/** How long the button keeps showing the pop once a request has gone through (the jar's animation, plus a beat). */
+const POP_MS = 1400;
+
+/**
+ * Sending a request. Success is the button's own animation (and the status line the page refresh brings); only
+ * problems get words. `name` turns an id the server skipped into something readable.
+ */
+function useSubmit(name?: (id: number) => string | undefined) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [sent, setSent] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const run = async (body: unknown) => {
     setBusy(true);
-    setMsg(null);
+    setProblem(null);
     try {
       const r = await postRequest(body);
-      const approved = r.created.filter((c) => c.status === "approved").length;
       const failed = r.created.filter((c) => c.status === "failed").length;
-      const parts = [
-        approved ? `${approved} sent to downloader` : "",
-        r.created.length - approved - failed ? `${r.created.length - approved - failed} awaiting approval` : "",
-        failed ? `${failed} failed (see Requests)` : "",
-        ...r.skipped.map((s) => `skipped #${s.id}: ${s.reason}`),
-      ].filter(Boolean);
-      setMsg({ ok: failed === 0, text: parts.join(" · ") || "Requested" });
+      setProblem(
+        [
+          failed ? `${failed === r.created.length ? "It couldn't" : `${failed} couldn't`} be sent to the downloader. The Requests page says why.` : "",
+          ...r.skipped.map((s) => `${name?.(s.id) ?? "One"} was skipped: ${s.reason}.`),
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
+      );
+      if (r.created.length > failed) {
+        setSent(true);
+        setTimeout(() => setSent(false), POP_MS);
+      }
       router.refresh();
+      return true;
     } catch (e) {
-      setMsg({ ok: false, text: (e as Error).message });
+      setProblem((e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
   };
-  return { busy, msg, run };
+  return { busy, sent, problem, run };
 }
 
-function Message({ msg }: { msg: { ok: boolean; text: string } | null }) {
-  if (!msg) return null;
+function Problem({ text }: { text: string | null }) {
+  return text ? <p className="mt-2 text-sm text-bad">{text}</p> : null;
+}
+
+/**
+ * A request button that becomes its own confirmation: while sending, a jar bobs its lid inside it; once sent, the jar
+ * pops (lid flies, sparks burst), the button wobbles, and it settles as "Requested". The jar stays the same element
+ * through all of that, so the page refresh that lands mid-pop doesn't restart it.
+ */
+function SendButton({ label, done, busy, sent, disabled, onClick }: { label: string; done?: string; busy: boolean; sent: boolean; disabled?: boolean; onClick: () => void }) {
+  const quiet = busy || sent || !!done;
   return (
-    <p className={clsx("mt-2 flex items-center gap-2 text-sm", msg.ok ? "text-ok" : "text-bad")}>
-      {/* keyed so every new success replays the pop */}
-      {msg.ok && <AppIcon key={msg.text} size={22} animate="pop" className="shrink-0 text-fg" />}
-      {msg.text}
-    </p>
+    <button className={clsx(quiet ? "btn-done" : "btn-primary", sent && "btn-jelly")} disabled={disabled || quiet} onClick={onClick}>
+      {quiet && <AppIcon size={24} animate={sent ? "pop" : busy ? "loading" : undefined} className="-my-1.5 shrink-0 text-fg" />}
+      {sent ? "Requested" : busy ? "Requesting…" : (done ?? label)}
+    </button>
   );
 }
 
 export function MovieRequest({ tmdbId, status, requested }: { tmdbId: number; status: MediaStatus; requested: boolean }) {
-  const { busy, msg, run } = useSubmit();
-  const done = status === "available" || requested;
+  const { busy, sent, problem, run } = useSubmit();
   return (
     <div>
-      <button className="btn-primary" disabled={busy || done} onClick={() => run({ kind: "movie", tmdbId })}>
-        {status === "available" ? "Available" : requested ? "Requested" : busy ? "Requesting…" : "Request movie"}
-      </button>
-      <Message msg={msg} />
+      <SendButton
+        label="Request movie"
+        done={status === "available" ? "Available" : requested ? "Requested" : undefined}
+        busy={busy}
+        sent={sent}
+        onClick={() => run({ kind: "movie", tmdbId })}
+      />
+      <Problem text={problem} />
     </div>
   );
 }
@@ -83,15 +108,18 @@ export interface AnimeEntryOption {
 
 /** The current entry's own request button, for the top of its page. */
 export function RequestThis({ entry }: { entry: AnimeEntryOption }) {
-  const { busy, msg, run } = useSubmit();
+  const { busy, sent, problem, run } = useSubmit();
   if (!entry.mapped) return <p className="text-sm text-bad">Can&apos;t request this yet: no TVDB/TMDB mapping.</p>;
-  const done = entry.requested || entry.status === "available";
   return (
     <div>
-      <button className="btn-primary" disabled={busy || done} onClick={() => run({ kind: "anime", anilistIds: [entry.id] })}>
-        {entry.status === "available" ? "Available" : entry.requested ? "Requested" : busy ? "Requesting…" : "Request"}
-      </button>
-      <Message msg={msg} />
+      <SendButton
+        label="Request"
+        done={entry.status === "available" ? "Available" : entry.requested ? "Requested" : undefined}
+        busy={busy}
+        sent={sent}
+        onClick={() => run({ kind: "anime", anilistIds: [entry.id] })}
+      />
+      <Problem text={problem} />
     </div>
   );
 }
@@ -150,7 +178,7 @@ function PickGrid({
   footer?: React.ReactNode;
   onRequest: (ids: number[]) => unknown;
 }) {
-  const { busy, msg, run } = useSubmit();
+  const { busy, sent, problem, run } = useSubmit((id) => items.find((i) => i.id === id)?.title);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const toggle = (id: number) => setPicked((p) => (p.has(id) ? new Set([...p].filter((x) => x !== id)) : new Set([...p, id])));
   const allOpen = items.filter((i) => i.selectable).map((i) => i.id);
@@ -165,13 +193,19 @@ function PickGrid({
             {picked.size === allOpen.length ? "Clear" : "Select all missing"}
           </button>
         )}
-        {(allOpen.length > 0 || picked.size > 0) && (
-          <button className="btn-primary ml-auto" disabled={busy || picked.size === 0} onClick={() => run(onRequest([...picked]))}>
-            {busy ? "Requesting…" : picked.size ? `Request ${picked.size}` : "Pick to request"}
-          </button>
+        {(allOpen.length > 0 || picked.size > 0 || sent) && (
+          <div className="ml-auto">
+            <SendButton
+              label={picked.size ? `Request ${picked.size}` : "Pick to request"}
+              busy={busy}
+              sent={sent}
+              disabled={picked.size === 0}
+              onClick={async () => (await run(onRequest([...picked]))) && setPicked(new Set())}
+            />
+          </div>
         )}
       </div>
-      <Message msg={msg} />
+      <Problem text={problem} />
       <ul className="mt-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {items.map((it) => {
           const on = picked.has(it.id);
@@ -200,16 +234,15 @@ function PickGrid({
                   <div className="line-clamp-2 text-sm leading-snug">{it.title}</div>
                 )}
                 <div className="mt-0.5 text-xs text-muted">{it.sub}</div>
-                {(it.current || it.chips.length > 0) && (
-                  <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
-                    {it.current && <span className={clsx("rounded px-1.5 py-0.5", TONE.plain)}>This page</span>}
-                    {it.chips.map((c) => (
-                      <span key={c.label} className={clsx("rounded px-1.5 py-0.5", TONE[c.tone])}>
-                        {c.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* Always there, so a chip turning up after a request doesn't make the tile (and the grid) taller. */}
+                <div className="mt-1.5 flex min-h-5 flex-wrap gap-1.5 text-[11px]">
+                  {it.current && <span className={clsx("rounded px-1.5 py-0.5", TONE.plain)}>This page</span>}
+                  {it.chips.map((c) => (
+                    <span key={c.label} className={clsx("chip-in rounded px-1.5 py-0.5", TONE[c.tone])}>
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
                 {it.note && <div className={clsx("mt-1 truncate text-[11px]", it.note.bad ? "text-bad" : "text-muted/70")}>{it.note.text}</div>}
               </div>
               {it.selectable && (
@@ -312,16 +345,20 @@ export function TvRequest({ tmdbId, seasons }: { tmdbId: number; seasons: Season
 
 /** The hero's button on a series: request every regular season that isn't in yet. */
 export function TvRequestAll({ tmdbId, seasons }: { tmdbId: number; seasons: SeasonOption[] }) {
-  const { busy, msg, run } = useSubmit();
+  const { busy, sent, problem, run } = useSubmit();
   const open = seasons.filter((s) => s.number > 0 && seasonOpen(s));
-  if (!open.length) return null;
+  // Stays up while it pops, though the refresh has left nothing to request.
+  if (!open.length && !sent) return null;
   const some = seasons.some((s) => s.number > 0 && !seasonOpen(s));
   return (
     <div>
-      <button className="btn-primary" disabled={busy} onClick={() => run({ kind: "tv", tmdbId, seasons: open.map((s) => s.number) })}>
-        {busy ? "Requesting…" : some ? `Request ${open.length} missing season${open.length === 1 ? "" : "s"}` : "Request series"}
-      </button>
-      <Message msg={msg} />
+      <SendButton
+        label={some ? `Request ${open.length} missing season${open.length === 1 ? "" : "s"}` : "Request series"}
+        busy={busy}
+        sent={sent}
+        onClick={() => run({ kind: "tv", tmdbId, seasons: open.map((s) => s.number) })}
+      />
+      <Problem text={problem} />
     </div>
   );
 }
