@@ -67,6 +67,16 @@ export async function managedTitles(): Promise<{ titles: ManagedTitle[]; errors:
   return { titles: titles.sort((a, b) => b.size - a.size), errors };
 }
 
+/** Delete what a request went to (see deleteTitle); false when it isn't in Sonarr/Radarr (any more), or they aren't set up. */
+export async function deleteRequested(target: ManagedService, targetId: number) {
+  const s = await getSettings();
+  if (!s[target].url || !s[target].apiKey) return false;
+  const found = target === "sonarr" ? await sonarr(s.sonarr).seriesByTvdb(targetId) : await radarr(s.radarr).movieByTmdb(targetId);
+  if (!found) return false;
+  await deleteTitle(target, found.id!);
+  return true;
+}
+
 /**
  * Remove a title for good: from Sonarr/Radarr with its files (Jellyfin is asked to rescan, so it goes from there too),
  * and its requests, so it can be requested again. Anime seasons sharing one Sonarr series all go with it.

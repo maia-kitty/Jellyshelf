@@ -8,3 +8,6 @@ export function requestScope(r: Pick<Request, "target" | "seasons" | "episodeRan
   const s = r.seasons?.map((n) => (n === 0 ? "Specials" : `S${n}`)).join(", ");
   return [s, eps].filter(Boolean).join(" · ") || "Whole series";
 }
+
+/** Removing one of these also deletes the title from Sonarr/Radarr (pending and declined ones never got there). */
+export const sentOn = (r: { status: string }) => r.status !== "pending" && r.status !== "declined";

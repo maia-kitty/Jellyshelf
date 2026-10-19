@@ -8,7 +8,8 @@ import type { DownloadProgress } from "@/lib/downloads";
 import { StatusBadge } from "./StatusBadge";
 import { SubsChip } from "./Subtitles";
 import { DownloadBar } from "./DownloadBar";
-import { requestScope } from "@/lib/requestScope";
+import { Modal } from "./Modal";
+import { requestScope, sentOn } from "@/lib/requestScope";
 import type { SubsSummary } from "@/lib/subtitles";
 import { sized } from "@/lib/img";
 import { unreachable } from "@/lib/unreachable";
@@ -19,6 +20,8 @@ export interface RequestRow {
   error: string | null;
   createdAt: string;
   target: "sonarr" | "radarr";
+  /** Other sent-on requests for the same Sonarr series / Radarr movie ("Title (who)"): removing this one takes them too. */
+  sharedWith: string[];
   seasons: number[] | null;
   episodeRanges: { from: number; to: number | null }[] | null;
   absolute: boolean;
@@ -63,6 +66,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
   const router = useRouter();
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<RequestRow | null>(null);
 
   // Keep download bars moving while anything is in a queue.
   const active = rows.some((r) => r.download && r.download.state !== "stuck");
@@ -88,6 +92,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
     }).catch(unreachable);
     if (!res.ok) setErr((await res.json().catch(() => ({}))).error ?? "Failed");
     setBusy(null);
+    setConfirm(null);
     router.refresh();
   };
 
@@ -150,8 +155,8 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
                   </button>
                 )}
                 {(isAdmin || (r.user.id === userId && r.status === "pending")) && (
-                  <button className="btn-danger px-3 py-1" disabled={busy === r.id} onClick={() => act(r.id, "delete")}>
-                    {isAdmin ? "Delete" : "Cancel"}
+                  <button className="btn-danger px-3 py-1" disabled={busy === r.id} onClick={() => (isAdmin && sentOn(r) ? setConfirm(r) : act(r.id, "delete"))}>
+                    {isAdmin ? "Remove" : "Cancel"}
                   </button>
                 )}
               </div>
@@ -159,6 +164,41 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
           </li>
         ))}
       </ul>
+      {confirm && (
+        <RemoveConfirm
+          r={confirm}
+          busy={busy === confirm.id}
+          onCancel={() => setConfirm(null)}
+          onRemove={() => act(confirm.id, "delete")}
+        />
+      )}
     </>
+  );
+}
+
+function RemoveConfirm({ r, busy, onCancel, onRemove }: { r: RequestRow; busy: boolean; onCancel: () => void; onRemove: () => void }) {
+  const service = r.target === "sonarr" ? "Sonarr" : "Radarr";
+  return (
+    <Modal title={`Remove ${r.media.title}?`} onClose={() => !busy && onCancel()} className="max-w-md">
+      <div className="space-y-3 p-5 text-sm">
+        <p>This can&apos;t be undone. It:</p>
+        <ul className="list-disc space-y-1 pl-5 text-muted">
+          <li>
+            removes {r.target === "sonarr" ? "the whole series" : "the film"} from {service} and deletes its files, so it leaves Jellyfin too
+          </li>
+          <li>removes this request, so it can be requested again</li>
+          {r.sharedWith.length > 0 && <li>also removes {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}</li>}
+        </ul>
+        <p className="text-xs text-muted">If it isn&apos;t in {service} any more, only the request is removed.</p>
+        <div className="flex justify-end gap-2 pt-2">
+          <button className="btn-ghost px-3 py-1" disabled={busy} onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="btn-danger px-3 py-1" disabled={busy} onClick={onRemove}>
+            {busy ? "Removing…" : "Remove"}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

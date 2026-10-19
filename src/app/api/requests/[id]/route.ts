@@ -4,6 +4,8 @@ import { db, schema } from "@/db";
 import { ApiError, handle } from "@/lib/api";
 import { apiUser } from "@/lib/auth";
 import { decideRequest, releaseMedia } from "@/lib/requests/decide";
+import { deleteRequested } from "@/lib/manage";
+import { sentOn } from "@/lib/requestScope";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -17,7 +19,10 @@ export function POST(req: Request, { params }: Ctx) {
   });
 }
 
-/** Users may withdraw their own pending requests; admins may delete any. */
+/**
+ * Users may withdraw their own pending requests; admins may remove any. Once a request has been sent on, removing it
+ * deletes the title from Sonarr/Radarr, files and all (and every request for it), as Settings → Manage library does.
+ */
 export function DELETE(_req: Request, { params }: Ctx) {
   return handle(async () => {
     const user = await apiUser();
@@ -25,6 +30,7 @@ export function DELETE(_req: Request, { params }: Ctx) {
     const [r] = await db.select().from(schema.requests).where(eq(schema.requests.id, id));
     if (!r) throw new ApiError(404, "Request not found");
     if (user.role !== "admin" && (r.userId !== user.id || r.status !== "pending")) throw new ApiError(403, "Not allowed");
+    if (sentOn(r) && (await deleteRequested(r.target, r.targetId))) return { ok: true };
     await db.delete(schema.requests).where(eq(schema.requests.id, id));
     await releaseMedia(r.mediaId);
     return { ok: true };

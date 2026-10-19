@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { RequestList } from "@/components/RequestList";
+import { sentOn } from "@/lib/requestScope";
 import { downloadQueues, progressFor } from "@/lib/downloads";
 import { Tabs } from "@/components/Tabs";
 import { pageUser, param, type SearchParams } from "@/lib/page";
@@ -51,6 +52,10 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
           error: r.request.error,
           createdAt: r.request.createdAt.toISOString(),
           target: r.request.target,
+          // From every request, not just this tab's: they all go with it.
+          sharedWith: rows
+            .filter((o) => o.request.id !== r.request.id && o.request.target === r.request.target && o.request.targetId === r.request.targetId && sentOn(o.request))
+            .map((o) => `${o.media.title} (${o.user.displayName})`),
           seasons: r.request.seasons,
           episodeRanges: r.request.episodeRanges,
           absolute: r.request.absolute,
