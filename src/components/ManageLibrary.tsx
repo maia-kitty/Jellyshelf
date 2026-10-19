@@ -8,7 +8,7 @@ import { Modal } from "./Modal";
 
 const gb = (bytes: number) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`);
 
-/** Settings → Library: everything in Sonarr/Radarr, biggest first, each deletable (files and all) after a confirm. */
+/** Settings → Manage library: everything in Sonarr/Radarr, biggest first, each deletable (files and all) after a confirm. */
 export function ManageLibrary({ titles, errors }: { titles: ManagedTitle[]; errors: string[] }) {
   const router = useRouter();
   const [q, setQ] = useState("");

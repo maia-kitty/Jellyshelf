@@ -8,7 +8,7 @@ import { getSettings } from "@/lib/settings";
 
 export type ManagedService = "sonarr" | "radarr";
 
-/** A series or movie as Settings → Library lists it, for deleting. */
+/** A series or movie as Settings → Manage library lists it, for deleting. */
 export interface ManagedTitle {
   service: ManagedService;
   /** Sonarr series id / Radarr movie id. */

@@ -7,7 +7,7 @@ type Ctx = { params: Promise<{ service: string; id: string }> };
 
 const target = z.object({ service: z.enum(["sonarr", "radarr"]), id: z.coerce.number().int().positive() });
 
-/** Settings → Library: delete a series or film, files and all. Admins only. */
+/** Settings → Manage library: delete a series or film, files and all. Admins only. */
 export function DELETE(_req: Request, { params }: Ctx) {
   return handle(async () => {
     await apiUser({ admin: true });
