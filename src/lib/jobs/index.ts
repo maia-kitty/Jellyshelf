@@ -1,6 +1,7 @@
 import { Cron } from "croner";
 import { refreshMappings, mappingCount } from "@/lib/mapping";
 import { runAvailabilitySync } from "./availability";
+import { backupDatabase } from "./backup";
 
 const g = globalThis as unknown as { __jellyshelfJobs?: Cron[] };
 
@@ -17,6 +18,7 @@ async function safe(name: string, fn: () => Promise<unknown>) {
 export const jobs = {
   mappings: () => safe("mappings", async () => `${await refreshMappings()} rows`),
   availability: () => safe("availability", runAvailabilitySync),
+  backup: () => safe("backup", backupDatabase),
 };
 
 export function startJobs() {
@@ -24,6 +26,7 @@ export function startJobs() {
   g.__jellyshelfJobs = [
     new Cron("17 4 * * *", jobs.mappings), // daily
     new Cron("*/10 * * * *", jobs.availability, { protect: true }),
+    new Cron("43 3 * * *", jobs.backup), // nightly
   ];
   // First boot: load mappings right away so anime requests work.
   void (async () => {

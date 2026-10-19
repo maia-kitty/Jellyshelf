@@ -444,6 +444,12 @@ export function JobButtons({ mappingCount }: { mappingCount: number }) {
         </button>
         <span className="text-muted">{out.mappings ?? `${mappingCount.toLocaleString()} AniList entries mapped. Refreshed daily.`}</span>
       </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button className="btn-ghost" onClick={() => run("backup")}>
+          Back up database now
+        </button>
+        <span className="break-all text-muted">{out.backup ?? "Backed up nightly to config/backups, keeping the last 7 days."}</span>
+      </div>
     </div>
   );
 }

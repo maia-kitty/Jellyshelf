@@ -46,7 +46,8 @@ The setup wizard asks for:
 2. Jellyfin, then the first sign-in with a Jellyfin account. That account becomes the admin.
 3. Jellyfin, Sonarr, Radarr and (optionally) Bazarr connection details.
 
-All state lives in `/config` (`CONFIG_DIR`): the SQLite database plus the generated session/encryption secret.
+All state lives in `/config` (`CONFIG_DIR`): the SQLite database plus the generated session/encryption secret. The database is
+copied to `/config/backups` every night (the last 7 are kept); to restore one, stop the container and copy it over `jellyshelf.db`.
 The app runs as user 1000:1000 (set `PUID`/`PGID` to match whoever owns your config folder); on start it hands
 `/config` to that user, so installs from when it ran as root carry on as they are.
 
@@ -55,4 +56,4 @@ The app runs as user 1000:1000 (set `PUID`/`PGID` to match whoever owns your con
 - `npm test`: unit tests (mapping resolver against real mapping data, playback, subtitles, image sizing, …)
 - `npm run typecheck`
 - `npm run db:generate`: create a migration after editing `src/db/schema.ts`. Migrations run automatically on boot.
-- `JELLYSHELF_DISABLE_JOBS=1` disables the background jobs (mapping refresh daily, availability sync every 10 min).
+- `JELLYSHELF_DISABLE_JOBS=1` disables the background jobs (mapping refresh daily, availability sync every 10 min, database backup nightly).
