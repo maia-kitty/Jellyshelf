@@ -371,7 +371,7 @@ export function QbittorrentSettings({ initial }: { initial: Settings["qbittorren
         </Field>
         <div />
         <Field label="Username">
-          <input className="input" value={v.username} onChange={(e) => set("username", e.target.value)} autoComplete="off" />
+          <input className="input" value={v.username} onChange={(e) => set("username", e.target.value)} placeholder="admin" autoComplete="off" />
         </Field>
         <Field label="Password">
           <input className="input" type="password" value={v.password} onChange={(e) => set("password", e.target.value)} autoComplete="new-password" />

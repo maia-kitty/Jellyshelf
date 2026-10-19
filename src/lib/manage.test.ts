@@ -33,7 +33,9 @@ it("deletes the series with its files, its requests, its torrents, and Jellyshel
     vi.fn(async (url: string, init?: RequestInit) => {
       calls.push(`${init?.method ?? "GET"} ${url}${url.includes("torrents") ? ` ${init?.body}` : ""}`);
       if (url.includes("/history/series")) return Response.json([{ downloadId: HASH.toUpperCase() }, { downloadId: "SABnzbd_nzo_1" }, { downloadId: HASH.toUpperCase() }]);
-      if (url.endsWith("/auth/login")) return new Response("Ok.", { headers: { "Set-Cookie": "SID=s1; HttpOnly" } });
+      // As qBittorrent 5 answers: no body, and the session cookie named after the port.
+      if (url.endsWith("/auth/login")) return new Response(null, { status: 204, headers: { "Set-Cookie": "QBT_SID_8080=s1; HttpOnly; path=/" } });
+      if (url.includes("/torrents/") && new Headers(init?.headers).get("Cookie") !== "QBT_SID_8080=s1") return new Response("Forbidden", { status: 403 });
       return new Response(url.endsWith("/series/7") ? JSON.stringify({ id: 7, tvdbId: 500 }) : "", { status: 200 });
     }),
   );

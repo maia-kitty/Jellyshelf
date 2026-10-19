@@ -16,20 +16,25 @@ export function qbittorrent(cfg: QbitConfig) {
       body: new URLSearchParams({ username: cfg.username, password: cfg.password }),
       signal: AbortSignal.timeout(10_000),
     });
-    // A wrong password is still HTTP 200, with "Fails." for a body.
-    if (!res.ok || (await res.text()).trim() !== "Ok.") throw new Error("qBittorrent didn't accept the username and password");
-    cookie = res.headers.getSetCookie().find((c) => c.startsWith("SID="))?.split(";")[0] ?? null;
+    const text = (await res.text()).trim();
+    // After a few wrong passwords it bans the address for a while (the Web UI's "Ban client after consecutive failures").
+    if (res.status === 403) throw new Error(`qBittorrent has blocked this address for now: ${text || "too many failed sign-ins"}`);
+    // A wrong password is "Fails." (HTTP 200 on older versions, 401 on newer); success is "Ok." or, on some versions, nothing.
+    if (!res.ok || (text && text !== "Ok.")) throw new Error(`qBittorrent didn't accept the username and password${cfg.username ? "" : " (the username is empty)"}`);
+    // "SID=…" on older versions, "QBT_SID_<port>=…" on newer.
+    cookie = res.headers.getSetCookie().find((c) => /^(QBT_)?SID(_\d+)?=/.test(c))?.split(";")[0] ?? null;
     // No cookie: auth is switched off for this address (qBittorrent's "bypass for clients on localhost/subnet").
   };
   const call = async (path: string, form?: Record<string, string>) => {
     if (cookie === null) await login();
-    const res = await fetch(joinUrl(cfg.url, `/api/v2${path}`), {
+    const url = joinUrl(cfg.url, `/api/v2${path}`);
+    const res = await fetch(url, {
       method: form ? "POST" : "GET",
       headers: cookie ? { Cookie: cookie } : {},
       body: form && new URLSearchParams(form),
       signal: AbortSignal.timeout(15_000),
     });
-    if (!res.ok) throw new HttpError(res.status, path, await res.text().catch(() => ""));
+    if (!res.ok) throw new HttpError(res.status, url, await res.text().catch(() => ""));
     return res.text();
   };
   return {
