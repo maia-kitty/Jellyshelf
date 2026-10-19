@@ -7,7 +7,8 @@ import { sonarr, type SonarrClient, type SonarrEpisode, type SonarrSeries, type 
 import { jellyfin } from "@/lib/clients/jellyfin";
 import { episodesInRequest, syncEpisodeMonitoring } from "@/lib/requests/push";
 import type { EpisodeRange } from "@/lib/mapping/resolve";
-import { notifyCompleted } from "@/lib/notify";
+import { notifyAdmins, notifyCompleted } from "@/lib/notify";
+import { downloadQueues, inScope, progressFor } from "@/lib/downloads";
 
 const RANK: Record<MediaStatus, number> = { unknown: 0, pending: 1, processing: 2, partially_available: 3, available: 4 };
 
@@ -34,6 +35,19 @@ export function rangesFromSiblings(siblings: Pick<IdMapping, "anilistId" | "epis
     out.set(s.anilistId, { from: s.episodeOffset + 1, to: next ? next.episodeOffset : null });
   });
   return out;
+}
+
+/** An approved request gets a day before it counts as stuck, and so does each episode after it airs. */
+const STUCK_AFTER = 24 * 3600_000;
+
+/** Why nothing is coming for these released-but-missing files, or null when nothing's missing. */
+export function stuckReason(service: "Sonarr" | "Radarr", missing: { monitored: boolean }[], unit: "film" | "episode") {
+  if (!missing.length) return null;
+  const off = missing.filter((m) => !m.monitored).length;
+  const what = (n: number) => (unit === "film" ? "this film" : n === 1 ? "1 aired episode" : `${n} aired episodes`);
+  return off
+    ? `${service} has ${what(off)} switched off (unmonitored), so it isn't downloading`
+    : `${service} hasn't found a download for ${what(missing.length)} yet`;
 }
 
 export interface SyncReport {
@@ -74,6 +88,12 @@ async function syncAvailability(): Promise<SyncReport> {
   const knownAnime = new Set(allMedia.filter((m) => m.anilistId).map((m) => m.anilistId!));
   /** If any service couldn't be read, its titles weren't observed; don't mistake that for "gone". */
   let incomplete = false;
+  /** Approved requests old enough to judge: why each is stuck, or null once it isn't (only those whose service was read). */
+  const stuck = new Map<number, string | null>();
+  const mediaById = new Map(allMedia.map((m) => [m.id, m]));
+  const judged = activeReqs.filter((r) => r.status === "approved" && Date.now() - r.updatedAt.getTime() > STUCK_AFTER);
+  const queues = judged.length ? await downloadQueues() : null;
+  const queued = (r: Request) => !!queues && !!progressFor(r, mediaById.get(r.mediaId)!, queues);
 
   // ---------- Radarr ----------
   let movies = new Map<number, RadarrMovie>();
@@ -99,6 +119,10 @@ async function syncAvailability(): Promise<SyncReport> {
   for (const r of activeReqs) {
     if (r.status === "approved" && r.target === "radarr" && movies.get(r.targetId)?.hasFile) completed.add(r.id);
   }
+  for (const r of judged) {
+    const mv = r.target === "radarr" ? movies.get(r.targetId) : undefined;
+    if (mv) stuck.set(r.id, mv.isAvailable && !mv.hasFile && !queued(r) ? stuckReason("Radarr", [mv], "film") : null);
+  }
   // Anime movies already in Radarr that nobody requested through us.
   const animeMovieIds = [...movies.values()].filter((m) => m.hasFile).map((m) => m.tmdbId);
   for (let i = 0; i < animeMovieIds.length; i += 500) {
@@ -120,7 +144,7 @@ async function syncAvailability(): Promise<SyncReport> {
       for (const r of activeReqs) {
         if (r.status === "approved" && r.target === "sonarr" && !series.has(r.targetId)) removed.set(r.id, "Removed from Sonarr");
       }
-      await syncSonarr(api, series, allMedia, activeReqs, { upgrade, patch, completed, newAnime, knownAnime });
+      await syncSonarr(api, series, allMedia, activeReqs, { upgrade, patch, completed, newAnime, knownAnime, stuck, judged: new Set(judged), queued });
     } catch (e) {
       report.sonarr = `error: ${(e as Error).message}`;
       incomplete = true;
@@ -178,6 +202,7 @@ async function syncAvailability(): Promise<SyncReport> {
   // ---------- write back (one transaction: a first sync of a big library touches hundreds of rows) ----------
   const reqsByMedia = new Map<number, Request[]>();
   for (const r of activeReqs) reqsByMedia.set(r.mediaId, [...(reqsByMedia.get(r.mediaId) ?? []), r]);
+  const newlyStuck: string[] = [];
   await db.transaction(async (tx) => {
     for (const m of allMedia) {
       const reqs = (reqsByMedia.get(m.id) ?? []).filter((r) => !completed.has(r.id) && !removed.has(r.id));
@@ -209,7 +234,15 @@ async function syncAvailability(): Promise<SyncReport> {
       await tx.update(schema.requests).set({ status: "failed", error, updatedAt: new Date() }).where(eq(schema.requests.id, id));
     }
     report.removedRequests = removed.size;
+    // Kept as the request's error (it stays approved), so the Requests page says why and offers Search again.
+    for (const r of judged) {
+      const why = stuck.get(r.id);
+      if (why === undefined || why === r.error || completed.has(r.id) || removed.has(r.id)) continue;
+      await tx.update(schema.requests).set({ error: why }).where(eq(schema.requests.id, r.id));
+      if (why && !r.error) newlyStuck.push(`${mediaById.get(r.mediaId)!.title}. ${why}`);
+    }
   });
+  if (newlyStuck.length) await notifyAdmins({ title: "Request stuck", message: newlyStuck.join("\n"), path: "/requests?filter=approved", tags: ["warning"] });
   await notifyCompleted([...completed]);
   return report;
 }
@@ -220,6 +253,9 @@ interface SonarrCtx {
   completed: Set<number>;
   newAnime: (typeof schema.media.$inferInsert)[];
   knownAnime: Set<number>;
+  stuck: Map<number, string | null>;
+  judged: Set<Request>;
+  queued: (r: Request) => boolean;
 }
 
 async function syncSonarr(api: SonarrClient, series: Map<number, SonarrSeries>, allMedia: Media[], reqs: Request[], ctx: SonarrCtx) {
@@ -245,6 +281,16 @@ async function syncSonarr(api: SonarrClient, series: Map<number, SonarrSeries>, 
       done = seasonStatus(s.statistics) === "available" && s.status === "ended";
     }
     if (done) ctx.completed.add(r.id);
+    else if (ctx.judged.has(r)) {
+      const aired = Date.now() - STUCK_AFTER;
+      const missing = ctx.queued(r)
+        ? []
+        : (await episodesOf(s)).filter(
+            // Specials only when asked for: a whole-series request leaves them unmonitored on purpose.
+            (e) => !e.hasFile && e.airDateUtc && Date.parse(e.airDateUtc) < aired && (e.seasonNumber > 0 || r.seasons?.includes(0)) && inScope(e, r),
+          );
+      ctx.stuck.set(r.id, stuckReason("Sonarr", missing, "episode"));
+    }
   }
 
   // Plain TV rows: per-season status from Sonarr statistics.

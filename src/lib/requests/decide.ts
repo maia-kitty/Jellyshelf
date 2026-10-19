@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api";
 import { mediaPath, notify } from "@/lib/notify";
 import { pushRequest } from "./push";
 
-/** Approve (and push to the *arr) or decline a request. Retrying a failed request is an approve. */
+/** Approve (and push to the *arr) or decline a request. Retrying a failed or stuck request is an approve. */
 export async function decideRequest(id: number, admin: User, action: "approve" | "decline"): Promise<Request> {
   const [req] = await db.select().from(schema.requests).where(eq(schema.requests.id, id));
   if (!req) throw new ApiError(404, "Request not found");
@@ -25,7 +25,9 @@ export async function decideRequest(id: number, admin: User, action: "approve" |
     return row;
   }
 
-  if (req.status !== "pending" && req.status !== "failed") throw new ApiError(409, `Request is already ${req.status}`);
+  // Approving a stuck one (approved, with the reason as its error) runs it again: switches it back on and searches.
+  const stuck = req.status === "approved" && !!req.error;
+  if (req.status !== "pending" && req.status !== "failed" && !stuck) throw new ApiError(409, `Request is already ${req.status}`);
   try {
     await pushRequest(req, media);
     const [row] = await db

@@ -56,6 +56,8 @@ function ago(iso: string) {
 }
 
 const scope = requestScope;
+/** Approved, but the availability sync found nothing coming for it (its reason is the error). */
+const stuck = (r: RequestRow) => r.status === "approved" && !!r.error;
 
 export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isAdmin: boolean; userId: number }) {
   const router = useRouter();
@@ -95,7 +97,10 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
       {err && <p className="mb-3 text-sm text-bad">{err}</p>}
       <ul className="bounce-y grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         {rows.map((r) => (
-          <li key={r.id} className={clsx("card relative flex gap-4 overflow-hidden p-3 pl-4", "before:absolute before:inset-y-0 before:left-0 before:w-1", STATUS_BAR[r.status])}>
+          <li
+            key={r.id}
+            className={clsx("card relative flex gap-4 overflow-hidden p-3 pl-4", "before:absolute before:inset-y-0 before:left-0 before:w-1", stuck(r) ? "before:bg-warn" : STATUS_BAR[r.status])}
+          >
             <a href={r.media.href} className="h-28 w-[4.7rem] shrink-0 overflow-hidden rounded-lg bg-panel-2">
               {r.media.poster && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -107,8 +112,8 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
                 <a href={r.media.href} className="line-clamp-2 font-medium leading-snug hover:underline">
                   {r.media.title}
                 </a>
-                <span className={clsx("shrink-0 text-xs font-semibold uppercase tracking-wide", STATUS_CLS[r.status])}>
-                  {r.status === "approved" ? "processing" : r.status}
+                <span className={clsx("shrink-0 text-xs font-semibold uppercase tracking-wide", stuck(r) ? "text-warn" : STATUS_CLS[r.status])}>
+                  {stuck(r) ? "stuck" : r.status === "approved" ? "processing" : r.status}
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
@@ -126,7 +131,7 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
                   {ago(r.createdAt)}
                 </time>
               </div>
-              {r.error && <div className="mt-1 line-clamp-2 text-xs text-bad">{r.error}</div>}
+              {r.error && <div className={clsx("mt-1 line-clamp-2 text-xs", stuck(r) ? "text-warn" : "text-bad")}>{r.error}</div>}
               {r.download && <DownloadBar d={r.download} className="mt-2" />}
               <div className="mt-auto flex flex-wrap justify-end gap-2 pt-2">
                 {isAdmin && r.status === "pending" && (
@@ -139,9 +144,9 @@ export function RequestList({ rows, isAdmin, userId }: { rows: RequestRow[]; isA
                     </button>
                   </>
                 )}
-                {isAdmin && r.status === "failed" && (
+                {isAdmin && (r.status === "failed" || stuck(r)) && (
                   <button className="btn-primary px-3 py-1" disabled={busy === r.id} onClick={() => act(r.id, "retry")}>
-                    Retry
+                    {stuck(r) ? "Search again" : "Retry"}
                   </button>
                 )}
                 {(isAdmin || (r.user.id === userId && r.status === "pending")) && (
