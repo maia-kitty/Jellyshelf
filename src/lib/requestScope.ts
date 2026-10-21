@@ -9,5 +9,9 @@ export function requestScope(r: Pick<Request, "target" | "seasons" | "episodeRan
   return [s, eps].filter(Boolean).join(" · ") || "Whole series";
 }
 
+/** A series request for all of it, rather than some seasons or an episode range ("Whole series" above). */
+export const wholeSeries = (r: Pick<Request, "seasons" | "episodeRanges" | "absolute">) =>
+  !r.episodeRanges?.length && (r.absolute || !r.seasons?.length);
+
 /** Removing one of these also deletes the title from Sonarr/Radarr (pending and declined ones never got there). */
 export const sentOn = (r: { status: string }) => r.status !== "pending" && r.status !== "declined";

@@ -1,5 +1,4 @@
 import { arrApi, type ArrConfig, type ArrFile } from "./arr";
-import { HttpError } from "./http";
 
 export interface SonarrSeasonStats {
   episodeFileCount: number;
@@ -44,6 +43,8 @@ export interface SonarrEpisode {
   absoluteEpisodeNumber?: number;
   monitored: boolean;
   hasFile: boolean;
+  /** 0 when it has no file. One file can hold several episodes. */
+  episodeFileId?: number;
   title: string;
   airDateUtc?: string;
   /** Present when requested with includeEpisodeFile=true. */
@@ -54,14 +55,10 @@ export function sonarr(cfg: ArrConfig) {
   const api = arrApi(cfg);
   return {
     ...api,
-    /** v4 removed language profiles; returns [] there. */
+    /** Sonarr v3 only; [] on v4, which dropped them and logs a deprecation warning each time its leftover endpoint is called. */
     languageProfiles: async () => {
-      try {
-        return await api.call<{ id: number; name: string }[]>("/languageprofile");
-      } catch (e) {
-        if (e instanceof HttpError && (e.status === 404 || e.status === 405)) return [];
-        throw e;
-      }
+      if (Number((await api.status()).version.split(".")[0]) >= 4) return [];
+      return api.call<{ id: number; name: string }[]>("/languageprofile");
     },
     allSeries: () => api.call<SonarrSeries[]>("/series", { timeoutMs: 60_000 }),
     seriesByTvdb: async (tvdbId: number) => (await api.call<SonarrSeries[]>(`/series?tvdbId=${tvdbId}`))[0] ?? null,
@@ -74,6 +71,8 @@ export function sonarr(cfg: ArrConfig) {
       api.call<SonarrEpisode[]>(`/episode?seriesId=${seriesId}${withFiles ? "&includeEpisodeFile=true" : ""}`),
     monitorEpisodes: (episodeIds: number[], monitored = true) =>
       api.call<unknown>("/episode/monitor", { method: "PUT", body: { episodeIds, monitored } }),
+    deleteEpisodeFiles: (episodeFileIds: number[]) =>
+      api.call<unknown>("/episodefile/bulk", { method: "DELETE", body: { episodeFileIds }, timeoutMs: 60_000 }),
     seasonSearch: (seriesId: number, seasonNumber: number) => api.command({ name: "SeasonSearch", seriesId, seasonNumber }),
     episodeSearch: (episodeIds: number[]) => api.command({ name: "EpisodeSearch", episodeIds }),
   };

@@ -9,7 +9,7 @@ import { StatusBadge } from "./StatusBadge";
 import { SubsChip } from "./Subtitles";
 import { DownloadBar } from "./DownloadBar";
 import { Modal } from "./Modal";
-import { requestScope, sentOn } from "@/lib/requestScope";
+import { requestScope, sentOn, wholeSeries } from "@/lib/requestScope";
 import type { SubsSummary } from "@/lib/subtitles";
 import { sized } from "@/lib/img";
 import { unreachable } from "@/lib/unreachable";
@@ -20,7 +20,7 @@ export interface RequestRow {
   error: string | null;
   createdAt: string;
   target: "sonarr" | "radarr";
-  /** Other sent-on requests for the same Sonarr series / Radarr movie ("Title (who)"): removing this one takes them too. */
+  /** Other sent-on requests for the same Sonarr series / Radarr movie ("Title (who)"): removing this one takes them too, unless it's for part of a series. */
   sharedWith: string[];
   seasons: number[] | null;
   episodeRanges: { from: number; to: number | null }[] | null;
@@ -184,7 +184,9 @@ function RemoveConfirm({ r, qbit, busy, onCancel, onRemove }: { r: RequestRow; q
   // Keeping the files is the default: it's the one that can be undone (add it back to Sonarr/Radarr).
   const [files, setFiles] = useState(false);
   const service = r.target === "sonarr" ? "Sonarr" : "Radarr";
-  const what = r.target === "sonarr" ? "the whole series" : "the film";
+  // Part of a series: only that part goes, and other requests for the series stay.
+  const part = r.target === "sonarr" && !wholeSeries(r);
+  const what = part ? scope(r) : r.target === "sonarr" ? "the whole series" : "the film";
   const choice = (value: boolean, title: string, desc: string) => (
     <label className={clsx("flex cursor-pointer gap-3 rounded-lg border p-3", files === value ? "border-accent bg-accent/10" : "border-line hover:border-muted")}>
       <input type="radio" name="remove-files" className="mt-0.5 accent-accent" checked={files === value} onChange={() => setFiles(value)} />
@@ -203,9 +205,10 @@ function RemoveConfirm({ r, qbit, busy, onCancel, onRemove }: { r: RequestRow; q
         </div>
         <ul className="list-disc space-y-1 pl-5 text-muted">
           <li>This request goes too, so it can be requested again.</li>
-          {/* Either way: with the title gone from Sonarr/Radarr, nothing else would clean them up. */}
-          {qbit && <li>Its torrents are removed from qBittorrent, with their downloads.{!files && " Your library's copy stays."}</li>}
-          {r.sharedWith.length > 0 && <li>So do {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}.</li>}
+          {part && <li>The rest of the series, and episodes another request still wants, stay. If this is all {service} has of it, the series goes.</li>}
+          {/* A whole title: with it gone from Sonarr/Radarr, nothing else would clean them up. A part: Sonarr still does, unless its files go. */}
+          {qbit && (!part || files) && <li>Its torrents are removed from qBittorrent, with their downloads.{!files && " Your library's copy stays."}</li>}
+          {!part && r.sharedWith.length > 0 && <li>So do {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}.</li>}
         </ul>
         <p className="text-xs text-muted">If it isn&apos;t in {service} any more, only the request is removed.</p>
         <div className="flex justify-end gap-2 pt-2">

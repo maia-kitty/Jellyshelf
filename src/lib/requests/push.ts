@@ -52,7 +52,8 @@ async function pushSeries(req: Request, media: Media) {
     const profile = (isAnime && s.animeQualityProfileId) || s.qualityProfileId;
     const root = (isAnime && s.animeRootFolder) || s.rootFolder;
     if (!profile || !root) throw new Error("Sonarr quality profile / root folder not configured");
-    const languageProfileId = s.languageProfileId ?? (await api.languageProfiles())[0]?.id;
+    const languageProfiles = await api.languageProfiles();
+    const languageProfileId = languageProfiles.length ? (s.languageProfileId ?? languageProfiles[0].id) : null;
     series = await api.addSeries({
       ...lookup,
       qualityProfileId: profile,
