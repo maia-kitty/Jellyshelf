@@ -49,6 +49,8 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
         mapped: target.service !== "unmapped",
         status: m?.status,
         requested: !!m?.requested,
+        someEpisodes: !!m?.someEpisodes,
+        episodes: e.episodes,
         current: e.id === currentId,
         list: l ? `${LIST_LABEL[l.status]}${l.status === "CURRENT" ? ` ${l.progress}/${e.episodes ?? "?"}` : ""}` : undefined,
       };

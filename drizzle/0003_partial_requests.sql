@@ -1,0 +1,1 @@
+ALTER TABLE `requests` ADD `partial` integer DEFAULT false NOT NULL;

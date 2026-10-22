@@ -37,7 +37,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
     }),
     findMedia({ kind: "tv", tmdbId: id }),
   ]);
-  const requested = new Set(media ? await requestedSeasons(media.id) : []);
+  const requested = media ? await requestedSeasons(media.id) : { whole: new Set<number>(), some: new Set<number>() };
   const active = media
     ? await db
         .select()
@@ -72,7 +72,8 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
       year: s.air_date?.slice(0, 4) ?? null,
       poster: tmdbImage(s.poster_path ?? tv.poster_path),
       status: media?.seasonStatus?.[s.season_number],
-      requested: requested.has(s.season_number),
+      requested: requested.whole.has(s.season_number),
+      someEpisodes: requested.some.has(s.season_number),
     }));
   const regular = seasons.filter((s) => s.number > 0).length;
 

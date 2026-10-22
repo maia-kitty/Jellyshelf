@@ -64,22 +64,24 @@ export async function statusMap(items: MediaKey[]): Promise<Record<string, Media
 }
 
 /** Seasons already covered by pending/approved/completed requests, for TV season pickers. */
-export async function requestedSeasons(mediaId: number): Promise<number[]> {
+/** Seasons requested whole, and seasons with only some episodes requested. */
+export async function requestedSeasons(mediaId: number): Promise<{ whole: Set<number>; some: Set<number> }> {
   const rows = await db
-    .select({ seasons: schema.requests.seasons })
+    .select({ seasons: schema.requests.seasons, partial: schema.requests.partial })
     .from(schema.requests)
     .where(and(eq(schema.requests.mediaId, mediaId), inArray(schema.requests.status, ["pending", "approved", "completed"])));
-  return [...new Set(rows.flatMap((r) => r.seasons ?? []))];
+  const of = (partial: boolean) => new Set(rows.filter((r) => r.partial === partial).flatMap((r) => r.seasons ?? []));
+  return { whole: of(false), some: of(true) };
 }
 
 /** anilistId → media row, for anime pages listing several entries. */
-export async function animeMediaMap(anilistIds: number[]): Promise<Map<number, Media & { requested: boolean }>> {
+export async function animeMediaMap(anilistIds: number[]): Promise<Map<number, Media & { requested: boolean; someEpisodes: boolean }>> {
   if (!anilistIds.length) return new Map();
   await ensureMigrated();
   const rows = await db.select().from(schema.media).where(inArray(schema.media.anilistId, anilistIds));
   const reqs = rows.length
     ? await db
-        .select({ mediaId: schema.requests.mediaId })
+        .select({ mediaId: schema.requests.mediaId, partial: schema.requests.partial })
         .from(schema.requests)
         .where(
           and(
@@ -91,6 +93,7 @@ export async function animeMediaMap(anilistIds: number[]): Promise<Map<number, M
           ),
         )
     : [];
-  const requested = new Set(reqs.map((r) => r.mediaId));
-  return new Map(rows.map((r) => [r.anilistId!, { ...r, requested: requested.has(r.id) }]));
+  const requested = new Set(reqs.filter((r) => !r.partial).map((r) => r.mediaId));
+  const some = new Set(reqs.filter((r) => r.partial).map((r) => r.mediaId));
+  return new Map(rows.map((r) => [r.anilistId!, { ...r, requested: requested.has(r.id), someEpisodes: some.has(r.id) }]));
 }

@@ -7,27 +7,37 @@ import { anilistToken } from "@/lib/auth";
 import { anilist, aniTitle } from "@/lib/clients/anilist";
 import { tmdbClient, tmdbImage } from "@/lib/clients/tmdb";
 import { resolveAnime } from "@/lib/mapping";
-import { describeTarget } from "@/lib/mapping/resolve";
+import { describeTarget, type EpisodeRange } from "@/lib/mapping/resolve";
 import { getSettings } from "@/lib/settings";
 import { upsertMedia } from "@/lib/media";
 import { notifyAdmins } from "@/lib/notify";
 import { decideRequest } from "./decide";
 
+/** Only these episodes (1-based, inclusive) of a single season / AniList entry. */
+const episodes = z
+  .object({ from: z.number().int().min(1), to: z.number().int().min(1) })
+  .refine((r) => r.to >= r.from, "The last episode comes before the first");
+
 export const createRequestInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("movie"), tmdbId: z.number().int().positive() }),
-  z.object({ kind: z.literal("tv"), tmdbId: z.number().int().positive(), seasons: z.array(z.number().int().min(0)).min(1) }),
+  z
+    .object({ kind: z.literal("tv"), tmdbId: z.number().int().positive(), seasons: z.array(z.number().int().min(0)).min(1), episodes: episodes.optional() })
+    .refine((r) => !r.episodes || r.seasons.length === 1, "Pick episodes from one season at a time"),
   /** One or more AniList entries, e.g. a single season or a whole sequel chain. */
-  z.object({ kind: z.literal("anime"), anilistIds: z.array(z.number().int().positive()).min(1).max(25) }),
+  z
+    .object({ kind: z.literal("anime"), anilistIds: z.array(z.number().int().positive()).min(1).max(25), episodes: episodes.optional() })
+    .refine((r) => !r.episodes || r.anilistIds.length === 1, "Pick episodes from one entry at a time"),
 ]);
 export type CreateRequestInput = z.infer<typeof createRequestInput>;
 
 const ACTIVE = ["pending", "approved", "completed"] as const;
 
+/** Active requests that cover the whole season/entry (a picked episode range doesn't). */
 async function activeRequests(mediaId: number) {
-  return db
+  return (await db
     .select()
     .from(schema.requests)
-    .where(and(eq(schema.requests.mediaId, mediaId), inArray(schema.requests.status, [...ACTIVE])));
+    .where(and(eq(schema.requests.mediaId, mediaId), inArray(schema.requests.status, [...ACTIVE])))).filter((r) => !r.partial);
 }
 
 function autoApproves(user: User, kind: Media["kind"]) {
@@ -81,9 +91,10 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
     const media = await upsertMedia({ kind: "tv", tmdbId: tv.id }, { title: tv.name, poster: tmdbImage(tv.poster_path), tvdbId });
     const taken = new Set((await activeRequests(media.id)).flatMap((r) => r.seasons ?? []));
     const seasons = input.seasons.filter((s) => !taken.has(s));
-    if (!seasons.length) throw new ApiError(409, "Those seasons are already requested");
+    if (!seasons.length) throw new ApiError(409, input.episodes ? "That whole season is already requested" : "Those seasons are already requested");
+    const picked = input.episodes ? { episodeRanges: [input.episodes], partial: true } : {};
     return {
-      created: [await insertRequest(user, media, { target: "sonarr", targetId: tvdbId, seasons })],
+      created: [await insertRequest(user, media, { target: "sonarr", targetId: tvdbId, seasons, ...picked })],
       skipped: [],
     };
   }
@@ -129,7 +140,8 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
             targetId: target.tvdbId,
             absolute: target.absolute,
             seasons: target.season !== null ? [target.season] : null,
-            episodeRanges: target.episodes ? [target.episodes] : null,
+            episodeRanges: input.episodes ? [shift(input.episodes, target.episodes)] : target.episodes ? [target.episodes] : null,
+            partial: !!input.episodes,
           },
     );
     result.created.push(req);
@@ -146,4 +158,10 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
     throw new ApiError(409, result.skipped.map((s) => s.reason).join("; "));
   }
   return result;
+}
+
+/** An entry's own episode numbers (1 = its first) as the numbers Sonarr knows them by: in its TVDB season, or absolute. */
+export function shift(picked: { from: number; to: number }, entry: EpisodeRange | null): EpisodeRange {
+  const before = (entry?.from ?? 1) - 1;
+  return { from: before + picked.from, to: before + picked.to };
 }

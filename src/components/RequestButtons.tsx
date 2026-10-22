@@ -102,6 +102,10 @@ export interface AnimeEntryOption {
   mapped: boolean;
   status?: MediaStatus;
   requested: boolean;
+  /** Only some of its episodes are requested. */
+  someEpisodes?: boolean;
+  /** AniList's episode count; null while unknown (still airing). */
+  episodes: number | null;
   current: boolean;
   list?: string;
 }
@@ -146,17 +150,24 @@ export interface PickItem {
   current?: boolean;
   /** Small print under the tile (e.g. the Sonarr target, for admins). */
   note?: { text: string; bad?: boolean };
+  /** Episodes you can pick a range from (null = count unknown); absent when it has no episodes to pick. */
+  episodes?: number | null;
 }
 
+/** Only these episodes of the one picked tile; absent means all of it. */
+type Range = { from: number; to: number };
+
 /** Status chip for something that may be in the library or requested. */
-export function libraryChip(status: MediaStatus | undefined, requested: boolean): PickItem["chips"][number] | null {
+export function libraryChip(status: MediaStatus | undefined, requested: boolean, someEpisodes = false): PickItem["chips"][number] | null {
   return status === "available"
     ? { label: "Available", tone: "ok" }
     : status === "partially_available"
       ? { label: "Partial", tone: "partial" }
       : requested
         ? { label: "Requested", tone: "warn" }
-        : null;
+        : someEpisodes
+          ? { label: "Some eps requested", tone: "warn" }
+          : null;
 }
 
 /**
@@ -176,12 +187,26 @@ function PickGrid({
   items: PickItem[];
   placeholders?: number;
   footer?: React.ReactNode;
-  onRequest: (ids: number[]) => unknown;
+  onRequest: (ids: number[], episodes?: Range) => unknown;
 }) {
   const { busy, sent, problem, run } = useSubmit((id) => items.find((i) => i.id === id)?.title);
   const [picked, setPicked] = useState<Set<number>>(new Set());
-  const toggle = (id: number) => setPicked((p) => (p.has(id) ? new Set([...p].filter((x) => x !== id)) : new Set([...p, id])));
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const pick = (ids: Set<number>) => {
+    setPicked(ids);
+    setFrom("");
+    setTo("");
+  };
+  const toggle = (id: number) => pick(picked.has(id) ? new Set([...picked].filter((x) => x !== id)) : new Set([...picked, id]));
   const allOpen = items.filter((i) => i.selectable).map((i) => i.id);
+  // Episodes can be picked from one tile at a time; both boxes empty means all of it.
+  const one = picked.size === 1 ? items.find((i) => picked.has(i.id)) : undefined;
+  const canRange = one?.episodes !== undefined && one.episodes !== 1;
+  const max = one?.episodes ?? undefined;
+  const range: Range | undefined =
+    canRange && (from || to) ? { from: Number(from || 1), to: Number(to || max || from || 1) } : undefined;
+  const badRange = !!range && (range.from < 1 || range.to < range.from || (!!max && range.to > max));
 
   return (
     <section className="card mb-10 p-5">
@@ -189,22 +214,31 @@ function PickGrid({
         <h3 className="font-semibold">{heading}</h3>
         {count && <span className="text-sm text-muted">{count}</span>}
         {allOpen.length > 1 && (
-          <button className="text-sm text-accent hover:underline" onClick={() => setPicked(picked.size === allOpen.length ? new Set() : new Set(allOpen))}>
+          <button className="text-sm text-accent hover:underline" onClick={() => pick(picked.size === allOpen.length ? new Set() : new Set(allOpen))}>
             {picked.size === allOpen.length ? "Clear" : "Select all missing"}
           </button>
         )}
         {(allOpen.length > 0 || picked.size > 0 || sent) && (
           <div className="ml-auto">
             <SendButton
-              label={picked.size ? `Request ${picked.size}` : "Pick to request"}
+              label={range ? (range.from === range.to ? `Request ep ${range.from}` : `Request eps ${range.from}–${range.to}`) : picked.size ? `Request ${picked.size}` : "Pick to request"}
               busy={busy}
               sent={sent}
-              disabled={picked.size === 0}
-              onClick={async () => (await run(onRequest([...picked]))) && setPicked(new Set())}
+              disabled={picked.size === 0 || badRange}
+              onClick={async () => (await run(onRequest([...picked], range))) && pick(new Set())}
             />
           </div>
         )}
       </div>
+      {canRange && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">
+          <span>Only episodes</span>
+          <input type="number" inputMode="numeric" min={1} max={max} value={from} onChange={(e) => setFrom(e.target.value)} placeholder="1" aria-label="First episode" className="input w-16 py-1.5 text-center" />
+          <span>to</span>
+          <input type="number" inputMode="numeric" min={1} max={max} value={to} onChange={(e) => setTo(e.target.value)} placeholder={max ? String(max) : "same"} aria-label="Last episode" className="input w-16 py-1.5 text-center" />
+          <span>{badRange ? <span className="text-bad">Not a valid range{max ? ` (1–${max})` : ""}</span> : "Leave empty for all of it."}</span>
+        </div>
+      )}
       <Problem text={problem} />
       <ul className="mt-1 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {items.map((it) => {
@@ -289,8 +323,9 @@ export function AnimeRequest({
     href: `/anime/${e.id}`,
     current: e.current,
     selectable: e.mapped && !e.requested && e.status !== "available",
+    episodes: e.episodes,
     chips: [
-      ...(e.mapped ? [libraryChip(e.status, e.requested)] : [{ label: "Not mapped", tone: "bad" as const }]),
+      ...(e.mapped ? [libraryChip(e.status, e.requested, e.someEpisodes)] : [{ label: "Not mapped", tone: "bad" as const }]),
       e.list ? { label: e.list, tone: "anilist" as const } : null,
     ].filter((c) => c !== null),
     note: showTargets ? { text: `→ ${e.target}`, bad: !e.mapped } : undefined,
@@ -303,7 +338,7 @@ export function AnimeRequest({
       items={items}
       placeholders={placeholders}
       footer={footer}
-      onRequest={(ids) => ({ kind: "anime", anilistIds: ids })}
+      onRequest={(ids, episodes) => ({ kind: "anime", anilistIds: ids, episodes })}
     />
   );
 }
@@ -316,6 +351,8 @@ export interface SeasonOption {
   poster: string | null;
   status?: MediaStatus;
   requested: boolean;
+  /** Only some of its episodes are requested. */
+  someEpisodes?: boolean;
 }
 
 const seasonOpen = (s: SeasonOption) => !s.requested && s.status !== "available";
@@ -331,14 +368,15 @@ export function TvRequest({ tmdbId, seasons }: { tmdbId: number; seasons: Season
     sub: [s.year, `${s.episodes} episodes`].filter(Boolean).join(" · "),
     cover: s.poster,
     selectable: seasonOpen(s),
-    chips: [libraryChip(s.status, s.requested)].filter((c) => c !== null),
+    episodes: s.episodes,
+    chips: [libraryChip(s.status, s.requested, s.someEpisodes)].filter((c) => c !== null),
   }));
   return (
     <PickGrid
       heading="Seasons"
       count={`${regular} season${regular === 1 ? "" : "s"}`}
       items={items}
-      onRequest={(ids) => ({ kind: "tv", tmdbId, seasons: ids })}
+      onRequest={(ids, episodes) => ({ kind: "tv", tmdbId, seasons: ids, episodes })}
     />
   );
 }
