@@ -6,6 +6,7 @@ import clsx from "clsx";
 import type { Settings } from "@/lib/settings";
 import { unreachable } from "@/lib/unreachable";
 import { Select } from "./Select";
+import { Switch } from "./Switch";
 import { initial } from "@/lib/initial";
 import { NTFY_SH } from "@/lib/ntfyShared";
 
@@ -22,17 +23,22 @@ async function save(section: keyof Settings, values: Record<string, unknown>) {
   return j as Redacted;
 }
 
+/** A section's form: the values being edited, whether they differ from what's saved, and saving or discarding them. */
 function useSection<K extends keyof Settings>(section: K, initial: Settings[K]) {
   const router = useRouter();
+  const [saved, setSaved] = useState<Settings[K]>(initial);
   const [v, setV] = useState<Settings[K]>(initial);
   const [state, setState] = useState<{ busy: boolean; msg: string; ok: boolean }>({ busy: false, msg: "", ok: true });
   const set = <F extends keyof Settings[K]>(field: F, value: Settings[K][F]) => setV((p) => ({ ...p, [field]: value }));
+  const dirty = JSON.stringify(v) !== JSON.stringify(saved);
   const submit = async () => {
     setState({ busy: true, msg: "", ok: true });
     try {
       const next = await save(section, v as Record<string, unknown>);
       setV(next[section]);
+      setSaved(next[section]);
       setState({ busy: false, msg: "Saved", ok: true });
+      setTimeout(() => setState((s) => (s.msg === "Saved" ? { ...s, msg: "" } : s)), 2500);
       router.refresh(); // e.g. setup offers Jellyfin sign-in once Jellyfin is saved
       return true;
     } catch (e) {
@@ -40,48 +46,11 @@ function useSection<K extends keyof Settings>(section: K, initial: Settings[K]) 
       return false;
     }
   };
-  return { v, set, submit, state };
-}
-
-export function Section({ title, desc, children }: { title: string; desc?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section className="card mb-6 p-5">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {desc && <div className="mt-1 text-sm text-muted">{desc}</div>}
-      <div className="mt-4 space-y-4">{children}</div>
-    </section>
-  );
-}
-
-function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="label">{label}</span>
-      {children}
-      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
-    </label>
-  );
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex cursor-pointer items-center gap-3 text-sm">
-      <input type="checkbox" className="h-4 w-4 accent-accent" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      {label}
-    </label>
-  );
-}
-
-function SaveBar({ state, onSave, extra }: { state: { busy: boolean; msg: string; ok: boolean }; onSave: () => void; extra?: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-3 pt-2">
-      <button className="btn-primary" disabled={state.busy} onClick={onSave}>
-        {state.busy ? "Saving…" : "Save"}
-      </button>
-      {extra}
-      {state.msg && <span className={clsx("text-sm", state.ok ? "text-ok" : "text-bad")}>{state.msg}</span>}
-    </div>
-  );
+  const discard = () => {
+    setV(saved);
+    setState({ busy: false, msg: "", ok: true });
+  };
+  return { v, set, submit, discard, dirty, state };
 }
 
 interface TestResult {
@@ -103,77 +72,196 @@ async function test(service: string, url?: string, apiKey?: string, username?: s
   return res.ok ? j : { ok: false, error: j.error ?? `HTTP ${res.status}` };
 }
 
-function TestButton({ onTest }: { onTest: () => Promise<TestResult> }) {
-  const [r, setR] = useState<TestResult | null>(null);
+type Check = { busy: boolean; result: TestResult | null; run: () => void };
+
+/** A connection check. With `auto`, it runs once as the page opens (with what's saved), so the status is there to see. */
+function useCheck(fn: () => Promise<TestResult>, auto = false): Check {
   const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<TestResult | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setResult(await fn());
+    setBusy(false);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => void (auto && run()), []);
+  return { busy, result, run };
+}
+
+function Status({ check, configured }: { check?: Check; configured?: boolean }) {
+  const r = check?.result;
+  const [dot, text, tone] = check?.busy
+    ? ["bg-muted animate-pulse", "Checking…", "text-muted"]
+    : r?.ok
+      ? ["bg-ok", "Connected", "text-ok"]
+      : r
+        ? ["bg-bad", "Can't connect", "text-bad"]
+        : configured === false
+          ? ["bg-line", "Not set up", "text-muted"]
+          : [null, null, null];
+  if (!text) return null;
   return (
-    <>
-      <button
-        className="btn-ghost"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setR(await onTest());
-          setBusy(false);
-        }}
-      >
-        {busy ? "Testing…" : "Test"}
-      </button>
-      {r && <span className={clsx("text-sm", r.ok ? "text-ok" : "text-bad")}>{r.ok ? `✓ ${r.message}` : r.error}</span>}
-    </>
+    <span className={clsx("inline-flex items-center gap-1.5 rounded-full bg-panel-2 px-2.5 py-0.5 text-xs", tone)}>
+      <span className={clsx("h-1.5 w-1.5 rounded-full", dot)} />
+      {text}
+    </span>
   );
 }
 
-export function GeneralSettings({ initial }: { initial: Settings["general"] }) {
-  const { v, set, submit, state } = useSection("general", initial);
+/**
+ * One block of settings: its name and connection status, a one-line description, the longer story folded away under
+ * "How it works", and its fields.
+ */
+export function Section({
+  title,
+  desc,
+  more,
+  check,
+  configured,
+  children,
+}: {
+  title: string;
+  desc?: React.ReactNode;
+  more?: React.ReactNode;
+  check?: Check;
+  configured?: boolean;
+  children: React.ReactNode;
+}) {
+  const r = check?.result;
   return (
-    <Section title="General">
-      <Field label="Public URL" hint="How you reach Jellyshelf in the browser. Used for the AniList OAuth redirect.">
+    <section className="card mb-6 p-5 sm:p-6">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="text-lg font-semibold">{title}</h2>
+            <Status check={check} configured={configured} />
+            {r?.ok && r.message && <span className="text-xs text-muted">{r.message}</span>}
+          </div>
+          {desc && <div className="mt-1 text-sm text-muted">{desc}</div>}
+        </div>
+        {check && (
+          <button className="btn-ghost px-3 py-1.5" disabled={check.busy} onClick={check.run}>
+            {check.busy ? "Testing…" : "Test connection"}
+          </button>
+        )}
+      </div>
+      {r && !r.ok && <p className="mt-3 rounded-lg bg-bad/10 px-3 py-2 text-sm text-bad">{r.error}</p>}
+      {more && (
+        <details className="mt-2 text-sm text-muted">
+          <summary className="w-fit cursor-pointer select-none text-accent hover:underline">How it works</summary>
+          <div className="mt-2 space-y-2 leading-relaxed">{more}</div>
+        </details>
+      )}
+      <div className="mt-5 space-y-5">{children}</div>
+    </section>
+  );
+}
+
+function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="label">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-muted">{hint}</span>}
+    </label>
+  );
+}
+
+function Toggle({ label, hint, checked, onChange }: { label: string; hint?: React.ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-4 text-sm">
+      <span>
+        {label}
+        {hint && <span className="mt-0.5 block text-xs text-muted">{hint}</span>}
+      </span>
+      <input type="checkbox" role="switch" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <Switch on={checked} className="mt-0.5 ring-accent/60 ring-offset-2 ring-offset-panel peer-focus-visible:ring-2" />
+    </label>
+  );
+}
+
+/** Appears once something's changed, and stays in view at the bottom of the window until it's saved or discarded. */
+function SaveBar({ form }: { form: Pick<ReturnType<typeof useSection>, "dirty" | "state" | "submit" | "discard"> }) {
+  const { dirty, state, submit, discard } = form;
+  if (!dirty && !state.msg) return null;
+  return (
+    <div className="menu-in sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel-2/95 px-4 py-2.5 shadow-xl shadow-black/40 backdrop-blur">
+      <span className={clsx("flex-1 text-sm", !state.ok ? "text-bad" : dirty ? "text-fg" : "text-ok")}>
+        {!state.ok ? state.msg : dirty ? "Unsaved changes" : `✓ ${state.msg}`}
+      </span>
+      {dirty && (
+        <>
+          <button className="btn-ghost px-3 py-1.5" disabled={state.busy} onClick={discard}>
+            Discard
+          </button>
+          <button className="btn-primary px-3 py-1.5" disabled={state.busy} onClick={submit}>
+            {state.busy ? "Saving…" : "Save"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+const link = (href: string, text: string, className = "text-accent") => (
+  <a className={clsx(className, "hover:underline")} href={href} target="_blank" rel="noreferrer">
+    {text}
+  </a>
+);
+
+export function GeneralSettings({ initial }: { initial: Settings["general"] }) {
+  const form = useSection("general", initial);
+  const { v, set } = form;
+  return (
+    <Section title="General" desc="Where Jellyshelf lives, and what new people can do.">
+      <Field label="Public URL" hint="How you reach Jellyshelf in the browser. AniList sign-in sends people back here.">
         <input className="input" value={v.appUrl} onChange={(e) => set("appUrl", e.target.value)} placeholder="http://localhost:3000" />
       </Field>
-      <Toggle label="Auto-approve requests from new users" checked={v.defaultAutoApprove} onChange={(x) => set("defaultAutoApprove", x)} />
-      <SaveBar state={state} onSave={submit} />
+      <Toggle
+        label="Auto-approve requests from new users"
+        hint="Their requests go straight to Sonarr/Radarr. You can change it per person under Users."
+        checked={v.defaultAutoApprove}
+        onChange={(x) => set("defaultAutoApprove", x)}
+      />
+      <SaveBar form={form} />
     </Section>
   );
 }
 
 export function TmdbSettings({ initial }: { initial: Settings["tmdb"] }) {
-  const { v, set, submit, state } = useSection("tmdb", initial);
+  const form = useSection("tmdb", initial);
+  const { v, set, submit } = form;
+  // TMDB is checked with the saved key, so a test saves first.
+  const check = useCheck(async () => ((await submit()) ? test("tmdb") : { ok: false, error: "Save failed" }), !!initial.apiKey);
   return (
     <Section
       title="TMDB"
-      desc={
-        <>
-          Movie & series metadata. Get a free key at{" "}
-          <a className="text-accent hover:underline" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noreferrer">
-            themoviedb.org/settings/api
-          </a>{" "}
-          (v3 key or v4 read token).
-        </>
-      }
+      check={check}
+      configured={!!initial.apiKey}
+      desc={<>Movie and series details and artwork. Get a free key at {link("https://www.themoviedb.org/settings/api", "themoviedb.org")} (v3 key or v4 read token).</>}
     >
       <Field label="API key">
-        <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
+        <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} autoComplete="off" />
       </Field>
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={async () => ((await submit()) ? test("tmdb") : { ok: false, error: "Save failed" })} />} />
+      <SaveBar form={form} />
     </Section>
   );
 }
 
 export function AniListSettings({ initial, appUrl }: { initial: Settings["anilist"]; appUrl: string }) {
-  const { v, set, submit, state } = useSection("anilist", initial);
+  const form = useSection("anilist", initial);
+  const { v, set } = form;
   const redirect = `${appUrl.replace(/\/+$/, "")}/api/auth/anilist/callback`;
   return (
     <Section
       title="AniList"
-      desc={
-        <>
-          Create an API client at{" "}
-          <a className="text-anilist hover:underline" href="https://anilist.co/settings/developer" target="_blank" rel="noreferrer">
-            anilist.co/settings/developer
-          </a>{" "}
-          with redirect URL <code className="rounded bg-panel-2 px-1.5 py-0.5 text-fg">{redirect}</code>
-        </>
+      configured={!!initial.clientId}
+      desc="Lets people sign in with AniList, see their lists and keep their progress in sync."
+      more={
+        <p>
+          Create an API client at {link("https://anilist.co/settings/developer", "anilist.co/settings/developer", "text-anilist")} with the redirect URL{" "}
+          <code className="break-all rounded bg-panel-2 px-1.5 py-0.5 text-fg">{redirect}</code>, then paste its ID and secret here.
+        </p>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
@@ -181,20 +269,13 @@ export function AniListSettings({ initial, appUrl }: { initial: Settings["anilis
           <input className="input" value={v.clientId} onChange={(e) => set("clientId", e.target.value)} />
         </Field>
         <Field label="Client secret">
-          <input className="input" value={v.clientSecret} onChange={(e) => set("clientSecret", e.target.value)} />
+          <input className="input" value={v.clientSecret} onChange={(e) => set("clientSecret", e.target.value)} autoComplete="off" />
         </Field>
       </div>
-      <Toggle label="Add requested anime to the requester's AniList “Planning” list" checked={v.writeBack} onChange={(x) => set("writeBack", x)} />
-      <SaveBar state={state} onSave={submit} />
+      <Toggle label="Add requested anime to the requester's “Planning” list" checked={v.writeBack} onChange={(x) => set("writeBack", x)} />
+      <SaveBar form={form} />
     </Section>
   );
-}
-
-/** Fetch Sonarr/Radarr's profile and folder names as the page opens, when it's already set up, instead of waiting for a Test. */
-function useLoadOnOpen(load: () => unknown, configured: boolean) {
-  // Once, with what was saved: later edits are tested by hand.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => void (configured && load()), []);
 }
 
 function ProfileSelect({
@@ -231,154 +312,191 @@ function FolderSelect({ value, options, onChange, placeholder = "Select…" }: {
   );
 }
 
-export function SonarrSettings({ initial }: { initial: Settings["sonarr"] }) {
-  const { v, set, submit, state } = useSection("sonarr", initial);
-  const [meta, setMeta] = useState<TestResult | null>(null);
-  const runTest = async () => {
-    const r = await test("sonarr", v.url, v.apiKey);
-    if (r.ok) setMeta(r);
-    return r;
-  };
-  useLoadOnOpen(runTest, !!(initial.url && initial.apiKey));
+/** A small heading inside a section, to group its fields. */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Section title="Sonarr" desc="Series and anime series. Anime is added with series type “Anime” (absolute numbering) into its own root folder.">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="URL">
-          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://sonarr:8989" />
-        </Field>
-        <Field label="API key">
-          <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
-        </Field>
-        <Field label="Quality profile (series)">
-          <ProfileSelect value={v.qualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("qualityProfileId", x)} />
-        </Field>
-        <Field label="Root folder (series)">
-          <FolderSelect value={v.rootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("rootFolder", x)} />
-        </Field>
-        <Field label="Quality profile (anime)">
-          <ProfileSelect value={v.animeQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeQualityProfileId", x)} placeholder="Same as series" />
-        </Field>
-        <Field label="Root folder (anime)">
-          <FolderSelect value={v.animeRootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("animeRootFolder", x)} placeholder="Same as series" />
-        </Field>
-        {!!meta?.languageProfiles?.length && (
-          <Field label="Language profile (Sonarr v3)">
-            <ProfileSelect value={v.languageProfileId} options={meta.languageProfiles} onChange={(x) => set("languageProfileId", x)} />
-          </Field>
-        )}
-      </div>
-      <Toggle label="Use season folders" checked={v.seasonFolder} onChange={(x) => set("seasonFolder", x)} />
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={runTest} />} />
-    </Section>
+    <div>
+      <h3 className="mb-3 text-sm font-medium text-fg/90">{title}</h3>
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    </div>
   );
 }
 
-export function RadarrSettings({ initial }: { initial: Settings["radarr"] }) {
-  const { v, set, submit, state } = useSection("radarr", initial);
+function Connection<K extends "sonarr" | "radarr" | "jellyfin" | "bazarr">({
+  v,
+  set,
+  placeholder,
+  keyHint,
+}: {
+  v: Settings[K];
+  set: (field: "url" | "apiKey", value: string) => void;
+  placeholder: string;
+  keyHint?: string;
+}) {
+  return (
+    <Group title="Connection">
+      <Field label="URL">
+        <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder={placeholder} />
+      </Field>
+      <Field label="API key" hint={keyHint}>
+        <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} autoComplete="off" />
+      </Field>
+    </Group>
+  );
+}
+
+export function SonarrSettings({ initial }: { initial: Settings["sonarr"] }) {
+  const form = useSection("sonarr", initial);
+  const { v, set } = form;
   const [meta, setMeta] = useState<TestResult | null>(null);
-  const runTest = async () => {
-    const r = await test("radarr", v.url, v.apiKey);
+  const configured = !!(initial.url && initial.apiKey);
+  const check = useCheck(async () => {
+    const r = await test("sonarr", v.url, v.apiKey);
     if (r.ok) setMeta(r);
     return r;
-  };
-  useLoadOnOpen(runTest, !!(initial.url && initial.apiKey));
+  }, configured);
   return (
-    <Section title="Radarr" desc="Movies, including anime films.">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="URL">
-          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://radarr:7878" />
-        </Field>
-        <Field label="API key">
-          <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
-        </Field>
+    <Section
+      title="Sonarr"
+      check={check}
+      configured={configured}
+      desc="Downloads series and anime."
+      more={<p>Anime is added with the series type “Anime” (absolute episode numbering), into its own root folder and quality profile if you pick them below.</p>}
+    >
+      <Connection v={v} set={set} placeholder="http://sonarr:8989" keyHint="Settings → General → Security" />
+      <Group title="Series">
         <Field label="Quality profile">
           <ProfileSelect value={v.qualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("qualityProfileId", x)} />
         </Field>
         <Field label="Root folder">
           <FolderSelect value={v.rootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("rootFolder", x)} />
         </Field>
-        <Field label="Quality profile (anime films)">
+      </Group>
+      <Group title="Anime">
+        <Field label="Quality profile">
+          <ProfileSelect value={v.animeQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeQualityProfileId", x)} placeholder="Same as series" />
+        </Field>
+        <Field label="Root folder">
+          <FolderSelect value={v.animeRootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("animeRootFolder", x)} placeholder="Same as series" />
+        </Field>
+      </Group>
+      {!!meta?.languageProfiles?.length && (
+        <Field label="Language profile (Sonarr v3)">
+          <ProfileSelect value={v.languageProfileId} options={meta.languageProfiles} onChange={(x) => set("languageProfileId", x)} />
+        </Field>
+      )}
+      <Toggle label="Use season folders" checked={v.seasonFolder} onChange={(x) => set("seasonFolder", x)} />
+      <SaveBar form={form} />
+    </Section>
+  );
+}
+
+export function RadarrSettings({ initial }: { initial: Settings["radarr"] }) {
+  const form = useSection("radarr", initial);
+  const { v, set } = form;
+  const [meta, setMeta] = useState<TestResult | null>(null);
+  const configured = !!(initial.url && initial.apiKey);
+  const check = useCheck(async () => {
+    const r = await test("radarr", v.url, v.apiKey);
+    if (r.ok) setMeta(r);
+    return r;
+  }, configured);
+  return (
+    <Section title="Radarr" check={check} configured={configured} desc="Downloads movies, including anime films.">
+      <Connection v={v} set={set} placeholder="http://radarr:7878" keyHint="Settings → General → Security" />
+      <Group title="Movies">
+        <Field label="Quality profile">
+          <ProfileSelect value={v.qualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("qualityProfileId", x)} />
+        </Field>
+        <Field label="Root folder">
+          <FolderSelect value={v.rootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("rootFolder", x)} />
+        </Field>
+      </Group>
+      <Group title="Anime films">
+        <Field label="Quality profile">
           <ProfileSelect value={v.animeQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeQualityProfileId", x)} placeholder="Same as movies" />
         </Field>
-        <Field label="Root folder (anime films)">
+        <Field label="Root folder">
           <FolderSelect value={v.animeRootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("animeRootFolder", x)} placeholder="Same as movies" />
         </Field>
-        <Field label="Minimum availability">
-          <Select
-            value={v.minimumAvailability}
-            onChange={(x) => set("minimumAvailability", x)}
-            options={[
-              { value: "announced", label: "Announced" },
-              { value: "inCinemas", label: "In cinemas" },
-              { value: "released", label: "Released" },
-            ]}
-          />
-        </Field>
-      </div>
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={runTest} />} />
+      </Group>
+      <Field label="Minimum availability" hint="When Radarr starts looking for a requested movie.">
+        <Select
+          value={v.minimumAvailability}
+          onChange={(x) => set("minimumAvailability", x)}
+          options={[
+            { value: "announced", label: "Announced" },
+            { value: "inCinemas", label: "In cinemas" },
+            { value: "released", label: "Released" },
+          ]}
+        />
+      </Field>
+      <SaveBar form={form} />
     </Section>
   );
 }
 
 export function JellyfinSettings({ initial }: { initial: Settings["jellyfin"] }) {
-  const { v, set, submit, state } = useSection("jellyfin", initial);
+  const form = useSection("jellyfin", initial);
+  const { v, set } = form;
+  const configured = !!(initial.url && initial.apiKey);
+  const check = useCheck(() => test("jellyfin", v.url, v.apiKey), configured);
   return (
-    <Section title="Jellyfin" desc="Your library, playback, and the accounts people sign in with.">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="URL">
-          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://jellyfin:8096" />
-        </Field>
-        <Field label="API key" hint="Dashboard → API Keys">
-          <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
-        </Field>
-        <Field label="Public URL (optional)" hint="Address your browser uses for Jellyfin, for Play links. Leave empty if it's the same as the URL above.">
-          <input className="input" value={v.publicUrl} onChange={(e) => set("publicUrl", e.target.value)} placeholder="https://jellyfin.example.com" />
-        </Field>
-      </div>
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("jellyfin", v.url, v.apiKey)} />} />
+    <Section title="Jellyfin" check={check} configured={configured} desc="Your library, playback, and the accounts people sign in with.">
+      <Connection v={v} set={set} placeholder="http://jellyfin:8096" keyHint="Dashboard → API Keys" />
+      <Field label="Public URL (optional)" hint="The address your browser uses for Jellyfin, for “Open in Jellyfin” links. Leave empty if it's the same as above.">
+        <input className="input" value={v.publicUrl} onChange={(e) => set("publicUrl", e.target.value)} placeholder="https://jellyfin.example.com" />
+      </Field>
+      <SaveBar form={form} />
     </Section>
   );
 }
 
 export function BazarrSettings({ initial }: { initial: Settings["bazarr"] }) {
-  const { v, set, submit, state } = useSection("bazarr", initial);
+  const form = useSection("bazarr", initial);
+  const { v, set } = form;
+  const configured = !!(initial.url && initial.apiKey);
+  const check = useCheck(() => test("bazarr", v.url, v.apiKey), configured);
   return (
-    <Section title="Bazarr" desc="Optional. Shows which subtitles each episode and film has, and lets people search for missing ones or pick a specific file.">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="URL">
-          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://bazarr:6767" />
-        </Field>
-        <Field label="API key" hint="Settings → General → Security">
-          <input className="input" value={v.apiKey} onChange={(e) => set("apiKey", e.target.value)} />
-        </Field>
-        <Field label="Who can search and pick subtitles">
-          <Select
-            value={v.fixSubsBy}
-            onChange={(x) => set("fixSubsBy", x)}
-            options={[
-              { value: "requesters", label: "Admins, and whoever requested the title" },
-              { value: "admin", label: "Admins only" },
-            ]}
-          />
-        </Field>
-      </div>
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("bazarr", v.url, v.apiKey)} />} />
+    <Section title="Bazarr" check={check} configured={configured} desc="Optional. Shows which subtitles each episode and film has, and lets people fix missing ones.">
+      <Connection v={v} set={set} placeholder="http://bazarr:6767" keyHint="Settings → General → Security" />
+      <Field label="Who can search for and pick subtitles">
+        <Select
+          value={v.fixSubsBy}
+          onChange={(x) => set("fixSubsBy", x)}
+          options={[
+            { value: "requesters", label: "Admins, and whoever requested the title" },
+            { value: "admin", label: "Admins only" },
+          ]}
+        />
+      </Field>
+      <SaveBar form={form} />
     </Section>
   );
 }
 
 export function QbittorrentSettings({ initial }: { initial: Settings["qbittorrent"] }) {
-  const { v, set, submit, state } = useSection("qbittorrent", initial);
+  const form = useSection("qbittorrent", initial);
+  const { v, set } = form;
+  const configured = !!initial.url;
+  const check = useCheck(() => test("qbittorrent", v.url, v.password, v.username), configured);
   return (
     <Section
       title="qBittorrent"
-      desc="Optional. When a title is removed from Sonarr or Radarr through Jellyshelf, its torrents are removed from qBittorrent too, with what they downloaded. Without this they'd be left seeding, and the space they share with your library (hardlinks) wouldn't come back."
+      check={check}
+      configured={configured}
+      desc="Optional. Cleans up a title's torrents when it's removed through Jellyshelf."
+      more={
+        <p>
+          When a title is removed from Sonarr or Radarr through Jellyshelf, its torrents are removed from qBittorrent too, with what they downloaded.
+          Without this they'd be left seeding, and the space they share with your library (hardlinks) wouldn&apos;t come back.
+        </p>
+      }
     >
+      <Field label="URL" hint="The Web UI's address">
+        <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://qbittorrent:8080" />
+      </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="URL" hint="The Web UI's address">
-          <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://qbittorrent:8080" />
-        </Field>
-        <div />
         <Field label="Username">
           <input className="input" value={v.username} onChange={(e) => set("username", e.target.value)} placeholder="admin" autoComplete="off" />
         </Field>
@@ -386,20 +504,34 @@ export function QbittorrentSettings({ initial }: { initial: Settings["qbittorren
           <input className="input" type="password" value={v.password} onChange={(e) => set("password", e.target.value)} autoComplete="new-password" />
         </Field>
       </div>
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("qbittorrent", v.url, v.password, v.username)} />} />
+      <SaveBar form={form} />
     </Section>
   );
 }
 
 export function NtfySettings({ initial }: { initial: Settings["ntfy"] }) {
-  const { v, set, submit, state } = useSection("ntfy", initial);
+  const form = useSection("ntfy", initial);
+  const { v, set } = form;
+  // Not run on open: testing sends you a real notification.
+  const check = useCheck(() => test("ntfy", v.url, v.token));
   return (
     <Section
-      title="Notifications (ntfy)"
-      desc="Optional. Phone notifications when a request is approved, declined or ready to watch, and for admins when someone requests something. People subscribe in the ntfy app (account menu → Phone notifications): at ntfy itself if it's reachable from anywhere, like the free public ntfy.sh, otherwise through Jellyshelf's own address, which only works where Jellyshelf can be reached."
+      title="Phone notifications"
+      check={check}
+      configured={!!initial.url}
+      desc="Optional. Notifications through ntfy when requests are approved, declined or ready to watch."
+      more={
+        <>
+          <p>Admins are also told when someone requests something. Testing sends a notification to your own topic.</p>
+          <p>
+            People subscribe in the ntfy app (account menu → Phone notifications): at ntfy itself if it&apos;s reachable from anywhere, like the free public
+            ntfy.sh, otherwise through Jellyshelf&apos;s own address, which only works where Jellyshelf can be reached.
+          </p>
+        </>
+      }
     >
       <button
-        className="btn-ghost px-3 py-1 text-sm"
+        className="btn-ghost px-3 py-1.5"
         onClick={() => {
           set("url", NTFY_SH);
           set("token", "");
@@ -412,21 +544,20 @@ export function NtfySettings({ initial }: { initial: Settings["ntfy"] }) {
         <Field label="URL" hint="Where Jellyshelf reaches your ntfy server">
           <input className="input" value={v.url} onChange={(e) => set("url", e.target.value)} placeholder="http://ntfy:80" />
         </Field>
-        <Field label="Access token (optional)" hint="Only if your ntfy server doesn't let just anyone publish and read. Needs read and write access to topics starting with js_">
-          <input className="input" value={v.token} onChange={(e) => set("token", e.target.value)} placeholder="tk_…" />
+        <Field label="Access token (optional)" hint="Only if your ntfy doesn't let just anyone publish and read. Needs read and write access to topics starting with js_">
+          <input className="input" value={v.token} onChange={(e) => set("token", e.target.value)} placeholder="tk_…" autoComplete="off" />
         </Field>
       </div>
       <Toggle
-        label="Phones subscribe at this ntfy directly (it's reachable from the internet, like ntfy.sh)"
+        label="Phones subscribe at this ntfy directly"
+        hint="Turn on if it's reachable from the internet, like ntfy.sh."
         checked={v.direct}
         onChange={(x) => set("direct", x)}
       />
       {v.direct && v.token && (
-        <p className="text-xs text-warn">
-          Phones subscribing directly don&apos;t get the access token, so they can only read topics this ntfy lets anyone read.
-        </p>
+        <p className="text-xs text-warn">Phones subscribing directly don&apos;t get the access token, so they can only read topics this ntfy lets anyone read.</p>
       )}
-      <SaveBar state={state} onSave={submit} extra={<TestButton onTest={() => test("ntfy", v.url, v.token)} />} />
+      <SaveBar form={form} />
     </Section>
   );
 }
@@ -455,33 +586,68 @@ export function FinishSetup() {
   );
 }
 
+/** "updatedMedia: 1" → "updated media 1" */
+const words = (k: string) => k.replace(/([A-Z])/g, " $1").toLowerCase();
+
+const JOBS = [
+  { name: "availability", title: "Sync availability", note: () => "Checks Sonarr, Radarr and Jellyfin for what's arrived. Runs every 10 minutes, and on webhooks." },
+  { name: "mappings", title: "Refresh anime ID mappings", note: (n: number) => `Links AniList entries to TVDB/TMDB. ${n.toLocaleString()} mapped; refreshed daily.` },
+  { name: "backup", title: "Back up the database", note: () => "Backed up nightly to config/backups, keeping the last 7 days." },
+];
+
 export function JobButtons({ mappingCount }: { mappingCount: number }) {
-  const [out, setOut] = useState<Record<string, string>>({});
+  const [out, setOut] = useState<Record<string, { busy?: boolean; ok?: boolean; text?: string }>>({});
   const run = async (name: string) => {
-    setOut((o) => ({ ...o, [name]: "Running…" }));
+    setOut((o) => ({ ...o, [name]: { busy: true } }));
     const res = await fetch(`/api/jobs/${name}`, { method: "POST" }).catch(unreachable);
     const j = await res.json().catch(() => ({}));
-    setOut((o) => ({ ...o, [name]: res.ok ? JSON.stringify(j) : (j.error ?? "Failed") }));
+    const text = res.ok
+      ? Object.entries(j)
+          .map(([k, v]) => `${words(k)} ${typeof v === "object" ? JSON.stringify(v) : v}`)
+          .join(" · ")
+      : (j.error ?? "Failed");
+    setOut((o) => ({ ...o, [name]: { ok: res.ok, text } }));
   };
   return (
-    <div className="space-y-3 text-sm">
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-ghost" onClick={() => run("availability")}>
-          Sync availability now
+    <div className="divide-y divide-line">
+      {JOBS.map((job) => {
+        const o = out[job.name];
+        return (
+          <div key={job.name} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 first:pt-0 last:pb-0">
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-medium">{job.title}</div>
+              <div className={clsx("break-words text-xs", o?.text ? (o.ok ? "text-ok" : "text-bad") : "text-muted")}>
+                {o?.text ? `${o.ok ? "✓ Done: " : ""}${o.text}` : job.note(mappingCount)}
+              </div>
+            </div>
+            <button className="btn-ghost px-3 py-1.5" disabled={o?.busy} onClick={() => run(job.name)}>
+              {o?.busy ? "Running…" : "Run now"}
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A value to paste somewhere else, with a copy button. */
+export function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div>
+      <span className="label">{label}</span>
+      <div className="flex items-stretch gap-2">
+        <code className="min-w-0 flex-1 break-all rounded-lg bg-panel-2 px-3 py-2 text-xs">{value}</code>
+        <button
+          className="btn-ghost shrink-0 px-3"
+          onClick={async () => {
+            await navigator.clipboard?.writeText(value).catch(() => {});
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
         </button>
-        <span className="break-all text-muted">{out.availability ?? "Runs every 10 minutes and on webhooks."}</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-ghost" onClick={() => run("mappings")}>
-          Refresh anime ID mappings
-        </button>
-        <span className="text-muted">{out.mappings ?? `${mappingCount.toLocaleString()} AniList entries mapped. Refreshed daily.`}</span>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn-ghost" onClick={() => run("backup")}>
-          Back up database now
-        </button>
-        <span className="break-all text-muted">{out.backup ?? "Backed up nightly to config/backups, keeping the last 7 days."}</span>
       </div>
     </div>
   );

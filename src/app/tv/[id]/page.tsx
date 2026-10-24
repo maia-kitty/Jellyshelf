@@ -21,7 +21,6 @@ import { findMedia, requestedSeasons } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
 import { seriesEpisodes, type EpisodesInfo } from "@/lib/episodes";
-import { debugSleep } from "@/lib/debug";
 import { canFixSubs } from "@/lib/subtitles";
 import { langName } from "@/lib/langs";
 
@@ -47,10 +46,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
   const tvdbId = tv.external_ids?.tvdb_id ?? null;
   // Started once; the hero (Play) and the episode list both wait on it.
   const library = tvdbId
-    ? (async () => {
-        await debugSleep("episodes");
-        return seriesEpisodes({ tvdbId, tmdbId: id, jellyfinItemId: media?.jellyfinItemId ?? null, target: null }).catch(() => null);
-      })()
+    ? seriesEpisodes({ tvdbId, tmdbId: id, jellyfinItemId: media?.jellyfinItemId ?? null, target: null }).catch(() => null)
     : Promise.resolve(null);
 
   const isAnime = looksLikeAnime(tv);

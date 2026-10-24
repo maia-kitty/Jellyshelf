@@ -10,6 +10,7 @@ import { DRAG_KEY, dragOn } from "./DragScroll";
 import { PhoneNotifications } from "./PhoneNotifications";
 import { unreachable } from "@/lib/unreachable";
 import { initial } from "@/lib/initial";
+import { Switch } from "./Switch";
 
 type NavUser = { displayName: string; avatar: string | null; role: string; hasAnilist: boolean; canLinkAnilist: boolean; canUnlinkAnilist: boolean; ntfy: { topic: string; server: string | null } | null };
 
@@ -301,36 +302,82 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
     if (open) setDrag(dragOn());
   }, [open]);
   const [notifs, setNotifs] = useState(false);
-  const item = "block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-panel-2";
-  const plain = clsx(item, "text-muted hover:text-fg");
+  // Layout only; each item adds its own display and colours, so no two classes fight over one property.
+  const row = "w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm";
+  const item = clsx("flex", row, "text-fg/85 hover:bg-panel-2 hover:text-fg");
+  const avatar = (size: string, text: string) =>
+    user.avatar ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={user.avatar} alt="" className={clsx(size, "rounded-full object-cover")} />
+    ) : (
+      <div className={clsx(size, text, "flex items-center justify-center rounded-full bg-panel-2")}>{initial(user.displayName)}</div>
+    );
   return (
     <div ref={box} className="relative shrink-0">
       <button onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open} className="block rounded-full ring-accent focus-visible:ring-2">
-        {user.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-panel-2 text-sm">{initial(user.displayName)}</div>
-        )}
+        {avatar("h-8 w-8", "text-sm")}
       </button>
       {open && (
-        <div className="menu menu-in absolute right-0 top-full z-40 mt-2 w-56 origin-top-right">
-          <div className="px-3 pb-2 pt-1.5">
-            <div className="truncate text-sm font-semibold">{user.displayName}</div>
-            <div className="text-xs text-muted">{user.role === "admin" ? "Admin" : "Member"}</div>
+        <div className="menu menu-in absolute right-0 top-full z-40 mt-2 w-64 origin-top-right">
+          <div className="flex items-center gap-3 px-3 pb-3 pt-2">
+            {avatar("h-10 w-10", "text-base")}
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">{user.displayName}</div>
+              <div className="flex items-center gap-1.5 text-xs text-muted">
+                {user.role === "admin" ? "Admin" : "Member"}
+                {user.hasAnilist && <span className="rounded bg-anilist/15 px-1.5 py-px text-[10px] text-anilist">AniList</span>}
+              </div>
+            </div>
           </div>
-          <div className="my-1 border-t border-line" />
+          <div className="mx-1 mb-1 border-t border-line" />
           {/* Only once the server is set up for AniList; until then the link would just fail. */}
           {!user.hasAnilist && user.canLinkAnilist && (
             // A plain link: the OAuth round-trip is a full navigation.
-            <a href="/api/auth/anilist" className={clsx(item, "text-anilist")}>
+            <a href="/api/auth/anilist" className={clsx("flex", row, "text-anilist hover:bg-anilist/10")}>
+              <MenuIcon d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
               Link AniList
             </a>
           )}
+          {/* Only once an admin has set up ntfy. */}
+          {user.ntfy && (
+            <button
+              className={item}
+              onClick={() => {
+                setOpen(false);
+                setNotifs(true);
+              }}
+            >
+              <MenuIcon d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />
+              Phone notifications
+            </button>
+          )}
+          {/* Only where there's a mouse to drag with. */}
+          <button
+            role="menuitemcheckbox"
+            aria-checked={drag}
+            className={clsx(row, "hidden text-fg/85 hover:bg-panel-2 hover:text-fg pointer-fine:flex")}
+            onClick={() => {
+              try {
+                localStorage.setItem(DRAG_KEY, drag ? "0" : "1");
+              } catch {}
+              setDrag(!drag);
+            }}
+          >
+            <MenuIcon d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4.5 15a1.6 1.6 0 0 1 2.4-2.1L9 15" />
+            <span className="flex-1">Drag to scroll</span>
+            <Switch on={drag} />
+          </button>
+          {user.role === "admin" && (
+            <Link href="/settings" className={item}>
+              <MenuIcon d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+              Settings
+            </Link>
+          )}
+          <div className="mx-1 my-1 border-t border-line" />
           {/* Not for an account that signs in with AniList alone: it would have no way back in. */}
           {user.hasAnilist && user.canUnlinkAnilist && (
             <button
-              className={plain}
+              className={clsx("flex", row, "text-muted hover:bg-panel-2 hover:text-fg")}
               onClick={async () => {
                 if (!confirm("Disconnect AniList? Your lists stop showing here and episodes stop syncing. Your ratings stay, and you can connect again any time.")) return;
                 const res = await fetch("/api/auth/anilist", { method: "DELETE" }).catch(unreachable);
@@ -339,54 +386,33 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
                 router.refresh();
               }}
             >
+              <MenuIcon d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-1.2-6.5M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 1.2 6.5M4 4l16 16" />
               Disconnect AniList
             </button>
           )}
-          {/* Only where there's a mouse to drag with. */}
           <button
-            role="menuitemcheckbox"
-            aria-checked={drag}
-            className="hidden w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-panel-2 hover:text-fg pointer-fine:flex"
-            onClick={() => {
-              try {
-                localStorage.setItem(DRAG_KEY, drag ? "0" : "1");
-              } catch {}
-              setDrag(!drag);
-            }}
-          >
-            Drag to scroll with the mouse
-            <span className={clsx("text-accent", !drag && "invisible")}>✓</span>
-          </button>
-          {/* Only once an admin has set up ntfy. */}
-          {user.ntfy && (
-            <button
-              className={plain}
-              onClick={() => {
-                setOpen(false);
-                setNotifs(true);
-              }}
-            >
-              Phone notifications
-            </button>
-          )}
-          {user.role === "admin" && (
-            <Link href="/settings" className={plain}>
-              Settings
-            </Link>
-          )}
-          <button
-            className={plain}
+            className={clsx("flex", row, "text-fg/85 hover:bg-bad/10 hover:text-bad")}
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });
               router.push("/login");
               router.refresh();
             }}
           >
+            <MenuIcon d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4" />
             Sign out
           </button>
         </div>
       )}
       {notifs && user.ntfy && <PhoneNotifications topic={user.ntfy.topic} server={user.ntfy.server} admin={user.role === "admin"} onClose={() => setNotifs(false)} />}
     </div>
+  );
+}
+
+/** A 16px line icon for the account menu. */
+function MenuIcon({ d }: { d: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0 opacity-80" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
   );
 }

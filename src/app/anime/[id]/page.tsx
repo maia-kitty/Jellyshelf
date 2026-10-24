@@ -25,7 +25,6 @@ import { describeTarget } from "@/lib/mapping/resolve";
 import { animeMediaMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
-import { debugSleep } from "@/lib/debug";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
 
@@ -62,7 +61,6 @@ type Library = { kind: "series"; info: EpisodesInfo } | { kind: "movie"; info: M
 
 /** What Sonarr/Radarr/Jellyfin have of this entry: its episodes, or the film's file. */
 async function loadLibrary(entry: AniMediaCard, media: Media | undefined): Promise<Library> {
-  await debugSleep("episodes");
   const { target } = await resolveAnime(entry);
   if (target.service === "radarr") {
     const info = await movieInfo({ itemId: media?.jellyfinItemId, tmdbId: target.tmdbId, anilistId: entry.id, radarrId: media?.radarrId }).catch(() => null);

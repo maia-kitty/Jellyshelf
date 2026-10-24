@@ -36,7 +36,7 @@ export function AniListConnect({ configured, admin }: { configured: boolean; adm
       ) : admin ? (
         <p className="mt-7 text-sm text-muted">
           AniList isn&apos;t set up on this server yet.{" "}
-          <Link className="text-anilist hover:underline" href="/settings?tab=general">
+          <Link className="text-anilist hover:underline" href="/settings?tab=anilist">
             Set it up in Settings
           </Link>
         </p>

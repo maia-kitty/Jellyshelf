@@ -1,14 +1,12 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "./auth";
 import { getSettings } from "./settings";
-import { debugSleep } from "./debug";
 
 /** Common guard for app pages: finish setup first, then require sign-in. */
 export async function pageUser() {
   const s = await getSettings();
   if (!s.general.setupComplete) redirect("/setup");
   const user = await requireUser();
-  await debugSleep("page");
   return user;
 }
 

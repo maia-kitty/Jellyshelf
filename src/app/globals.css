@@ -325,17 +325,6 @@ body {
 .menu-slide-l { --from: 24px; animation: menu-slide 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .menu-slide-r { --from: -24px; animation: menu-slide 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
 
-/* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
-.simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
-.simulate-reduced-motion .spill .spill-head { animation: none !important; transform: translateX(78.9px); }
-.simulate-reduced-motion .spill .spill-head-wobble,
-.simulate-reduced-motion .spill .spill-puddle,
-.simulate-reduced-motion .jar .jar-lid,
-.simulate-reduced-motion .jar .jar-play,
-.simulate-reduced-motion .jar .jar-sparks circle {
-  animation: none !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .spill .spill-bar { animation: none; transform: scaleX(0.55); }
   .spill .spill-head { animation: none; transform: translateX(78.9px); }
