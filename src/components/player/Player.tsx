@@ -787,7 +787,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
             </Btn>
 
             {menu && src && (
-              <div className="menu-pop absolute bottom-12 right-0 z-20 max-h-[60vh] w-64 overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur">
+              <div className="menu-in absolute bottom-12 right-0 z-20 origin-bottom-right max-h-[60vh] w-64 overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur">
                 {menu === "subs" && (
                   <>
                     <MenuItem on={subIndex === null} onClick={() => chooseSub(null)}>

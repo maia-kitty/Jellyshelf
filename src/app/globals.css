@@ -48,6 +48,9 @@ body {
 @utility btn-done {
   @apply btn bg-panel-2 text-fg/90 inset-ring inset-ring-line disabled:cursor-default disabled:opacity-100;
 }
+@utility menu {
+  @apply rounded-xl border border-line bg-panel p-1 shadow-2xl shadow-black/50;
+}
 @utility btn-danger {
   @apply btn border border-bad/40 bg-bad/10 text-bad hover:bg-bad/20;
 }
@@ -313,16 +316,10 @@ body {
 @keyframes ni-mark { 40% { transform: translateY(-2px); } }
 @keyframes ni-check { from { stroke-dashoffset: 1; } }
 
-/* Dropdowns (Select): the list drops open like a dollop of jelly, overshooting a little and settling. */
-@keyframes jelly-drop {
-  0% { opacity: 0; transform: scale(0.94, 0.5); }
-  45% { opacity: 1; transform: scale(1.02, 1.06); }
-  70% { transform: scale(0.99, 0.97); }
-}
-.jelly-drop { animation: jelly-drop 0.45s ease-out; }
-/* …and shrinks back up as it goes (RequestThis waits this long before removing it). */
-@keyframes menu-out { to { opacity: 0; transform: scale(0.96, 0.85); } }
-.menu-out { animation: menu-out 0.14s ease-in forwards; }
+/* Every pop-up menu opens the same way: a quick fade and grow from the corner it's anchored to (each menu sets its
+   transform-origin), and closes at once. .menu is their shared look; the player's menu keeps its own dark one. */
+@keyframes menu-in { from { opacity: 0; transform: scale(0.95); } }
+.menu-in { animation: menu-in 0.15s ease-out; }
 /* A menu's views slide in from the side you're heading to: deeper from the right, back from the left. */
 @keyframes menu-slide { from { opacity: 0; transform: translateX(var(--from)); } }
 .menu-slide-l { --from: 24px; animation: menu-slide 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
@@ -352,7 +349,7 @@ body {
   .spotlight-progress > span,
   .page-in,
   .card-in,
-  .menu-out,
+  .menu-in,
   .menu-slide-l,
   .menu-slide-r,
   .tab-pop,
@@ -360,7 +357,6 @@ body {
   .player-icon,
   .player-icon *,
   .pi-go > *,
-  .jelly-drop,
   .edge-spill svg,
   .edge-spill-bar,
   .player-root,
@@ -396,10 +392,6 @@ body {
   to { opacity: 0; transform: translateY(-50%) scale(1.15); }
 }
 .seek-ripple { animation: seek-ripple 0.55s ease-out forwards; }
-@keyframes menu-pop {
-  from { opacity: 0; transform: translateY(6px) scale(0.97); }
-}
-.menu-pop { animation: menu-pop 0.16s ease-out; transform-origin: bottom right; }
 .player-range { accent-color: #00a4dc; }
 /* Player icons: each one's own move (parts classed in player/icons.tsx), played under .pi-go — when the icon changes,
    and when its button is hovered or pressed (Btn re-draws it). The whole icon gives the dock's little hop too. */

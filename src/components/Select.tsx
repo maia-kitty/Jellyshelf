@@ -1,17 +1,16 @@
 "use client";
 
-import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
-import { boxOf, jelly, place } from "./jelly";
 
 export type SelectOption<T> = { value: T; label: string; /** Heading it sits under (consecutive options share one). */ group?: string };
 
 type Pos = { left?: number; right?: number; top?: number; bottom?: number; minWidth: number; maxWidth: number; up: boolean };
 
 /**
- * A dropdown in the app's own look: the list drops open with a wobble and a jelly highlight follows the pointer and the
- * arrow keys. Focus stays on the button, as with a native select, so the keyboard and screen readers work as there.
+ * A dropdown in the app's own look (the shared .menu), highlighting the option under the pointer or the arrow keys. Focus
+ * stays on the button, as with a native select, so the keyboard and screen readers work as there.
  */
 export function Select<T extends string | number>({
   value,
@@ -31,10 +30,8 @@ export function Select<T extends string | number>({
   const id = useId();
   const btn = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const blob = useRef<HTMLSpanElement>(null);
   const [pos, setPos] = useState<Pos | null>(null);
   const [hi, setHi] = useState(0);
-  const lastHi = useRef<number | null>(null);
   const open = pos !== null;
   const sel = Math.max(0, options.findIndex((o) => o.value === value));
 
@@ -87,15 +84,9 @@ export function Select<T extends string | number>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // The highlight: dropped straight onto the chosen option on open, then jelly from option to option.
-  useLayoutEffect(() => {
-    const b = blob.current;
-    const el = list.current?.querySelector<HTMLElement>(`[data-i="${hi}"]`);
-    if (!open || !b || !el) return void (lastHi.current = null);
-    if (lastHi.current === null) place(b, boxOf(el));
-    else if (lastHi.current !== hi) jelly(b, boxOf(b), boxOf(el), { duration: 550 });
-    lastHi.current = hi;
-    el.scrollIntoView({ block: "nearest" });
+  // Keep the highlighted option in view as the arrow keys move it.
+  useEffect(() => {
+    if (open) list.current?.querySelector(`[data-i="${hi}"]`)?.scrollIntoView({ block: "nearest" });
   }, [open, hi]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -156,11 +147,10 @@ export function Select<T extends string | number>({
             id={id}
             role="listbox"
             aria-label={ariaLabel}
-            className="jelly-drop fixed z-[60] max-h-72 w-max overflow-y-auto overscroll-contain rounded-xl border border-line bg-panel p-1 shadow-2xl shadow-black/50"
-            style={{ left: pos.left, right: pos.right, top: pos.top, bottom: pos.bottom, minWidth: pos.minWidth, maxWidth: pos.maxWidth, transformOrigin: pos.up ? "bottom" : "top" }}
+            className="menu menu-in fixed z-[60] max-h-72 w-max overflow-y-auto overscroll-contain"
+            style={{ left: pos.left, right: pos.right, top: pos.top, bottom: pos.bottom, minWidth: pos.minWidth, maxWidth: pos.maxWidth, transformOrigin: `${pos.up ? "bottom" : "top"} ${pos.right !== undefined ? "right" : "left"}` }}
           >
             <div className="bounce-y relative">
-              <span ref={blob} aria-hidden className="pointer-events-none absolute rounded-lg bg-accent/15 ring-1 ring-inset ring-accent/60" />
               {options.map((o, i) => (
                 <Fragment key={i}>
                   {o.group && o.group !== options[i - 1]?.group && (
@@ -175,7 +165,7 @@ export function Select<T extends string | number>({
                     // Keep focus on the button.
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(i)}
-                    className={clsx("relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors", i === hi ? "text-fg" : "text-muted")}
+                    className={clsx("relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm", i === hi ? "bg-panel-2 text-fg" : "text-muted")}
                   >
                     <span className="flex-1">{o.label}</span>
                     <svg viewBox="0 0 24 24" aria-hidden className={clsx("h-4 w-4 shrink-0 text-accent", i !== sel && "invisible")} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">

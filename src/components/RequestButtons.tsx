@@ -145,9 +145,6 @@ export interface AnimeEntryOption {
   list?: string;
 }
 
-/** How long the menu takes to fade away (matches .menu-out in globals.css). */
-const MENU_OUT_MS = 140;
-
 /**
  * The current entry's request button, at the top of its page. With more than one episode it opens a menu: all of it,
  * or pick episodes by number (each run of consecutive ones goes as one request). `have` are the downloaded ones.
@@ -157,7 +154,6 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
-  const [closing, setClosing] = useState(false);
   const [picking, setPicking] = useState(false);
   const [eps, setEps] = useState<Set<number>>(new Set());
   const open = pos !== null;
@@ -169,13 +165,9 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
     setPos({ left: Math.max(8, Math.min(r.left, innerWidth - width - 8)), top: r.bottom + 6, width });
   };
   const close = () => {
-    setClosing(true);
-    setTimeout(() => {
-      setPos(null);
-      setClosing(false);
-      setPicking(false);
-      setEps(new Set());
-    }, MENU_OUT_MS);
+    setPos(null);
+    setPicking(false);
+    setEps(new Set());
   };
   const request = (episodes?: { from: number; to: number }[]) => {
     close();
@@ -204,7 +196,7 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   const done = entry.status === "available" ? "Available" : entry.requested ? "Requested" : undefined;
   const runs = episodeRuns([...eps]);
   const toggle = (n: number) => setEps((s) => (s.has(n) ? new Set([...s].filter((x) => x !== n)) : new Set([...s, n])));
-  const option = "flex w-full flex-col items-start rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/15 focus-visible:bg-accent/15 outline-none";
+  const option = "flex w-full flex-col items-start rounded-lg px-3 py-2.5 text-left outline-none hover:bg-panel-2 focus-visible:bg-panel-2";
 
   return (
     <div>
@@ -214,7 +206,7 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
         busy={busy}
         sent={sent}
         buttonRef={btn}
-        expanded={total > 1 ? open && !closing : undefined}
+        expanded={total > 1 ? open : undefined}
         onClick={() => (total <= 1 ? request() : open ? close() : measure())}
       />
       <Problem text={problem} />
@@ -223,7 +215,7 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
           <div
             ref={menu}
             role="menu"
-            className={clsx("fixed z-[60] overflow-hidden rounded-xl border border-line bg-panel p-1 shadow-2xl shadow-black/50", closing ? "menu-out" : "jelly-drop")}
+            className="menu menu-in fixed z-[60] overflow-hidden"
             style={{ left: pos.left, top: pos.top, width: pos.width, transformOrigin: "top left" }}
           >
             {/* Keyed by view, so switching slides the new one in from its side. */}

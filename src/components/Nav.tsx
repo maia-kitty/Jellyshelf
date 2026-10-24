@@ -301,7 +301,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
     if (open) setDrag(dragOn());
   }, [open]);
   const [notifs, setNotifs] = useState(false);
-  const item = "block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-2";
+  const item = "block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-panel-2";
   const plain = clsx(item, "text-muted hover:text-fg");
   return (
     <div ref={box} className="relative shrink-0">
@@ -314,7 +314,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-line bg-panel p-1.5 shadow-2xl">
+        <div className="menu menu-in absolute right-0 top-full z-40 mt-2 w-56 origin-top-right">
           <div className="px-3 pb-2 pt-1.5">
             <div className="truncate text-sm font-semibold">{user.displayName}</div>
             <div className="text-xs text-muted">{user.role === "admin" ? "Admin" : "Member"}</div>
@@ -346,7 +346,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
           <button
             role="menuitemcheckbox"
             aria-checked={drag}
-            className="hidden w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm text-muted hover:bg-panel-2 hover:text-fg pointer-fine:flex"
+            className="hidden w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted hover:bg-panel-2 hover:text-fg pointer-fine:flex"
             onClick={() => {
               try {
                 localStorage.setItem(DRAG_KEY, drag ? "0" : "1");
