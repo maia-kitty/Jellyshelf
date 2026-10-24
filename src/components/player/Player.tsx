@@ -637,17 +637,17 @@ export function Player({ meta }: { meta: WatchMeta }) {
         )}
       </div>
 
-      {/* Contextual: skip intro, up next */}
+      {/* Contextual: skip intro, up next. Raised above the bottom controls, whose fade reaches up over them. */}
       {segment && controls !== undefined && (
         <button
           onClick={() => seekTo(segment.end)}
-          className="absolute bottom-28 right-4 rounded-xl border border-white/30 bg-black/60 px-4 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white hover:text-black sm:right-8"
+          className="absolute bottom-28 right-4 z-10 rounded-xl border border-white/30 bg-black/60 px-4 py-2.5 text-sm font-semibold backdrop-blur transition hover:bg-white hover:text-black sm:right-8"
         >
           Skip {segment.type === "Recap" ? "recap" : segment.type === "Preview" ? "preview" : "intro"} »
         </button>
       )}
       {upNext !== null && meta.next && (
-        <div className="absolute bottom-28 right-4 flex w-80 max-w-[calc(100%-2rem)] gap-3 overflow-hidden rounded-2xl border border-white/15 bg-black/75 p-3 backdrop-blur sm:right-8">
+        <div className="absolute bottom-28 right-4 z-10 flex w-80 max-w-[calc(100%-2rem)] gap-3 overflow-hidden rounded-2xl border border-white/15 bg-black/75 p-3 backdrop-blur sm:right-8">
           {meta.next.thumb && (
             // eslint-disable-next-line @next/next/no-img-element
             <img {...sized(meta.next.thumb, 112)} alt="" className="h-16 w-28 shrink-0 rounded-lg bg-white/10 object-cover" />
@@ -674,7 +674,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
       )}
 
       {finale && rate === "offer" && (
-        <div className="absolute bottom-28 right-4 w-80 max-w-[calc(100%-2rem)] rounded-2xl border border-white/15 bg-black/75 p-4 backdrop-blur sm:right-8">
+        <div className="absolute bottom-28 right-4 z-10 w-80 max-w-[calc(100%-2rem)] rounded-2xl border border-white/15 bg-black/75 p-4 backdrop-blur sm:right-8">
           <div className="text-[11px] uppercase tracking-wide text-white/60">Finished</div>
           <div className="truncate font-semibold">{finale.title}</div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -787,7 +787,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
             </Btn>
 
             {menu && src && (
-              <div className="menu-pop absolute bottom-12 right-0 max-h-[60vh] w-64 overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur">
+              <div className="menu-pop absolute bottom-12 right-0 z-20 max-h-[60vh] w-64 overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900/95 p-1.5 shadow-2xl backdrop-blur">
                 {menu === "subs" && (
                   <>
                     <MenuItem on={subIndex === null} onClick={() => chooseSub(null)}>
