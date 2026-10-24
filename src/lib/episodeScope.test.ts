@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scopeEpisodes } from "./episodeScope";
+import { episodeRuns, scopeEpisodes } from "./episodeScope";
 
 // AoT-ish: S3 has 22 episodes, absolute numbers continue from S1-2 (37 eps).
 const eps = [
@@ -34,5 +34,16 @@ describe("scopeEpisodes", () => {
   });
   it("plain TV: all regular seasons", () => {
     expect(scopeEpisodes(eps, null)).toHaveLength(47);
+  });
+});
+
+describe("episodeRuns", () => {
+  it("groups consecutive episodes, in order", () => {
+    expect(episodeRuns([7, 2, 1, 3, 9, 10])).toEqual([
+      { from: 1, to: 3 },
+      { from: 7, to: 7 },
+      { from: 9, to: 10 },
+    ]);
+    expect(episodeRuns([])).toEqual([]);
   });
 });

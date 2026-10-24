@@ -320,6 +320,13 @@ body {
   70% { transform: scale(0.99, 0.97); }
 }
 .jelly-drop { animation: jelly-drop 0.45s ease-out; }
+/* …and shrinks back up as it goes (RequestThis waits this long before removing it). */
+@keyframes menu-out { to { opacity: 0; transform: scale(0.96, 0.85); } }
+.menu-out { animation: menu-out 0.14s ease-in forwards; }
+/* A menu's views slide in from the side you're heading to: deeper from the right, back from the left. */
+@keyframes menu-slide { from { opacity: 0; transform: translateX(var(--from)); } }
+.menu-slide-l { --from: 24px; animation: menu-slide 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.menu-slide-r { --from: -24px; animation: menu-slide 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
 
 /* Debug page: preview what reduced-motion users see. Mirrors the media query below. */
 .simulate-reduced-motion .spill .spill-bar { animation: none !important; transform: scaleX(0.55); }
@@ -345,6 +352,9 @@ body {
   .spotlight-progress > span,
   .page-in,
   .card-in,
+  .menu-out,
+  .menu-slide-l,
+  .menu-slide-r,
   .tab-pop,
   .nav-icon *,
   .player-icon,

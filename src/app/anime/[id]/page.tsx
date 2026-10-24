@@ -7,7 +7,7 @@ import type { Media, Request, User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
 import { CommunityScore } from "@/components/Score";
 import { CardRow } from "@/components/MediaCard";
-import { AnimeRequest, RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
+import { AnimeFranchise, RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
 import { MappingOverride } from "@/components/MappingOverride";
 import { AniListPanel } from "@/components/AniListPanel";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
@@ -94,11 +94,14 @@ async function HeroActions({
   const nextEp = lib?.kind === "series" ? (lib.info.episodes.find((e) => e.playUrl && e.n === (progress ?? 0) + 1) ?? lib.info.episodes.find((e) => e.playUrl)) : undefined;
   const playUrl = nextEp?.playUrl ?? lib?.info.playUrl ?? null;
   const label = nextEp && (progress ?? 0) > 0 ? `Play episode ${nextEp.n}` : "Play";
+  const eps = lib?.kind === "series" ? lib.info.episodes : [];
+  // Still airing: AniList doesn't know the count yet, Sonarr knows the episodes announced so far.
+  const episodes = current.episodes ?? (eps.length ? Math.max(...eps.map((e) => e.n)) : null);
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start gap-3">
         <JellyfinButton href={playUrl} label={label} resume={await resumeHint(user, playUrl, nextEp && `episode ${nextEp.n}`)} />
-        {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={current} />}
+        {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={{ ...current, episodes }} have={eps.filter((e) => e.hasFile).map((e) => e.n)} />}
       </div>
       <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} />
     </div>
@@ -124,7 +127,7 @@ async function LibrarySection({ library, entry, progress, user }: { library: Pro
 async function Franchise({ entry, user, footer }: { entry: AniMediaCard; user: User; footer?: React.ReactNode }) {
   const chain = await franchiseChain(entry.id).catch(() => []);
   const entries = chain.some((c) => c.id === entry.id) ? chain : [entry];
-  return <AnimeRequest entries={await entryOptions(entries, entry.id, user)} showTargets={user.role === "admin"} footer={footer} />;
+  return <AnimeFranchise entries={await entryOptions(entries, entry.id, user)} showTargets={user.role === "admin"} footer={footer} />;
 }
 
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
@@ -215,7 +218,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
       <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
         <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
       </Suspense>
-      <Suspense fallback={<AnimeRequest entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
+      <Suspense fallback={<AnimeFranchise entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
         <Franchise entry={a} user={user} footer={mappingFooter} />
       </Suspense>
       <CardRow title="Related" cards={relatedCards} />

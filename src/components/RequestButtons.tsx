@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import clsx from "clsx";
 import type { MediaStatus } from "@/db/schema";
 import { AppIcon } from "./AppIcon";
 import { sized } from "@/lib/img";
+import { episodeRuns } from "@/lib/episodeScope";
 
 async function postRequest(body: unknown) {
   const res = await fetch("/api/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -26,11 +28,13 @@ function useSubmit(name?: (id: number) => string | undefined) {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const run = async (body: unknown) => {
+  const run = async (body: unknown | unknown[]) => {
     setBusy(true);
     setProblem(null);
     try {
-      const r = await postRequest(body);
+      const rs = [];
+      for (const b of Array.isArray(body) ? body : [body]) rs.push(await postRequest(b));
+      const r = { created: rs.flatMap((x) => x.created), skipped: rs.flatMap((x) => x.skipped) };
       const failed = r.created.filter((c) => c.status === "failed").length;
       setProblem(
         [
@@ -65,12 +69,43 @@ function Problem({ text }: { text: string | null }) {
  * pops (lid flies, sparks burst), the button wobbles, and it settles as "Requested". The jar stays the same element
  * through all of that, so the page refresh that lands mid-pop doesn't restart it.
  */
-function SendButton({ label, done, busy, sent, disabled, onClick }: { label: string; done?: string; busy: boolean; sent: boolean; disabled?: boolean; onClick: () => void }) {
+function SendButton({
+  label,
+  done,
+  busy,
+  sent,
+  disabled,
+  onClick,
+  buttonRef,
+  expanded,
+}: {
+  label: string;
+  done?: string;
+  busy: boolean;
+  sent: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+  /** Set when the button opens a menu: it gets a chevron that flips while the menu is open. */
+  expanded?: boolean;
+}) {
   const quiet = busy || sent || !!done;
   return (
-    <button className={clsx(quiet ? "btn-done" : "btn-primary", sent && "btn-jelly")} disabled={disabled || quiet} onClick={onClick}>
+    <button
+      ref={buttonRef}
+      className={clsx(quiet ? "btn-done" : "btn-primary", sent && "btn-jelly")}
+      disabled={disabled || quiet}
+      onClick={onClick}
+      aria-haspopup={expanded !== undefined ? "menu" : undefined}
+      aria-expanded={expanded}
+    >
       {quiet && <AppIcon size={24} animate={sent ? "pop" : busy ? "loading" : undefined} className="-my-1.5 shrink-0 text-fg" />}
       {sent ? "Requested" : busy ? "Requesting…" : (done ?? label)}
+      {expanded !== undefined && !quiet && (
+        <svg viewBox="0 0 24 24" aria-hidden className={clsx("-mr-1 h-4 w-4 transition-transform duration-300", expanded && "rotate-180")} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      )}
     </button>
   );
 }
@@ -110,20 +145,153 @@ export interface AnimeEntryOption {
   list?: string;
 }
 
-/** The current entry's own request button, for the top of its page. */
-export function RequestThis({ entry }: { entry: AnimeEntryOption }) {
+/** How long the menu takes to fade away (matches .menu-out in globals.css). */
+const MENU_OUT_MS = 140;
+
+/**
+ * The current entry's request button, at the top of its page. With more than one episode it opens a menu: all of it,
+ * or pick episodes by number (each run of consecutive ones goes as one request). `have` are the downloaded ones.
+ */
+export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; have?: number[] }) {
   const { busy, sent, problem, run } = useSubmit();
+  const btn = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [eps, setEps] = useState<Set<number>>(new Set());
+  const open = pos !== null;
+
+  // Fixed to the window so the hero (which clips its backdrop) doesn't cut it off.
+  const measure = () => {
+    const r = btn.current!.getBoundingClientRect();
+    const width = Math.min(320, innerWidth - 16);
+    setPos({ left: Math.max(8, Math.min(r.left, innerWidth - width - 8)), top: r.bottom + 6, width });
+  };
+  const close = () => {
+    setClosing(true);
+    setTimeout(() => {
+      setPos(null);
+      setClosing(false);
+      setPicking(false);
+      setEps(new Set());
+    }, MENU_OUT_MS);
+  };
+  const request = (episodes?: { from: number; to: number }[]) => {
+    close();
+    run(episodes ? episodes.map((r) => ({ kind: "anime", anilistIds: [entry.id], episodes: r })) : { kind: "anime", anilistIds: [entry.id] });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => !btn.current?.contains(e.target as Node) && !menu.current?.contains(e.target as Node) && close();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("pointerdown", away);
+    window.addEventListener("keydown", esc);
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      window.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   if (!entry.mapped) return <p className="text-sm text-bad">Can&apos;t request this yet: no TVDB/TMDB mapping.</p>;
+  const total = entry.episodes ?? 0;
+  const done = entry.status === "available" ? "Available" : entry.requested ? "Requested" : undefined;
+  const runs = episodeRuns([...eps]);
+  const toggle = (n: number) => setEps((s) => (s.has(n) ? new Set([...s].filter((x) => x !== n)) : new Set([...s, n])));
+  const option = "flex w-full flex-col items-start rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/15 focus-visible:bg-accent/15 outline-none";
+
   return (
     <div>
       <SendButton
         label="Request"
-        done={entry.status === "available" ? "Available" : entry.requested ? "Requested" : undefined}
+        done={done}
         busy={busy}
         sent={sent}
-        onClick={() => run({ kind: "anime", anilistIds: [entry.id] })}
+        buttonRef={btn}
+        expanded={total > 1 ? open && !closing : undefined}
+        onClick={() => (total <= 1 ? request() : open ? close() : measure())}
       />
       <Problem text={problem} />
+      {open &&
+        createPortal(
+          <div
+            ref={menu}
+            role="menu"
+            className={clsx("fixed z-[60] overflow-hidden rounded-xl border border-line bg-panel p-1 shadow-2xl shadow-black/50", closing ? "menu-out" : "jelly-drop")}
+            style={{ left: pos.left, top: pos.top, width: pos.width, transformOrigin: "top left" }}
+          >
+            {/* Keyed by view, so switching slides the new one in from its side. */}
+            <div key={String(picking)} className={picking ? "menu-slide-l" : "menu-slide-r"}>
+              {!picking ? (
+                <>
+                  <button role="menuitem" className={option} onClick={() => request()}>
+                    <span className="text-sm font-medium">All episodes</span>
+                    <span className="text-xs text-muted">The full season, {total} episodes</span>
+                  </button>
+                  <button role="menuitem" className={option} onClick={() => setPicking(true)}>
+                    <span className="flex w-full items-center text-sm font-medium">
+                      Pick episodes
+                      <svg viewBox="0 0 24 24" aria-hidden className="ml-auto h-4 w-4 text-muted" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m9 6 6 6-6 6" />
+                      </svg>
+                    </span>
+                    <span className="text-xs text-muted">Only the ones you choose</span>
+                  </button>
+                </>
+              ) : (
+                <div className="p-2">
+                  <div className="mb-2 flex items-center gap-2 text-sm">
+                    <button className="-ml-1 rounded-md p-1 text-muted hover:text-fg" onClick={() => setPicking(false)} aria-label="Back">
+                      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m15 6-6 6 6 6" />
+                      </svg>
+                    </button>
+                    <span className="font-medium">Pick episodes</span>
+                    {eps.size > 0 && (
+                      <button className="ml-auto text-xs text-accent hover:underline" onClick={() => setEps(new Set())}>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid max-h-60 grid-cols-6 gap-1.5 overflow-y-auto overscroll-contain p-0.5">
+                    {Array.from({ length: total }, (_, i) => i + 1).map((n, i) => {
+                      const got = have.includes(n);
+                      const on = eps.has(n);
+                      return (
+                        <button
+                          key={n}
+                          disabled={got}
+                          aria-pressed={on}
+                          title={got ? "Already downloaded" : undefined}
+                          onClick={() => toggle(n)}
+                          className={clsx(
+                            "card-in rounded-lg py-1.5 text-sm tabular-nums transition enabled:active:scale-90",
+                            got ? "bg-ok/10 text-ok/70" : on ? "scale-105 bg-accent text-white" : "bg-panel-2 text-fg/80 hover:bg-accent/20",
+                          )}
+                          style={{ "--i": Math.min(i, 24) * 0.4 } as React.CSSProperties}
+                        >
+                          {n}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button className="btn-primary mt-3 w-full" disabled={!eps.size} onClick={() => request(runs)}>
+                    {!eps.size
+                      ? "Tap episodes to pick them"
+                      : `Request ${eps.size === 1 ? "ep" : "eps"} ${runs.map((r) => (r.from === r.to ? r.from : `${r.from}–${r.to}`)).join(", ")}`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -187,7 +355,7 @@ function PickGrid({
   items: PickItem[];
   placeholders?: number;
   footer?: React.ReactNode;
-  onRequest: (ids: number[], episodes?: Range) => unknown;
+  onRequest?: (ids: number[], episodes?: Range) => unknown;
 }) {
   const { busy, sent, problem, run } = useSubmit((id) => items.find((i) => i.id === id)?.title);
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -213,12 +381,12 @@ function PickGrid({
       <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <h3 className="font-semibold">{heading}</h3>
         {count && <span className="text-sm text-muted">{count}</span>}
-        {allOpen.length > 1 && (
+        {onRequest && allOpen.length > 1 && (
           <button className="text-sm text-accent hover:underline" onClick={() => pick(picked.size === allOpen.length ? new Set() : new Set(allOpen))}>
             {picked.size === allOpen.length ? "Clear" : "Select all missing"}
           </button>
         )}
-        {(allOpen.length > 0 || picked.size > 0 || sent) && (
+        {onRequest && (allOpen.length > 0 || picked.size > 0 || sent) && (
           <div className="ml-auto">
             <SendButton
               label={range ? (range.from === range.to ? `Request ep ${range.from}` : `Request eps ${range.from}–${range.to}`) : picked.size ? `Request ${picked.size}` : "Pick to request"}
@@ -303,8 +471,8 @@ function PickGrid({
   );
 }
 
-/** A franchise's seasons and films. */
-export function AnimeRequest({
+/** A franchise's seasons and films, to see where each stands and go to it (each is requested from its own page). */
+export function AnimeFranchise({
   entries,
   placeholders = 0,
   showTargets = false,
@@ -322,25 +490,16 @@ export function AnimeRequest({
     cover: e.cover,
     href: `/anime/${e.id}`,
     current: e.current,
-    selectable: e.mapped && !e.requested && e.status !== "available",
-    episodes: e.episodes,
+    selectable: false,
     chips: [
       ...(e.mapped ? [libraryChip(e.status, e.requested, e.someEpisodes)] : [{ label: "Not mapped", tone: "bad" as const }]),
       e.list ? { label: e.list, tone: "anilist" as const } : null,
     ].filter((c) => c !== null),
     note: showTargets ? { text: `→ ${e.target}`, bad: !e.mapped } : undefined,
   }));
-  const many = entries.length > 1 || placeholders > 0;
-  return (
-    <PickGrid
-      heading={many ? "Seasons & films" : "Request"}
-      count={many ? `${entries.length} in this franchise` : undefined}
-      items={items}
-      placeholders={placeholders}
-      footer={footer}
-      onRequest={(ids, episodes) => ({ kind: "anime", anilistIds: ids, episodes })}
-    />
-  );
+  // A franchise of one is just this page again; only the admin's mapping editor is left to show.
+  if (entries.length < 2 && !placeholders) return footer ? <section className="card mb-10 p-5">{footer}</section> : null;
+  return <PickGrid heading="Seasons & films" count={`${entries.length} in this franchise`} items={items} placeholders={placeholders} footer={footer} />;
 }
 
 export interface SeasonOption {

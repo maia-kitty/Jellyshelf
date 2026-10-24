@@ -29,3 +29,14 @@ export function scopeEpisodes<T extends RawEpisode>(eps: T[], target: Extract<An
   }
   return out.sort((a, b) => a.season - b.season || a.episode - b.episode);
 }
+
+/** Picked episode numbers as runs of consecutive ones, which is how they can be requested: [1, 2, 3, 7] → 1–3 and 7. */
+export function episodeRuns(eps: number[]): { from: number; to: number }[] {
+  const out: { from: number; to: number }[] = [];
+  for (const n of [...eps].sort((a, b) => a - b)) {
+    const last = out.at(-1);
+    if (last && n === last.to + 1) last.to = n;
+    else out.push({ from: n, to: n });
+  }
+  return out;
+}
