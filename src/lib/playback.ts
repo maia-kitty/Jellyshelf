@@ -12,6 +12,7 @@ import { anilist, aniTitle } from "@/lib/clients/anilist";
 import { cached } from "@/lib/cache";
 import { getSettings } from "@/lib/settings";
 import { trackLabel } from "@/lib/langs";
+import { chapterSegments } from "./chapters";
 import type { BrowserCaps, PlayReport, PlayRequest, PlaySource, Segment, SubtitleTrack, Trickplay, WatchMeta } from "./playbackTypes";
 
 export class NeedsJellyfinLogin extends Error {
@@ -235,13 +236,14 @@ interface JfItem {
   ImageTags?: Record<string, string>;
   Trickplay?: Record<string, Record<string, { Width: number; Height: number; TileWidth: number; TileHeight: number; ThumbnailCount: number; Interval: number }>>;
   LocationType?: string;
+  Chapters?: { Name?: string; StartPositionTicks: number }[];
 }
 
 const epLabel = (e: JfItem) => `S${e.ParentIndexNumber ?? "?"} E${e.IndexNumber ?? "?"}`;
 
 export async function watchMeta(user: User, itemId: string): Promise<WatchMeta> {
   const jf = await asUser(user);
-  const item = await jf.call<JfItem>(`/Items/${itemId}?userId=${jf.userId}&Fields=ProviderIds,Trickplay`);
+  const item = await jf.call<JfItem>(`/Items/${itemId}?userId=${jf.userId}&Fields=ProviderIds,Trickplay,Chapters`);
   if (item.Type === "Series") {
     // e.g. after signing in from /watch/series/…: start the right episode instead.
     const ep = await firstToPlay(user, itemId);
@@ -270,7 +272,11 @@ export async function watchMeta(user: User, itemId: string): Promise<WatchMeta> 
     jf
       .call<{ Items: { Type: Segment["type"]; StartTicks: number; EndTicks: number }[] }>(`/MediaSegments/${itemId}`)
       .then((r) => r.Items.map((s) => ({ type: s.Type, start: s.StartTicks / TICKS, end: s.EndTicks / TICKS })))
-      .catch(() => []),
+      .catch(() => [])
+      // Nothing detected by Jellyfin: many releases name their chapters (Opening, Ending, Preview…), so use those.
+      .then((found) =>
+        found.length ? found : chapterSegments((item.Chapters ?? []).map((c) => ({ name: c.Name ?? "", start: c.StartPositionTicks / TICKS })), (item.RunTimeTicks ?? 0) / TICKS),
+      ),
     anilistTarget(item, series).catch(() => null),
   ]);
 
