@@ -130,7 +130,24 @@ export function EpisodeList({
               <li key={`${e.season}x${e.episode}`}>
                 {newSeason && <div className="pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted">Season {e.season}</div>}
                 <div className={clsx("group flex items-center gap-3 py-2", !e.hasFile && "opacity-50")}>
-                  <span className={clsx("w-10 shrink-0 text-right text-lg font-semibold tabular-nums", watched ? "text-anilist" : "text-muted")}>{e.n}</span>
+                  {e.playUrl ? (
+                    // The number is the play button: on hover it shrinks away and a play arrow grows in its place.
+                    <Link
+                      href={e.playUrl}
+                      className={clsx("group/num relative w-10 shrink-0 text-right text-lg font-semibold tabular-nums", watched ? "text-anilist" : "text-muted")}
+                      aria-label={`Play episode ${e.n}`}
+                      title="Play"
+                    >
+                      <span className="inline-block transition duration-200 group-hover/num:scale-50 group-hover/num:opacity-0 group-focus-visible/num:scale-50 group-focus-visible/num:opacity-0">{e.n}</span>
+                      <span className="absolute inset-0 flex items-center justify-end text-[#00a4dc] opacity-0 transition duration-200 scale-50 group-hover/num:scale-100 group-hover/num:opacity-100 group-focus-visible/num:scale-100 group-focus-visible/num:opacity-100">
+                        <svg viewBox="0 0 24 24" className="size-6" aria-hidden="true">
+                          <path d="M8 5.5L8 18.5L19 12Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className={clsx("w-10 shrink-0 text-right text-lg font-semibold tabular-nums", watched ? "text-anilist" : "text-muted")}>{e.n}</span>
+                  )}
                   <span className="w-4 shrink-0 text-anilist">{watched ? "✓" : ""}</span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm" title={e.title}>
@@ -171,12 +188,8 @@ export function EpisodeList({
                     ) : (
                       <SubsChips subs={e.subs} />
                     ))}
-                  {e.playUrl ? (
-                    <Link href={e.playUrl} className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs transition hover:border-[#00a4dc] hover:text-[#00a4dc]">
-                      ▶ Play
-                    </Link>
-                  ) : (
-                    e.hasFile && <span className="shrink-0 text-xs text-muted" title="Downloaded, but Jellyfin hasn't picked it up yet">not in Jellyfin</span>
+                  {!e.playUrl && e.hasFile && (
+                    <span className="shrink-0 text-xs text-muted" title="Downloaded, but Jellyfin hasn't picked it up yet">not in Jellyfin</span>
                   )}
                 </div>
               </li>
