@@ -67,5 +67,12 @@ export function arrApi(cfg: ArrConfig) {
     queue: async (extra = "") =>
       (await call<{ records: QueueRecord[] }>(`/queue?page=1&pageSize=500${extra}`, { timeoutMs: 15_000 })).records,
     command: (body: Record<string, unknown>) => call<{ id: number }>("/command", { method: "POST", body }),
+    /** Resolves once a command has finished, however it went, or after `maxMs` if it hasn't. */
+    waitForCommand: async (id: number, maxMs = 10 * 60_000) => {
+      for (const until = Date.now() + maxMs; Date.now() < until; await new Promise((r) => setTimeout(r, 3000))) {
+        const { status } = await call<{ status: string }>(`/command/${id}`);
+        if (status !== "queued" && status !== "started") return;
+      }
+    },
   };
 }

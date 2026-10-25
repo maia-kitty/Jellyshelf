@@ -6,6 +6,7 @@ import type { SonarrEpisode } from "@/lib/clients/sonarr";
 
 process.env.CONFIG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "jellyshelf-push-"));
 const { episodesToSearch } = await import("./push");
+await (await import("@/db")).ensureMigrated();
 
 const NOW = Date.parse("2026-10-25T00:00:00Z");
 let id = 0;
@@ -18,4 +19,29 @@ it("searches a season's missing, aired, monitored episodes in order", () => {
   expect(pick(episodesToSearch(all, { absolute: false, seasons: [2] }, NOW))).toEqual(["2x1", "2x2"]);
   // A whole series: every season but specials.
   expect(pick(episodesToSearch([...all, ep(0, 1)], { absolute: true, seasons: null }, NOW))).toEqual(["1x1", "2x1", "2x2"]);
+});
+
+it("sends queued searches to Sonarr one at a time, each once per request", async () => {
+  const { queueSearch, searchesSent } = await import("./push");
+  const log: string[] = [];
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const api = {
+    episodeSearch: async (ids: number[]) => {
+      maxInFlight = Math.max(maxInFlight, ++inFlight);
+      log.push(ids.join(","));
+      return { id: ids[0] };
+    },
+    waitForCommand: async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+    },
+  } as unknown as import("@/lib/clients/sonarr").SonarrClient;
+  const req = (id: number) => ({ id }) as import("@/db/schema").Request;
+  await queueSearch(api, req(1), [11, 12]);
+  await queueSearch(api, req(2), [12, 13]); // 12 is already waiting
+  await queueSearch(api, req(1), [11, 12]); // the sync re-queueing request 1
+  await searchesSent();
+  expect(log).toEqual(["11", "12", "13"]);
+  expect(maxInFlight).toBe(1);
 });

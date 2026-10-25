@@ -111,15 +111,47 @@ export function episodesInRequest(episodes: SonarrEpisode[], req: Pick<Request, 
   });
 }
 
+// ---------- searching ----------
+
 /**
- * Search a season or whole-series request's missing episodes that have aired, in order, as one EpisodeSearch. Sonarr
- * grabs each episode as soon as it has searched it, where a season (or series) search grabs nothing until it has
- * searched every episode, which on a long show can mean an hour of nothing downloading.
+ * Episodes waiting to be searched, sent to Sonarr one at a time, each grabbed as soon as it's found (a season search
+ * grabs nothing until it has searched every episode). One at a time also leaves Sonarr free to import: it runs three
+ * jobs at once, and a few long searches holding all three left finished downloads unimported until one ended.
+ * A request stays flagged (needsEpisodeSync) until all its episodes have been sent, so if Jellyshelf restarts with
+ * some still waiting, the availability sync queues them again.
  */
-async function searchRequested(api: SonarrClient, all: SonarrEpisode[], req: Request) {
-  const ids = episodesToSearch(all, req, Date.now());
-  if (ids.length) await api.episodeSearch(ids);
+const waiting: { requestId: number; episodeId: number }[] = [];
+/** "request:episode" already sent, so the sync re-queueing a flagged request doesn't search those twice. */
+const sent = new Set<string>();
+let searching: Promise<void> | null = null;
+
+export async function queueSearch(api: SonarrClient, req: Request, episodeIds: number[]) {
+  const fresh = episodeIds.filter((id) => !waiting.some((w) => w.episodeId === id) && !sent.has(`${req.id}:${id}`));
+  waiting.push(...fresh.map((episodeId) => ({ requestId: req.id, episodeId })));
+  const pending = waiting.some((w) => w.requestId === req.id);
+  await db.update(schema.requests).set({ needsEpisodeSync: pending }).where(eq(schema.requests.id, req.id));
+  searching ??= sendSearches(api).finally(() => (searching = null));
 }
+
+/** Resolves when the queue has emptied (for tests). */
+export const searchesSent = () => searching ?? Promise.resolve();
+
+async function sendSearches(api: SonarrClient) {
+  while (waiting.length) {
+    const { requestId, episodeId } = waiting[0];
+    try {
+      await api.waitForCommand((await api.episodeSearch([episodeId])).id);
+    } catch (e) {
+      console.warn(`[search] episode ${episodeId}:`, e instanceof Error ? e.message : e);
+    }
+    waiting.shift();
+    sent.add(`${requestId}:${episodeId}`);
+    if (!waiting.some((w) => w.requestId === requestId))
+      await db.update(schema.requests).set({ needsEpisodeSync: false }).where(eq(schema.requests.id, requestId));
+  }
+}
+
+const aired = (e: SonarrEpisode, now: number) => !!e.airDateUtc && Date.parse(e.airDateUtc) <= now;
 
 /** A season or whole-series request's monitored, missing episodes that have aired, in airing order. */
 export function episodesToSearch(all: SonarrEpisode[], req: Pick<Request, "absolute" | "seasons">, now: number) {
@@ -128,8 +160,7 @@ export function episodesToSearch(all: SonarrEpisode[], req: Pick<Request, "absol
       (e) =>
         e.monitored &&
         !e.hasFile &&
-        !!e.airDateUtc &&
-        Date.parse(e.airDateUtc) <= now &&
+        aired(e, now) &&
         (req.absolute ? e.seasonNumber > 0 : (req.seasons ?? []).includes(e.seasonNumber)),
     )
     .sort((a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber)
@@ -137,8 +168,8 @@ export function episodesToSearch(all: SonarrEpisode[], req: Pick<Request, "absol
 }
 
 /**
- * Search for what a request wants, once Sonarr has the series' episodes: a split-cour / absolute range is monitored
- * exactly first. Returns false when Sonarr has no episodes yet (series still refreshing).
+ * Queue the searches for what a request wants, once Sonarr has the series' episodes: a split-cour / absolute range is
+ * monitored exactly first. Returns false when Sonarr has no episodes yet (series still refreshing).
  */
 export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSeries, req: Request): Promise<boolean> {
   // Until Sonarr finishes adding a series (it clears addOptions then), its last step resets every episode's monitoring
@@ -147,8 +178,7 @@ export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSer
   const all = await api.episodes(series.id!);
   if (!all.length) return false;
   if (!req.episodeRanges?.length) {
-    await searchRequested(api, all, req);
-    await db.update(schema.requests).set({ needsEpisodeSync: false }).where(eq(schema.requests.id, req.id));
+    await queueSearch(api, req, episodesToSearch(all, req, Date.now()));
     return true;
   }
   const wanted = episodesInRequest(all, req);
@@ -172,8 +202,7 @@ export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSer
   }
 
   await api.monitorEpisodes(wanted.map((e) => e.id), true);
-  const missing = wanted.filter((e) => !e.hasFile).map((e) => e.id);
-  if (missing.length) await api.episodeSearch(missing);
-  await db.update(schema.requests).set({ needsEpisodeSync: false }).where(eq(schema.requests.id, req.id));
+  const now = Date.now();
+  await queueSearch(api, req, wanted.filter((e) => !e.hasFile && aired(e, now)).map((e) => e.id));
   return true;
 }
