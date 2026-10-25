@@ -43,7 +43,7 @@ async function requestOption(e: AniMediaCard): Promise<AnimeEntryOption> {
   };
 }
 
-type Library = { kind: "series"; info: EpisodesInfo } | { kind: "movie"; info: MovieLibraryInfo } | null;
+type Library = { kind: "series"; info: EpisodesInfo; whole?: EpisodesInfo } | { kind: "movie"; info: MovieLibraryInfo } | null;
 
 /** What Sonarr/Radarr/Jellyfin have of this entry: its episodes, or the film's file. */
 async function loadLibrary(entry: AniMediaCard, media: Media | undefined): Promise<Library> {
@@ -53,8 +53,13 @@ async function loadLibrary(entry: AniMediaCard, media: Media | undefined): Promi
     return info && { kind: "movie", info };
   }
   if (target.service !== "sonarr") return null;
-  const info = await seriesEpisodes({ tvdbId: target.tvdbId, anilistId: entry.id, jellyfinItemId: media?.jellyfinItemId, target }).catch(() => null);
-  return info && (info.episodes.length || info.playUrl) ? { kind: "series", info } : null;
+  const [info, whole] = await Promise.all([
+    seriesEpisodes({ tvdbId: target.tvdbId, anilistId: entry.id, jellyfinItemId: media?.jellyfinItemId, target }).catch(() => null),
+    // The whole show too, for the episode list's "All seasons".
+    seriesEpisodes({ tvdbId: target.tvdbId, anilistId: entry.id, jellyfinItemId: media?.jellyfinItemId, target: null }).catch(() => null),
+  ]);
+  if (!info || (!info.episodes.length && !info.playUrl)) return null;
+  return { kind: "series", info, whole: whole && whole.episodes.length > info.episodes.length ? whole : undefined };
 }
 
 /** Play when it's there, Request when it isn't, and how far along a request is. */
@@ -105,7 +110,7 @@ async function LibrarySection({ library, entry, progress, user }: { library: Pro
     );
   }
   const canFix = lib.info.subs ? await canFixSubs(user, lib.info.subs) : false;
-  return <EpisodeList info={lib.info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={title} canFixSubs={canFix} />;
+  return <EpisodeList info={lib.info} whole={lib.whole} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={title} canFixSubs={canFix} />;
 }
 
 async function MoreLikeThis({ id, user }: { id: number; user: User }) {

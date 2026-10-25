@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
+import { Tabs } from "./PillTabs";
 import type { EpisodesInfo } from "@/lib/episodes";
 import { patchEntry } from "./ListEditor";
 import { SubsBar, SubsChips, SubtitlePicker } from "./Subtitles";
@@ -51,13 +52,16 @@ export function JellyfinButton({ href, label = "Play", resume }: { href: string 
  * (episode number ≤ list progress) and "watched up to here".
  */
 export function EpisodeList({
-  info,
-  anilist,
-  groupBySeason = false,
+  info: season,
+  whole,
+  anilist: list,
+  groupBySeason: grouped = false,
   title,
   canFixSubs = false,
 }: {
   info: EpisodesInfo;
+  /** The whole show's episodes, when this list is one season of it: a switch then flips between the two. */
+  whole?: EpisodesInfo;
   anilist: { mediaId: number; progress: number } | null;
   groupBySeason?: boolean;
   /** Series title, for the subtitle picker. */
@@ -66,6 +70,11 @@ export function EpisodeList({
   canFixSubs?: boolean;
 }) {
   const router = useRouter();
+  const [all, setAll] = useState(false);
+  // The whole show: grouped by season, and without AniList progress, which is per season.
+  const info = all && whole ? whole : season;
+  const anilist = all ? null : list;
+  const groupBySeason = all || grouped;
   const [showMissing, setShowMissing] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const [progress, setProgress] = useState(anilist?.progress ?? 0);
@@ -98,6 +107,18 @@ export function EpisodeList({
     <section className="card rise-in mb-10 p-4">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h3 className="font-semibold">Episodes</h3>
+        {whole && (
+          <Tabs
+            small
+            className="flex gap-1.5"
+            tabs={[
+              { key: "season", label: "This season" },
+              { key: "all", label: "All seasons" },
+            ]}
+            active={all ? "all" : "season"}
+            onSelect={(k) => setAll(k === "all")}
+          />
+        )}
         <span className="text-sm text-muted">
           {info.downloaded} of {info.total} downloaded
         </span>
