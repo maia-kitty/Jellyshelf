@@ -35,7 +35,7 @@ type Edge = { from: Node; to: Node; story: boolean };
 
 /**
  * The story runs along one line; what branches off an entry sits next to the following story entry, beside the
- * line. So no arrow crosses another card.
+ * line (or, after the last one, from the line on). So no arrow crosses another card.
  */
 function layout(map: FranchiseMapEntry[]) {
   const nodes: Node[] = [];
@@ -44,10 +44,10 @@ function layout(map: FranchiseMapEntry[]) {
     const node = { entry, along: k, across: 0 };
     if (k) edges.push({ from: nodes.findLast((n) => n.across === 0)!, to: node, story: true });
     nodes.push(node);
-    // Just the one entry and one branch: the branch goes on the line too, rather than off to one side.
-    const inline = map.length === 1 && branches.length === 1;
+    // Beside the next part of the story; after the last part there's none, so they start on the line itself.
+    const first = k + 1 < map.length ? 1 : 0;
     branches.forEach((b, j) => {
-      const twig = { entry: b.entry, along: k + 1, across: inline ? 0 : j + 1, relation: b.relation };
+      const twig = { entry: b.entry, along: k + 1, across: first + j, relation: b.relation };
       nodes.push(twig);
       edges.push({ from: node, to: twig, story: false });
     });
