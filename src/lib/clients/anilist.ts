@@ -51,17 +51,19 @@ export type AniRelationType =
   | "COMPILATION"
   | "CONTAINS";
 
+type FuzzyStart = { year: number | null; month: number | null; day: number | null };
+
 export interface AniMediaDetails extends AniMediaCard {
   type: "ANIME" | "MANGA";
   description: string | null;
   bannerImage: string | null;
   duration: number | null;
   popularity: number | null;
-  startDate: { year: number | null; month: number | null; day: number | null };
+  startDate: FuzzyStart;
   nextAiringEpisode: { episode: number; airingAt: number } | null;
   studios: { nodes: { name: string }[] };
   synonyms: string[];
-  relations: { edges: { relationType: AniRelationType; node: AniMediaCard & { type: "ANIME" | "MANGA" } }[] };
+  relations: { edges: { relationType: AniRelationType; node: AniMediaCard & { type: "ANIME" | "MANGA"; startDate: FuzzyStart } }[] };
 }
 
 export interface AniPage<T> {
@@ -400,4 +402,55 @@ export async function franchiseChain(rootId: number, maxEntries = 12): Promise<A
     }
   }
   return [...seen.values()].filter((m) => SERIES.includes(m.format)).sort((a, b) => a.start - b.start);
+}
+
+const startOf = (d: FuzzyStart) => (d.year ?? 9999) * 10000 + (d.month ?? 0) * 100 + (d.day ?? 0);
+
+const STORY: AniRelationType[] = ["PREQUEL", "SEQUEL"];
+const OFFSHOOT: AniRelationType[] = ["SIDE_STORY", "SPIN_OFF", "SUMMARY", "ALTERNATIVE", "PARENT", "COMPILATION", "CONTAINS"];
+type Edge = AniMediaDetails["relations"]["edges"][number];
+const animeEdge = (e: Edge) => e.node.type === "ANIME" && e.node.format !== "MUSIC";
+
+export interface FranchiseMapEntry {
+  entry: AniMediaCard;
+  /** What hangs off it: side stories, spin-offs, recaps…, oldest first. */
+  branches: { entry: AniMediaCard; relation: AniRelationType }[];
+}
+
+/**
+ * A franchise as a map: the main story (every prequel/sequel, films included) in airing order, each with the side
+ * stories, spin-offs and recaps that branch off it. A side story with no prequel or sequel of its own is mapped from
+ * its parent, so it shows up as a branch of the story it belongs to.
+ */
+export async function franchiseMap(id: number, maxEntries = 24): Promise<FranchiseMapEntry[]> {
+  let root = await anilist.media(id);
+  if (!root) return [];
+  if (!root.relations.edges.some((e) => animeEdge(e) && STORY.includes(e.relationType))) {
+    const parent = root.relations.edges.find((e) => animeEdge(e) && e.relationType === "PARENT");
+    if (parent) root = (await anilist.media(parent.node.id)) ?? root;
+  }
+  const story = new Map([[root.id, root]]);
+  const next = (m: AniMediaDetails) => m.relations.edges.filter((e) => animeEdge(e) && STORY.includes(e.relationType)).map((e) => e.node.id);
+  // Breadth-first, one ring of prequels/sequels at a time, fetched in parallel.
+  let frontier = next(root);
+  while (frontier.length && story.size < maxEntries) {
+    const ring = (await Promise.all([...new Set(frontier)].slice(0, maxEntries - story.size).map((i) => anilist.media(i)))).filter((m) => !!m);
+    for (const m of ring) story.set(m.id, m);
+    frontier = ring.flatMap(next).filter((i) => !story.has(i));
+  }
+  return mapLayout([...story.values()]);
+}
+
+/** The story in airing order; each offshoot under the first story entry that leads to it. */
+export function mapLayout(story: AniMediaDetails[]): FranchiseMapEntry[] {
+  const placed = new Set(story.map((m) => m.id));
+  return [...story]
+    .sort((a, b) => startOf(a.startDate) - startOf(b.startDate))
+    .map((m) => ({
+      entry: m,
+      branches: m.relations.edges
+        .filter((e) => animeEdge(e) && OFFSHOOT.includes(e.relationType) && !placed.has(e.node.id) && placed.add(e.node.id))
+        .sort((a, b) => startOf(a.node.startDate) - startOf(b.node.startDate))
+        .map((e) => ({ entry: e.node, relation: e.relationType })),
+    }));
 }

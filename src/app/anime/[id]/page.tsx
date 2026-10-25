@@ -7,7 +7,7 @@ import { db, schema } from "@/db";
 import type { Media, Request, User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
 import { CommunityScore } from "@/components/Score";
-import { CardRow } from "@/components/MediaCard";
+import { FranchiseMap } from "@/components/FranchiseMap";
 import { AnimeFranchise, RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
 import { MappingOverride } from "@/components/MappingOverride";
 import { AniListPanel } from "@/components/AniListPanel";
@@ -18,12 +18,12 @@ import { JarLoader } from "@/components/AppIcon";
 import { movieInfo, seriesEpisodes, type EpisodesInfo, type MovieLibraryInfo } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
 import { LIST_LABEL } from "@/components/StatusBadge";
-import { anilist, aniTitle, FORMAT_LABEL, franchiseChain, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
+import { anilist, aniTitle, FORMAT_LABEL, franchiseChain, franchiseMap, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
 import { animeCard, decorate } from "@/lib/cards";
 import { getMapping, resolveAnime } from "@/lib/mapping";
 import { describeTarget } from "@/lib/mapping/resolve";
-import { animeMediaMap } from "@/lib/media";
+import { animeMediaMap, statusMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
 import { latestRating } from "@/lib/ratings";
@@ -133,6 +133,13 @@ async function Franchise({ entry, user, footer }: { entry: AniMediaCard; user: U
   return <AnimeFranchise entries={await entryOptions(entries, entry.id, user)} showTargets={user.role === "admin"} footer={footer} />;
 }
 
+async function MapSection({ id }: { id: number }) {
+  const map = await franchiseMap(id).catch(() => []);
+  const ids = map.flatMap((m) => [m.entry.id, ...m.branches.map((b) => b.entry.id)]);
+  const status = await statusMap(ids.map((anilistId) => ({ kind: "anime" as const, anilistId })));
+  return <FranchiseMap map={map} currentId={id} statuses={Object.fromEntries(ids.map((i) => [i, status[`anime:${i}`]]))} />;
+}
+
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
   const id = Number((await params).id);
@@ -147,18 +154,14 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   ]);
   if (!a) notFound();
   const entry = list?.get(id);
-  const isSeries = a.format !== "MOVIE";
   // Started once; the hero (Play) and the episode list both wait on it.
   const library = loadLibrary(a, media);
 
   // Direct prequels/sequels hint that a franchise list is coming; reserve tiles for it so the page doesn't jump.
   const neighbours = a.relations.edges.filter((e) => e.node.type === "ANIME" && ["PREQUEL", "SEQUEL"].includes(e.relationType)).length;
   const franchiseGuess = neighbours ? Math.max(2, neighbours) : 0;
-  const related = a.relations.edges
-    .filter((e) => e.node.type === "ANIME" && !(isSeries && ["PREQUEL", "SEQUEL"].includes(e.relationType) && e.node.format !== "MOVIE"))
-    .map((e) => ({ ...animeCard(e.node), sub: `${e.relationType.replace("_", " ").toLowerCase()} · ${e.node.format ?? ""}` }));
-  const [[decorated, ...relatedCards], requests, [current]] = await Promise.all([
-    decorate([animeCard(a), ...related], user),
+  const [[decorated], requests, [current]] = await Promise.all([
+    decorate([animeCard(a)], user),
     media ? db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [],
     entryOptions([a], id, user),
   ]);
@@ -226,7 +229,9 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
       <Suspense fallback={<AnimeFranchise entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
         <Franchise entry={a} user={user} footer={mappingFooter} />
       </Suspense>
-      <CardRow title="Related" cards={relatedCards} />
+      <Suspense fallback={null}>
+        <MapSection id={a.id} />
+      </Suspense>
     </>
   );
 }
