@@ -8,6 +8,8 @@ import type { MediaStatus } from "@/db/schema";
 import { AppIcon } from "./AppIcon";
 import { sized } from "@/lib/img";
 import { episodeRuns } from "@/lib/episodeScope";
+import type { AniListStatus } from "@/lib/clients/anilist";
+import { LIST_COLOR } from "./StatusBadge";
 
 async function postRequest(body: unknown) {
   const res = await fetch("/api/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -143,6 +145,8 @@ export interface AnimeEntryOption {
   episodes: number | null;
   current: boolean;
   list?: string;
+  /** Which list it's on, for the chip's colour. */
+  listStatus?: AniListStatus;
 }
 
 /**
@@ -304,7 +308,8 @@ export interface PickItem {
   sub: string;
   cover: string | null;
   href?: string;
-  chips: { label: string; tone: Tone }[];
+  /** `className` overrides the tone's colours. */
+  chips: { label: string; tone: Tone; className?: string }[];
   selectable: boolean;
   /** The page you're on. */
   current?: boolean;
@@ -432,7 +437,7 @@ function PickGrid({
                 <div className="mt-1.5 flex min-h-5 flex-wrap gap-1.5 text-[11px]">
                   {it.current && <span className={clsx("rounded px-1.5 py-0.5", TONE.plain)}>This page</span>}
                   {it.chips.map((c) => (
-                    <span key={c.label} className={clsx("chip-in rounded px-1.5 py-0.5", TONE[c.tone])}>
+                    <span key={c.label} className={clsx("chip-in rounded px-1.5 py-0.5", c.className ?? TONE[c.tone])}>
                       {c.label}
                     </span>
                   ))}
@@ -485,7 +490,7 @@ export function AnimeFranchise({
     selectable: false,
     chips: [
       ...(e.mapped ? [libraryChip(e.status, e.requested, e.someEpisodes)] : [{ label: "Not mapped", tone: "bad" as const }]),
-      e.list ? { label: e.list, tone: "anilist" as const } : null,
+      e.list ? { label: e.list, tone: "anilist" as const, className: e.listStatus && LIST_COLOR[e.listStatus].tint } : null,
     ].filter((c) => c !== null),
     note: showTargets ? { text: `→ ${e.target}`, bad: !e.mapped } : undefined,
   }));

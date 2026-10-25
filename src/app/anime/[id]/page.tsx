@@ -53,6 +53,7 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
         episodes: e.episodes,
         current: e.id === currentId,
         list: l ? `${LIST_LABEL[l.status]}${l.status === "CURRENT" ? ` ${l.progress}/${e.episodes ?? "?"}` : ""}` : undefined,
+        listStatus: l?.status,
       };
     }),
   );
