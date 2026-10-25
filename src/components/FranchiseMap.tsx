@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import clsx from "clsx";
 import type { MediaStatus } from "@/db/schema";
 import { aniTitle, FORMAT_LABEL, type AniMediaCard, type AniRelationType, type FranchiseMapEntry } from "@/lib/clients/anilist";
@@ -15,70 +18,147 @@ const RELATION: Partial<Record<AniRelationType, string>> = {
   CONTAINS: "Contains",
 };
 
-const facts = (m: AniMediaCard) => [m.format && FORMAT_LABEL[m.format], m.seasonYear].filter(Boolean).join(" · ");
+const CARD_W = 196;
+const CARD_H = 64;
+const CELL_W = CARD_W + 40;
+const CELL_H = CARD_H + 44;
+const STORY = "var(--color-ok)";
+const OFFSHOOT = "var(--color-anilist)";
 
-/** A dot on what's in the library: full green when it's all there, faded when some of it is. */
-function Have({ status }: { status?: MediaStatus }) {
-  if (status !== "available" && status !== "partially_available") return null;
-  return (
-    <span
-      title={status === "available" ? "In your library" : "Partly in your library"}
-      className={clsx("absolute right-1 top-1 h-2.5 w-2.5 rounded-full ring-2 ring-bg", status === "available" ? "bg-ok" : "bg-ok/50")}
-    />
-  );
+type Node = { entry: AniMediaCard; x: number; y: number; relation?: AniRelationType };
+type Edge = { from: Node; to: Node; story: boolean };
+
+/**
+ * The story runs down the left, one entry per row; what branches off an entry sits on the row below it, to the
+ * right of the next part of the story. So no arrow crosses another card.
+ */
+function layout(map: FranchiseMapEntry[]) {
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  map.forEach(({ entry, branches }, k) => {
+    const node = { entry, x: 0, y: k };
+    if (k) edges.push({ from: nodes.findLast((n) => n.x === 0)!, to: node, story: true });
+    nodes.push(node);
+    branches.forEach((b, j) => {
+      const twig = { entry: b.entry, x: j + 1, y: k + 1, relation: b.relation };
+      nodes.push(twig);
+      edges.push({ from: node, to: twig, story: false });
+    });
+  });
+  return { nodes, edges, cols: Math.max(...nodes.map((n) => n.x)) + 1, rows: Math.max(...nodes.map((n) => n.y)) + 1 };
+}
+
+const PAD = 20;
+const centre = (n: Pick<Node, "x" | "y">) => ({ x: PAD + n.x * CELL_W + CARD_W / 2, y: PAD + n.y * CELL_H + CARD_H / 2 });
+
+/**
+ * The arrow's path. The story goes straight down; a branch drops from the card's right side to the gap below, runs
+ * along it and drops onto the branch's card, so arrows only ever run between cards, never across one.
+ */
+function arrow({ from, to, story }: Edge) {
+  const a = centre(from);
+  const b = centre(to);
+  const bottom = a.y + CARD_H / 2 + 2;
+  const top = b.y - CARD_H / 2 - 5;
+  if (story) return `M${a.x} ${bottom} V${top}`;
+  const x = a.x + CARD_W / 4;
+  return `M${x} ${bottom} V${(bottom + top) / 2} H${b.x} V${top}`;
 }
 
 /**
- * How a franchise fits together: the main story along a line, in airing order (films that carry it on included), and
- * under each entry what branches off it: side stories, spin-offs, recaps.
+ * How a franchise fits together, as a map of linked cards: green arrows carry the story on (sequels, films that
+ * continue it), blue ones lead to what branches off it (side stories, spin-offs, recaps). It opens on this page's entry.
  */
 export function FranchiseMap({ map, currentId, statuses }: { map: FranchiseMapEntry[]; currentId: number; statuses: Record<number, MediaStatus> }) {
-  const count = map.reduce((n, m) => n + 1 + m.branches.length, 0);
-  if (count < 2) return null;
+  const scroller = useRef<HTMLDivElement>(null);
+  const { nodes, edges, cols, rows } = layout(map);
+  const here = nodes.find((n) => n.entry.id === currentId);
+
+  const [hx, hy] = here ? [here.x, here.y] : [0, 0];
+  useEffect(() => {
+    const s = scroller.current;
+    if (!s) return;
+    const c = centre({ x: hx, y: hy });
+    s.scrollTo({ left: c.x - s.clientWidth / 2, top: c.y - s.clientHeight / 2 });
+  }, [hx, hy]);
+
+  if (nodes.length < 2) return null;
+  const [W, H] = [PAD * 2 + (cols - 1) * CELL_W + CARD_W, PAD * 2 + (rows - 1) * CELL_H + CARD_H];
   return (
     <section className="mb-10">
-      <ShelfHeader title="Franchise map" note={`${count} entries`} />
-      <ol className="scroll-row -mx-1 flex overflow-x-auto px-1 pb-3 pt-1">
-        {map.map(({ entry, branches }, i) => {
-          const here = entry.id === currentId;
-          return (
-            <li key={entry.id} className="relative isolate w-44 shrink-0">
-              {/* The story line, from this cover's middle to the next one's. */}
-              {i < map.length - 1 && <span aria-hidden className="absolute left-12 top-[4.5rem] -z-10 h-0.5 w-full bg-line" />}
-              <Link href={`/anime/${entry.id}`} className="group block w-36" aria-current={here ? "page" : undefined}>
-                <div className={clsx("relative h-36 w-24 overflow-hidden rounded-lg bg-panel-2 transition group-hover:-translate-y-0.5", here && "ring-2 ring-accent ring-offset-2 ring-offset-bg")}>
+      <ShelfHeader
+        title="Franchise map"
+        note={`${nodes.length} entries`}
+        actions={
+          <span className="ml-auto flex shrink-0 items-center gap-3 text-xs text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded" style={{ background: STORY }} />
+              Sequel
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 rounded" style={{ background: OFFSHOOT }} />
+              Side story & more
+            </span>
+          </span>
+        }
+      />
+      <div ref={scroller} className="card max-h-[34rem] overflow-auto overscroll-contain">
+        <div className="relative mx-auto" style={{ width: W, height: H }}>
+          <svg aria-hidden className="absolute inset-0" width={W} height={H}>
+            <defs>
+              {[STORY, OFFSHOOT].map((c, i) => (
+                <marker key={c} id={`fm-arrow-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0 0 10 5 0 10z" fill={c} />
+                </marker>
+              ))}
+            </defs>
+            {edges.map((e) => (
+              <path
+                key={`${e.from.entry.id}-${e.to.entry.id}`}
+                d={arrow(e)}
+                fill="none"
+                stroke={e.story ? STORY : OFFSHOOT}
+                strokeWidth={1.5}
+                strokeLinejoin="round"
+                markerEnd={`url(#fm-arrow-${e.story ? 0 : 1})`}
+              />
+            ))}
+          </svg>
+          {nodes.map((n) => {
+            const current = n.entry.id === currentId;
+            const status = statuses[n.entry.id];
+            return (
+              <Link
+                key={n.entry.id}
+                href={`/anime/${n.entry.id}`}
+                aria-current={current ? "page" : undefined}
+                className={clsx(
+                  "group absolute flex items-center gap-2.5 overflow-hidden rounded-lg border bg-panel-2 p-1.5 pr-2.5 transition hover:border-muted",
+                  current ? "border-accent ring-1 ring-accent" : "border-line",
+                )}
+                style={{ left: PAD + n.x * CELL_W, top: PAD + n.y * CELL_H, width: CARD_W, height: CARD_H }}
+              >
+                <span className="relative h-full w-11 shrink-0 overflow-hidden rounded bg-panel">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img {...sized(entry.coverImage.large, 96)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                  <Have status={statuses[entry.id]} />
-                </div>
-                <div className={clsx("mt-2 line-clamp-2 text-sm leading-snug group-hover:underline", here && "text-accent")}>{aniTitle(entry.title)}</div>
-                <div className="text-xs text-muted">{here ? "This page" : facts(entry)}</div>
+                  <img {...sized(n.entry.coverImage.large, 44)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  {(status === "available" || status === "partially_available") && (
+                    <span
+                      title={status === "available" ? "In your library" : "Partly in your library"}
+                      className={clsx("absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-panel-2", status === "available" ? "bg-ok" : "bg-ok/50")}
+                    />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className={clsx("line-clamp-2 text-xs leading-snug group-hover:underline", current && "text-accent")}>{aniTitle(n.entry.title)}</span>
+                  <span className="block truncate text-[11px] text-muted">
+                    {[n.relation && RELATION[n.relation], n.entry.format && FORMAT_LABEL[n.entry.format], n.entry.seasonYear].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
               </Link>
-              {branches.length > 0 && (
-                <ul className="ml-12 mt-2 w-32 border-l-2 border-line">
-                  {branches.map(({ entry: b, relation }) => (
-                    <li key={b.id} className="relative pt-2.5 pl-3">
-                      {/* the twig from the branch line to this entry */}
-                      <span aria-hidden className="absolute left-0 top-[2.125rem] h-0.5 w-2 bg-line" />
-                      <Link href={`/anime/${b.id}`} className="group flex gap-2" aria-current={b.id === currentId ? "page" : undefined}>
-                        <div className={clsx("relative h-12 w-8 shrink-0 overflow-hidden rounded bg-panel-2", b.id === currentId && "ring-2 ring-accent")}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img {...sized(b.coverImage.large, 32)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                          <Have status={statuses[b.id]} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className={clsx("line-clamp-2 text-xs leading-snug group-hover:underline", b.id === currentId && "text-accent")}>{aniTitle(b.title)}</div>
-                          <div className="truncate text-[11px] text-muted">{[RELATION[relation], b.format && FORMAT_LABEL[b.format]].filter(Boolean).join(" · ")}</div>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }
