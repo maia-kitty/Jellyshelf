@@ -90,9 +90,9 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         genres={tv.genres.map((g) => g.name)}
         overview={tv.overview}
         status={media?.status}
+        corner={<SourceSwitch active="tmdb" anilist={entries[0] ? `/anime/${entries[0].id}` : null} tmdb={`/tv/${id}`} />}
         aside={<TvDetails tv={tv} />}
       >
-        <SourceSwitch active="tmdb" anilist={entries[0] ? `/anime/${entries[0].id}` : null} tmdb={`/tv/${id}`} />
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             <Suspense fallback={null}>

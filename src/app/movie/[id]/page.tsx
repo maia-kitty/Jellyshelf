@@ -64,9 +64,9 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         genres={movie.genres.map((g) => g.name)}
         overview={movie.overview}
         status={media?.status}
+        corner={<SourceSwitch active="tmdb" anilist={anilistId ? `/anime/${anilistId}` : null} tmdb={`/movie/${id}`} />}
         aside={<MovieDetails movie={movie} />}
       >
-        <SourceSwitch active="tmdb" anilist={anilistId ? `/anime/${anilistId}` : null} tmdb={`/movie/${id}`} />
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             {/* In the library, the thing to do is watch it; otherwise, request it. */}

@@ -177,6 +177,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         overview={aniDescription(a.description)}
         status={decorated.status}
         list={entry ? { status: entry.status, progress: entry.progress, total: a.episodes } : undefined}
+        corner={<SourceSwitch active="anilist" anilist={`/anime/${a.id}`} tmdb={tmdb} />}
         aside={
           <AniListPanel
             mediaId={a.id}
@@ -189,7 +190,6 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           />
         }
       >
-        <SourceSwitch active="anilist" anilist={`/anime/${a.id}`} tmdb={tmdb} />
         <Suspense fallback={<RequestThis entry={current} />}>
           <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} />
         </Suspense>

@@ -6,7 +6,7 @@ export function SourceSwitch({ active, anilist, tmdb }: { active: "anilist" | "t
   return (
     <Tabs
       small
-      className="mb-4 flex gap-1.5"
+      className="flex gap-1.5"
       tabs={[
         { key: "anilist", label: "AniList", href: anilist },
         { key: "tmdb", label: "TMDB", href: tmdb },
