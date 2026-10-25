@@ -71,20 +71,6 @@ async function filmTmdbId(mapping: IdMapping, entry: { title?: AniTitle; seasonY
   return null;
 }
 
-/**
- * The other way round: an anime film's AniList entry when no id list links it to its TMDB page (they can disagree even
- * on the IMDb id). A single AniList film with exactly one of these titles, from the same year.
- */
-export async function anilistFilmByTitle(titles: (string | null | undefined)[], year: number | null) {
-  if (!year) return null;
-  for (const name of new Set(titles.filter((t): t is string => !!t))) {
-    const found = await anilist.search(name, { perPage: 10 }).catch(() => null);
-    const hits = found?.media.filter((m) => m.format === "MOVIE" && m.seasonYear === year && Object.values(m.title).some((t) => t && norm(t) === norm(name))) ?? [];
-    if (hits.length === 1) return hits[0].id;
-  }
-  return null;
-}
-
 /** Where an AniList entry goes. Pass its title and year (any AniList card has them) so a film can be found on TMDB. */
 export async function resolveAnime(
   entry: AniEntryInfo & { title?: AniTitle; seasonYear?: number | null },
@@ -113,3 +99,31 @@ export async function anilistIdsFor(opts: { tvdbId?: number | null; tmdbMovieId?
   return db.select().from(schema.idMapping).where(or(...conds));
 }
 
+// ---------- the AniList | TMDB switch ----------
+
+/**
+ * An anime film's AniList entry, from its TMDB page: the id lists by TMDB id, then by IMDb id (films they only file as
+ * a TVDB special have no TMDB id there), then a single AniList film with exactly its title from the same year (the
+ * lists and TMDB can disagree even on the IMDb id).
+ */
+export async function anilistForFilm(movie: { id: number; title: string; original_title: string; release_date?: string; external_ids?: { imdb_id?: string | null } }) {
+  const listed = (await anilistIdsFor({ tmdbMovieId: movie.id, imdbId: movie.external_ids?.imdb_id })).find((m) => m.type === "MOVIE");
+  if (listed) return listed.anilistId;
+  const year = Number(movie.release_date?.slice(0, 4));
+  if (!year) return null;
+  for (const name of new Set([movie.title, movie.original_title])) {
+    const found = await anilist.search(name, { perPage: 10 }).catch(() => null);
+    const hits = found?.media.filter((m) => m.format === "MOVIE" && m.seasonYear === year && Object.values(m.title).some((t) => t && norm(t) === norm(name))) ?? [];
+    if (hits.length === 1) return hits[0].id;
+  }
+  return null;
+}
+
+/** An AniList entry's TMDB page: its film, or the series it's a season of. */
+export async function tmdbPageFor(entry: AniEntryInfo & { title?: AniTitle; seasonYear?: number | null }) {
+  const { target, mapping } = await resolveAnime(entry);
+  if (target.service === "radarr") return `/movie/${target.tmdbId}`;
+  if (target.service !== "sonarr") return null;
+  const tmdb = mapping?.tmdbTvId ?? (await tmdbClient.tvByTvdb(target.tvdbId).catch(() => null));
+  return tmdb ? `/tv/${tmdb}` : null;
+}

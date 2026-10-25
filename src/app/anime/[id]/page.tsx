@@ -20,7 +20,7 @@ import { findMedia } from "@/lib/media";
 import { anilist, aniTitle, FORMAT_LABEL, franchiseMap, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
 import { animeCard, decorate } from "@/lib/cards";
-import { getMapping, resolveAnime } from "@/lib/mapping";
+import { getMapping, resolveAnime, tmdbPageFor } from "@/lib/mapping";
 import { animeMediaMap, statusMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
@@ -28,7 +28,6 @@ import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
 import { getSettings } from "@/lib/settings";
 import { SourceSwitch } from "@/components/SourceSwitch";
-import { tmdbClient } from "@/lib/clients/tmdb";
 
 /** What the request button needs to know about an entry. */
 async function requestOption(e: AniMediaCard): Promise<AnimeEntryOption> {
@@ -116,16 +115,6 @@ async function MapSection({ id }: { id: number }) {
   return <FranchiseMap map={map} currentId={id} statuses={Object.fromEntries(ids.map((i) => [i, status[`anime:${i}`]]))} />;
 }
 
-/** The same title's TMDB page, for the AniList/TMDB switch: the film, or the series this entry is a season of. */
-async function tmdbHref(entry: AniMediaCard): Promise<string | null> {
-  const { target } = await resolveAnime(entry);
-  if (target.service === "radarr") return `/movie/${target.tmdbId}`;
-  if (target.service !== "sonarr") return null;
-  const [row] = await db.select({ tmdbTvId: schema.idMapping.tmdbTvId }).from(schema.idMapping).where(eq(schema.idMapping.anilistId, entry.id));
-  const tmdb = row?.tmdbTvId ?? (await tmdbClient.tvByTvdb(target.tvdbId).catch(() => null));
-  return tmdb ? `/tv/${tmdb}` : null;
-}
-
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
   const id = Number((await params).id);
@@ -147,7 +136,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
     decorate([animeCard(a)], user),
     media ? db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [],
     requestOption(a),
-    tmdbHref(a).catch(() => null),
+    tmdbPageFor(a).catch(() => null),
   ]);
   const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
 
