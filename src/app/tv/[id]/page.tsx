@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AutoHeight } from "@/components/AutoHeight";
 import { and, eq, inArray } from "drizzle-orm";
@@ -12,11 +12,9 @@ import { EpisodeList, JellyfinButton } from "@/components/Episodes";
 import { JarLoader } from "@/components/AppIcon";
 import { DetailsPanel } from "@/components/DetailsPanel";
 import { LibraryStatus } from "@/components/LibraryStatus";
-import { SourceSwitch } from "@/components/SourceSwitch";
-import { anilist } from "@/lib/clients/anilist";
 import { looksLikeAnime, tmdbClient, tmdbImage, type TmdbTvDetails } from "@/lib/clients/tmdb";
 import { HttpError } from "@/lib/clients/http";
-import { animeCard, decorate, tvCard } from "@/lib/cards";
+import { decorate, tvCard } from "@/lib/cards";
 import { anilistIdsFor } from "@/lib/mapping";
 import { findMedia, requestedSeasons } from "@/lib/media";
 import { pageUser } from "@/lib/page";
@@ -37,6 +35,13 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
     }),
     findMedia({ kind: "tv", tmdbId: id }),
   ]);
+  // Anime has one page, its AniList entry (one per season): go to the first season's.
+  if (looksLikeAnime(tv)) {
+    const seasons = (await anilistIdsFor({ tmdbTvId: id, tvdbId: tv.external_ids?.tvdb_id })).filter((m) => m.tvdbSeason !== null && m.tvdbSeason !== 0 && m.type !== "MOVIE");
+    const order = (m: (typeof seasons)[number]) => (m.tvdbSeason === -1 ? 0 : m.tvdbSeason!) * 100000 + m.episodeOffset;
+    const first = seasons.sort((a, b) => order(a) - order(b))[0];
+    if (first) redirect(`/anime/${first.anilistId}`);
+  }
   const requested = media ? await requestedSeasons(media.id) : { whole: new Set<number>(), some: new Set<number>() };
   const active = media
     ? await db
@@ -50,15 +55,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
     ? seriesEpisodes({ tvdbId, tmdbId: id, jellyfinItemId: media?.jellyfinItemId ?? null, target: null }).catch(() => null)
     : Promise.resolve(null);
 
-  const isAnime = looksLikeAnime(tv);
-  const mapped = isAnime ? await anilistIdsFor({ tmdbTvId: id, tvdbId }) : [];
-  const entries = mapped.length ? await anilist.byIds(mapped.map((m) => m.anilistId).slice(0, 50)) : [];
-  const order = new Map(mapped.map((m) => [m.anilistId, (m.tvdbSeason ?? 99) * 1000 + m.episodeOffset]));
-  entries.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-  const [animeCards, recs] = await Promise.all([
-    decorate(entries.map(animeCard), user),
-    decorate((tv.recommendations?.results ?? []).slice(0, 20).map(tvCard), user),
-  ]);
+  const recs = await decorate((tv.recommendations?.results ?? []).slice(0, 20).map(tvCard), user);
 
   const seasons: SeasonOption[] = tv.seasons
     .filter((s) => s.episode_count > 0)
@@ -90,7 +87,6 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         genres={tv.genres.map((g) => g.name)}
         overview={tv.overview}
         status={media?.status}
-        corner={<SourceSwitch active="tmdb" anilist={entries[0] ? `/anime/${entries[0].id}` : null} tmdb={`/tv/${id}`} />}
         aside={<TvDetails tv={tv} />}
       >
         <div className="space-y-3">
@@ -116,9 +112,6 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         </AutoHeight>
       )}
       {tvdbId && <TvRequest tmdbId={id} seasons={seasons} />}
-      <div id="anilist-entries" className="scroll-mt-24">
-        <CardRow title="On AniList" cards={animeCards} />
-      </div>
       <CardRow title="More like this" cards={recs} />
     </>
   );

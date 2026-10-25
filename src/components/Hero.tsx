@@ -17,8 +17,6 @@ export function Hero(props: {
   list?: { status: AniListStatus; progress: number; total?: number | null };
   accentColor?: string | null;
   children?: React.ReactNode;
-  /** Small controls at the end of the badge row above the title (the AniList | TMDB switch). */
-  corner?: React.ReactNode;
   /** A panel to the right of the text on wide screens (below it on narrow ones). */
   aside?: React.ReactNode;
 }) {
@@ -43,10 +41,9 @@ export function Hero(props: {
         </div>
         <div className="min-w-0 flex-1">
           {/* A badge's height even when empty: one turning up (a request) mustn't push the whole column down. */}
-          <div className="mb-2 flex min-h-5 flex-wrap items-center gap-2">
+          <div className="mb-2 flex min-h-5 flex-wrap gap-2">
             <StatusBadge status={props.status} className="chip-in text-xs" />
             {props.list && <ListBadge {...props.list} className="text-xs" />}
-            {props.corner && <div className="ml-auto">{props.corner}</div>}
           </div>
           <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{props.title}</h1>
           {props.original && props.original !== props.title && <div className="mt-1 text-muted">{props.original}</div>}

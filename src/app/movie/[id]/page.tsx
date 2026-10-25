@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AutoHeight } from "@/components/AutoHeight";
 import { and, eq, inArray } from "drizzle-orm";
@@ -13,7 +13,6 @@ import { JellyfinButton } from "@/components/Episodes";
 import { FileCard } from "@/components/FileCard";
 import { DetailsPanel } from "@/components/DetailsPanel";
 import { LibraryStatus } from "@/components/LibraryStatus";
-import { SourceSwitch } from "@/components/SourceSwitch";
 import { looksLikeAnime, tmdbClient, tmdbImage, type TmdbMovieDetails } from "@/lib/clients/tmdb";
 import { HttpError } from "@/lib/clients/http";
 import { decorate, movieCard } from "@/lib/cards";
@@ -47,10 +46,10 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
   // Started now, awaited by the parts that need it, so the hero doesn't wait on Radarr/Jellyfin/Bazarr.
   const library = movieInfo({ tmdbId: id, itemId: media?.jellyfinItemId ?? null, radarrId: media?.radarrId ?? null }).catch(() => null);
 
-  const [anilistId, recs] = await Promise.all([
-    looksLikeAnime(movie) ? anilistForFilm(movie) : null,
-    decorate((movie.recommendations?.results ?? []).slice(0, 20).map(movieCard), user),
-  ]);
+  // Anime has one page, its AniList entry.
+  const anilistId = looksLikeAnime(movie) ? await anilistForFilm(movie) : null;
+  if (anilistId) redirect(`/anime/${anilistId}`);
+  const recs = await decorate((movie.recommendations?.results ?? []).slice(0, 20).map(movieCard), user);
   const available = media?.status === "available";
 
   return (
@@ -64,7 +63,6 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         genres={movie.genres.map((g) => g.name)}
         overview={movie.overview}
         status={media?.status}
-        corner={<SourceSwitch active="tmdb" anilist={anilistId ? `/anime/${anilistId}` : null} tmdb={`/movie/${id}`} />}
         aside={<MovieDetails movie={movie} />}
       >
         <div className="space-y-3">

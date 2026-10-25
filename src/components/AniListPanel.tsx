@@ -26,6 +26,8 @@ export function AniListPanel(props: {
   episodes: number | null;
   /** Episodes aired so far, for shows still airing. */
   aired: number | null;
+  /** The same title elsewhere (TMDB, IMDb, TVDB), beside the AniList link. */
+  links?: { label: string; href: string }[];
   /** Null when the viewer hasn't linked AniList. */
   entry: EditableEntry | null | undefined;
   linked: boolean;
@@ -77,11 +79,16 @@ export function AniListPanel(props: {
       <div className="mb-3 flex items-center gap-2">
         {/* Without AniList linked, all that's left here is your own rating. */}
         <h3 className="text-sm font-semibold">{props.linked ? "Your AniList" : "Your rating"}</h3>
-        {props.linked && (
-          <a className="ml-auto text-xs text-anilist hover:underline" href={`https://anilist.co/anime/${props.mediaId}`} target="_blank" rel="noreferrer">
-            Open ↗
+        <span className="ml-auto flex gap-3 text-xs">
+          <a className="text-anilist hover:underline" href={`https://anilist.co/anime/${props.mediaId}`} target="_blank" rel="noreferrer">
+            AniList ↗
           </a>
-        )}
+          {props.links?.map((l) => (
+            <a key={l.label} className="text-accent hover:underline" href={l.href} target="_blank" rel="noreferrer">
+              {l.label} ↗
+            </a>
+          ))}
+        </span>
       </div>
 
       {!props.linked ? null : !entry ? (

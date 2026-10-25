@@ -20,14 +20,14 @@ import { findMedia } from "@/lib/media";
 import { anilist, aniTitle, FORMAT_LABEL, franchiseMap, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
 import { animeCard, decorate } from "@/lib/cards";
-import { getMapping, resolveAnime, tmdbPageFor } from "@/lib/mapping";
+import { getMapping, linksFor, resolveAnime } from "@/lib/mapping";
 import { animeMediaMap, statusMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
 import { getSettings } from "@/lib/settings";
-import { SourceSwitch } from "@/components/SourceSwitch";
+import { CardRow } from "@/components/MediaCard";
 
 /** What the request button needs to know about an entry. */
 async function requestOption(e: AniMediaCard): Promise<AnimeEntryOption> {
@@ -108,6 +108,11 @@ async function LibrarySection({ library, entry, progress, user }: { library: Pro
   return <EpisodeList info={lib.info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={title} canFixSubs={canFix} />;
 }
 
+async function MoreLikeThis({ id, user }: { id: number; user: User }) {
+  const recs = await anilist.recommendations(id).catch(() => []);
+  return <CardRow title="More like this" cards={await decorate(recs.slice(0, 20).map(animeCard), user)} />;
+}
+
 async function MapSection({ id }: { id: number }) {
   const map = await franchiseMap(id).catch(() => []);
   const ids = map.flatMap((m) => [m.entry.id, ...m.branches.map((b) => b.entry.id)]);
@@ -132,11 +137,11 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   // Started once; the hero (Play) and the episode list both wait on it.
   const library = loadLibrary(a, media);
 
-  const [[decorated], requests, current, tmdb] = await Promise.all([
+  const [[decorated], requests, current, links] = await Promise.all([
     decorate([animeCard(a)], user),
     media ? db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [],
     requestOption(a),
-    tmdbPageFor(a).catch(() => null),
+    linksFor(a).catch(() => []),
   ]);
   const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
 
@@ -177,7 +182,6 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         overview={aniDescription(a.description)}
         status={decorated.status}
         list={entry ? { status: entry.status, progress: entry.progress, total: a.episodes } : undefined}
-        corner={<SourceSwitch active="anilist" anilist={`/anime/${a.id}`} tmdb={tmdb} />}
         aside={
           <AniListPanel
             mediaId={a.id}
@@ -186,6 +190,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
             aired={a.nextAiringEpisode ? a.nextAiringEpisode.episode - 1 : null}
             entry={entry ? { status: entry.status, progress: entry.progress, score: entry.score } : null}
             linked={!!token}
+            links={links}
             rating={rating ? { scores: rating.scores, total: rating.total, ratedOn: rating.ratedOn } : null}
           />
         }
@@ -202,6 +207,9 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
       </AutoHeight>
       <Suspense fallback={null}>
         <MapSection id={a.id} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <MoreLikeThis id={a.id} user={user} />
       </Suspense>
       {mappingFooter && <section className="card mb-10 p-5">{mappingFooter}</section>}
     </>

@@ -99,7 +99,7 @@ export async function anilistIdsFor(opts: { tvdbId?: number | null; tmdbMovieId?
   return db.select().from(schema.idMapping).where(or(...conds));
 }
 
-// ---------- the AniList | TMDB switch ----------
+// ---------- between AniList and TMDB ----------
 
 /**
  * An anime film's AniList entry, from its TMDB page: the id lists by TMDB id, then by IMDb id (films they only file as
@@ -119,11 +119,15 @@ export async function anilistForFilm(movie: { id: number; title: string; origina
   return null;
 }
 
-/** An AniList entry's TMDB page: its film, or the series it's a season of. */
-export async function tmdbPageFor(entry: AniEntryInfo & { title?: AniTitle; seasonYear?: number | null }) {
+/** Where else an AniList entry lives, for links on its page: TMDB (its film, or the series it's a season of), IMDb, TVDB. */
+export async function linksFor(entry: AniEntryInfo & { title?: AniTitle; seasonYear?: number | null }) {
   const { target, mapping } = await resolveAnime(entry);
-  if (target.service === "radarr") return `/movie/${target.tmdbId}`;
-  if (target.service !== "sonarr") return null;
-  const tmdb = mapping?.tmdbTvId ?? (await tmdbClient.tvByTvdb(target.tvdbId).catch(() => null));
-  return tmdb ? `/tv/${tmdb}` : null;
+  const tmdbTv = target.service === "sonarr" ? (mapping?.tmdbTvId ?? (await tmdbClient.tvByTvdb(target.tvdbId).catch(() => null))) : null;
+  const tmdb = target.service === "radarr" ? `movie/${target.tmdbId}` : tmdbTv ? `tv/${tmdbTv}` : null;
+  const tvdb = target.service === "sonarr" ? target.tvdbId : mapping?.tvdbId;
+  return [
+    tmdb && { label: "TMDB", href: `https://www.themoviedb.org/${tmdb}` },
+    mapping?.imdbId && { label: "IMDb", href: `https://www.imdb.com/title/${mapping.imdbId}` },
+    tvdb && { label: "TVDB", href: `https://thetvdb.com/dereferrer/series/${tvdb}` },
+  ].filter((l) => !!l);
 }
