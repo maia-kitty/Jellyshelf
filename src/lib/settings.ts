@@ -30,6 +30,8 @@ export const settingsSchema = z.object({
     .extend({
       languageProfileId: z.number().nullable().default(null),
       animeQualityProfileId: z.number().nullable().default(null),
+      /** For anime requested dubbed; none means requests don't offer the choice. */
+      animeDubQualityProfileId: z.number().nullable().default(null),
       animeRootFolder: z.string().default(""),
       seasonFolder: z.boolean().default(true),
     })
@@ -37,6 +39,7 @@ export const settingsSchema = z.object({
   radarr: arrBase
     .extend({
       animeQualityProfileId: z.number().nullable().default(null),
+      animeDubQualityProfileId: z.number().nullable().default(null),
       animeRootFolder: z.string().default(""),
       minimumAvailability: z.enum(["announced", "inCinemas", "released"]).default("released"),
     })

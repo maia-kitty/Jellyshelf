@@ -16,13 +16,16 @@ async function pushMovie(req: Request, media: Media) {
   const s = (await getSettings()).radarr;
   const api = radarr(s);
   const isAnime = media.kind === "anime";
+  const dubProfile = isAnime && req.dub ? s.animeDubQualityProfileId : null;
   let movie = await api.movieByTmdb(req.targetId);
   if (movie) {
-    if (!movie.monitored) movie = await api.updateMovie({ ...movie, monitored: true });
+    // Only ever switched to dub, never back: dual audio has the original language too.
+    if (!movie.monitored || (dubProfile && movie.qualityProfileId !== dubProfile))
+      movie = await api.updateMovie({ ...movie, monitored: true, ...(dubProfile ? { qualityProfileId: dubProfile } : {}) });
     if (!movie.hasFile) await api.movieSearch([movie.id!]);
   } else {
     const lookup = await api.lookupTmdb(req.targetId);
-    const profile = (isAnime && s.animeQualityProfileId) || s.qualityProfileId;
+    const profile = dubProfile || (isAnime && s.animeQualityProfileId) || s.qualityProfileId;
     const root = (isAnime && s.animeRootFolder) || s.rootFolder;
     if (!profile || !root) throw new Error("Radarr quality profile / root folder not configured");
     movie = await api.addMovie({
@@ -44,12 +47,13 @@ async function pushSeries(req: Request, media: Media) {
   const wantSeasons = new Set(req.seasons ?? []);
   const episodeLevel = !!req.episodeRanges?.length;
   const wholeSeries = req.absolute && !episodeLevel;
+  const dubProfile = isAnime && req.dub ? s.animeDubQualityProfileId : null;
 
   let series = await api.seriesByTvdb(req.targetId);
   if (!series) {
     const lookup = await api.lookupTvdb(req.targetId);
     if (!lookup) throw new Error(`Sonarr could not find TVDB ${req.targetId}`);
-    const profile = (isAnime && s.animeQualityProfileId) || s.qualityProfileId;
+    const profile = dubProfile || (isAnime && s.animeQualityProfileId) || s.qualityProfileId;
     const root = (isAnime && s.animeRootFolder) || s.rootFolder;
     if (!profile || !root) throw new Error("Sonarr quality profile / root folder not configured");
     const languageProfiles = await api.languageProfiles();
@@ -77,7 +81,10 @@ async function pushSeries(req: Request, media: Media) {
       if (want && !x.monitored) toSearch.push(x.seasonNumber);
       return want ? { ...x, monitored: true } : x;
     });
-    if (toSearch.length || !series.monitored) series = await api.updateSeries({ ...series, monitored: true, seasons });
+    // Only ever switched to dub, never back: dual audio has the original language too.
+    const toDub = !!dubProfile && series.qualityProfileId !== dubProfile;
+    if (toSearch.length || !series.monitored || toDub)
+      series = await api.updateSeries({ ...series, monitored: true, seasons, ...(toDub ? { qualityProfileId: dubProfile } : {}) });
   }
 
   await setMediaStatus(media.id, "processing", { sonarrId: series.id, tvdbId: req.targetId });

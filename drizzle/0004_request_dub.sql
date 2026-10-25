@@ -1,0 +1,1 @@
+ALTER TABLE `requests` ADD `dub` integer DEFAULT false NOT NULL;

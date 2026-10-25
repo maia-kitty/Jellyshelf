@@ -84,6 +84,8 @@ export const requests = sqliteTable(
     absolute: integer("absolute", { mode: "boolean" }).notNull().default(false),
     /** The requester picked these episodes, so the season/entry isn't covered and stays requestable. */
     partial: integer("partial", { mode: "boolean" }).notNull().default(false),
+    /** Anime asked for dubbed: sent with the dub quality profile (dual audio first). */
+    dub: integer("dub", { mode: "boolean" }).notNull().default(false),
     /** Episode-level monitoring still has to be applied (Sonarr hadn't populated episodes yet). */
     needsEpisodeSync: integer("needs_episode_sync", { mode: "boolean" }).notNull().default(false),
     error: text("error"),

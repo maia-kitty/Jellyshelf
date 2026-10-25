@@ -25,7 +25,7 @@ export const createRequestInput = z.discriminatedUnion("kind", [
     .refine((r) => !r.episodes || r.seasons.length === 1, "Pick episodes from one season at a time"),
   /** One or more AniList entries, e.g. a single season or a whole sequel chain. */
   z
-    .object({ kind: z.literal("anime"), anilistIds: z.array(z.number().int().positive()).min(1).max(25), episodes: episodes.optional() })
+    .object({ kind: z.literal("anime"), anilistIds: z.array(z.number().int().positive()).min(1).max(25), episodes: episodes.optional(), dub: z.boolean().optional() })
     .refine((r) => !r.episodes || r.anilistIds.length === 1, "Pick episodes from one entry at a time"),
 ]);
 export type CreateRequestInput = z.infer<typeof createRequestInput>;
@@ -134,9 +134,10 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
       user,
       media,
       target.service === "radarr"
-        ? { target: "radarr", targetId: target.tmdbId }
+        ? { target: "radarr", targetId: target.tmdbId, dub: !!input.dub }
         : {
             target: "sonarr",
+            dub: !!input.dub,
             targetId: target.tvdbId,
             absolute: target.absolute,
             seasons: target.season !== null ? [target.season] : null,

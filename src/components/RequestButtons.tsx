@@ -137,6 +137,8 @@ export interface AnimeEntryOption {
   /** Where it would go, e.g. "Sonarr TVDB 424536, season 1" (shown to admins). */
   target: string;
   mapped: boolean;
+  /** A dub quality profile is set up where it would go, so the request can ask for dubbed. */
+  canDub: boolean;
   status?: MediaStatus;
   requested: boolean;
   /** Only some of its episodes are requested. */
@@ -160,7 +162,21 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
   const [picking, setPicking] = useState(false);
   const [eps, setEps] = useState<Set<number>>(new Set());
+  const [dub, setDub] = useState(false);
   const open = pos !== null;
+
+  // The last choice sticks, for whoever's browser this is.
+  useEffect(() => {
+    try {
+      setDub(localStorage.getItem("request:dub") === "1");
+    } catch {}
+  }, []);
+  const pickDub = (on: boolean) => {
+    setDub(on);
+    try {
+      localStorage.setItem("request:dub", on ? "1" : "0");
+    } catch {}
+  };
 
   // Fixed to the window so the hero (which clips its backdrop) doesn't cut it off.
   const measure = () => {
@@ -175,7 +191,8 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   };
   const request = (episodes?: { from: number; to: number }[]) => {
     close();
-    run(episodes ? episodes.map((r) => ({ kind: "anime", anilistIds: [entry.id], episodes: r })) : { kind: "anime", anilistIds: [entry.id] });
+    const base = { kind: "anime", anilistIds: [entry.id], ...(entry.canDub && dub ? { dub: true } : {}) };
+    run(episodes ? episodes.map((r) => ({ ...base, episodes: r })) : base);
   };
 
   useEffect(() => {
@@ -204,15 +221,32 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
 
   return (
     <div>
-      <SendButton
-        label="Request"
-        done={done}
-        busy={busy}
-        sent={sent}
-        buttonRef={btn}
-        expanded={total > 1 ? open : undefined}
-        onClick={() => (total <= 1 ? request() : open ? close() : measure())}
-      />
+      <div className="flex items-center gap-2">
+        <SendButton
+          label="Request"
+          done={done}
+          busy={busy}
+          sent={sent}
+          buttonRef={btn}
+          expanded={total > 1 ? open : undefined}
+          onClick={() => (total <= 1 ? request() : open ? close() : measure())}
+        />
+        {entry.canDub && !done && !busy && !sent && (
+          <div role="group" aria-label="Audio" className="flex rounded-full bg-panel-2 p-0.5 text-xs font-medium">
+            {(["Sub", "Dub"] as const).map((l) => (
+              <button
+                key={l}
+                aria-pressed={(l === "Dub") === dub}
+                title={l === "Dub" ? "Dual audio when there is one, English-only otherwise" : "Original audio with subtitles"}
+                onClick={() => pickDub(l === "Dub")}
+                className={clsx("rounded-full px-3 py-1.5 transition", (l === "Dub") === dub ? "bg-accent text-white" : "text-muted hover:text-fg")}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <Problem text={problem} />
       {open &&
         createPortal(

@@ -28,12 +28,14 @@ import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
+import { getSettings } from "@/lib/settings";
 
 async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
   const token = anilistToken(user);
-  const [mediaMap, list] = await Promise.all([
+  const [mediaMap, list, settings] = await Promise.all([
     animeMediaMap(entries.map((e) => e.id)),
     token && user.anilistId ? anilist.userList(user.anilistId, token).catch(() => null) : null,
+    getSettings(),
   ]);
   return Promise.all(
     entries.map(async (e) => {
@@ -47,6 +49,7 @@ async function entryOptions(entries: AniMediaCard[], currentId: number, user: Us
         cover: e.coverImage.large,
         target: describeTarget(target),
         mapped: target.service !== "unmapped",
+        canDub: target.service !== "unmapped" && !!settings[target.service].animeDubQualityProfileId,
         status: m?.status,
         requested: !!m?.requested,
         someEpisodes: !!m?.someEpisodes,

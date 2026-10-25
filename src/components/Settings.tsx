@@ -376,6 +376,9 @@ export function SonarrSettings({ initial }: { initial: Settings["sonarr"] }) {
         <Field label="Quality profile">
           <ProfileSelect value={v.animeQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeQualityProfileId", x)} placeholder="Same as series" />
         </Field>
+        <Field label="Dub quality profile" hint="Used when anime is requested dubbed. Without one, requests don't offer Sub/Dub.">
+          <ProfileSelect value={v.animeDubQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeDubQualityProfileId", x)} placeholder="None" />
+        </Field>
         <Field label="Root folder">
           <FolderSelect value={v.animeRootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("animeRootFolder", x)} placeholder="Same as series" />
         </Field>
@@ -415,6 +418,9 @@ export function RadarrSettings({ initial }: { initial: Settings["radarr"] }) {
       <Group title="Anime films">
         <Field label="Quality profile">
           <ProfileSelect value={v.animeQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeQualityProfileId", x)} placeholder="Same as movies" />
+        </Field>
+        <Field label="Dub quality profile" hint="Used when an anime film is requested dubbed. Without one, requests don't offer Sub/Dub.">
+          <ProfileSelect value={v.animeDubQualityProfileId} options={meta?.profiles ?? []} onChange={(x) => set("animeDubQualityProfileId", x)} placeholder="None" />
         </Field>
         <Field label="Root folder">
           <FolderSelect value={v.animeRootFolder} options={meta?.rootFolders ?? []} onChange={(x) => set("animeRootFolder", x)} placeholder="Same as movies" />
