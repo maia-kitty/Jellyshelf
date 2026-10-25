@@ -87,12 +87,14 @@ export async function resolveAnime(
 }
 
 /** Reverse lookup: which AniList entries belong to a TMDB/TVDB title (to show AniList status on TMDB pages). */
-export async function anilistIdsFor(opts: { tvdbId?: number | null; tmdbMovieId?: number | null; tmdbTvId?: number | null }) {
+export async function anilistIdsFor(opts: { tvdbId?: number | null; tmdbMovieId?: number | null; tmdbTvId?: number | null; imdbId?: string | null }) {
   await ensureMigrated();
   const conds = [];
   if (opts.tvdbId) conds.push(eq(schema.idMapping.tvdbId, opts.tvdbId));
   if (opts.tmdbMovieId) conds.push(eq(schema.idMapping.tmdbMovieId, opts.tmdbMovieId));
   if (opts.tmdbTvId) conds.push(eq(schema.idMapping.tmdbTvId, opts.tmdbTvId));
+  // Films the lists only file as a TVDB special have no TMDB id there, but mostly an IMDb one.
+  if (opts.imdbId) conds.push(eq(schema.idMapping.imdbId, opts.imdbId));
   if (!conds.length) return [];
   return db.select().from(schema.idMapping).where(or(...conds));
 }

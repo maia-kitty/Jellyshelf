@@ -49,7 +49,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
 
   // Anime films: point at the AniList entry so list status/write-back works.
   const [anime, recs] = await Promise.all([
-    looksLikeAnime(movie) ? anilistIdsFor({ tmdbMovieId: id }).then((ms) => ms.filter((m) => m.type === "MOVIE")) : [],
+    looksLikeAnime(movie) ? anilistIdsFor({ tmdbMovieId: id, imdbId: movie.external_ids?.imdb_id }).then((ms) => ms.filter((m) => m.type === "MOVIE")) : [],
     decorate((movie.recommendations?.results ?? []).slice(0, 20).map(movieCard), user),
   ]);
   const available = media?.status === "available";
