@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import type { BrowserCaps, PlayReport, PlaySource, SubtitleTrack, WatchMeta } from "@/lib/playbackTypes";
+import type { HlsConfig } from "hls.js";
 import { detectCaps } from "./caps";
 import { pickSubtitle } from "@/lib/subtitlePick";
 import { SeekBar } from "./SeekBar";
@@ -214,8 +215,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
       pending.current = at;
       const v = video.current!;
       if (s.mode === "hls" && !caps.current.nativeHls) {
-        const { default: Hls } = await import("hls.js");
-        const h = new Hls({ startPosition: at, maxBufferLength: 30 }) as unknown as HlsLike;
+        const [{ default: Hls }, { alignedLoader }] = await Promise.all([import("hls.js"), import("./alignedLoader")]);
+        const h = new Hls({ startPosition: at, maxBufferLength: 30, fLoader: alignedLoader(Hls) as unknown as HlsConfig["fLoader"] }) as unknown as HlsLike;
         h.on("hlsError", (_e, d) => {
           if (d.fatal) setError("The stream stopped. Try again, or pick a lower quality.");
         });
