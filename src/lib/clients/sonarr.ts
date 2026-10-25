@@ -73,7 +73,6 @@ export function sonarr(cfg: ArrConfig) {
       api.call<unknown>("/episode/monitor", { method: "PUT", body: { episodeIds, monitored } }),
     deleteEpisodeFiles: (episodeFileIds: number[]) =>
       api.call<unknown>("/episodefile/bulk", { method: "DELETE", body: { episodeFileIds }, timeoutMs: 60_000 }),
-    seasonSearch: (seriesId: number, seasonNumber: number) => api.command({ name: "SeasonSearch", seriesId, seasonNumber }),
     episodeSearch: (episodeIds: number[]) => api.command({ name: "EpisodeSearch", episodeIds }),
   };
 }

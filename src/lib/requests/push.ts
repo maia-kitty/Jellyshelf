@@ -66,7 +66,8 @@ async function pushSeries(req: Request, media: Media) {
         seasonNumber: x.seasonNumber,
         monitored: wholeSeries ? x.seasonNumber > 0 : !episodeLevel && wantSeasons.has(x.seasonNumber),
       })),
-      addOptions: { searchForMissingEpisodes: !episodeLevel },
+      // Searched episode by episode below instead (see searchRequested).
+      addOptions: { searchForMissingEpisodes: false },
     });
   } else {
     // Existing series: switch on the requested seasons and search them.
@@ -77,13 +78,11 @@ async function pushSeries(req: Request, media: Media) {
       return want ? { ...x, monitored: true } : x;
     });
     if (toSearch.length || !series.monitored) series = await api.updateSeries({ ...series, monitored: true, seasons });
-    for (const n of wholeSeries || episodeLevel ? [] : [...wantSeasons]) await api.seasonSearch(series.id!, n);
-    if (wholeSeries) await api.command({ name: "SeriesSearch", seriesId: series.id });
   }
 
   await setMediaStatus(media.id, "processing", { sonarrId: series.id, tvdbId: req.targetId });
 
-  if (episodeLevel && !(await syncEpisodeMonitoring(api, series, req))) {
+  if (!(await syncEpisodeMonitoring(api, series, req))) {
     // A freshly added series has no episodes until Sonarr finishes refreshing it from TVDB. Don't make the
     // requester wait for that: flag it, retry in the background for a bit, and let the sync job finish it otherwise.
     await db.update(schema.requests).set({ needsEpisodeSync: true }).where(eq(schema.requests.id, req.id));
@@ -91,7 +90,7 @@ async function pushSeries(req: Request, media: Media) {
   }
 }
 
-async function retryEpisodeSync(api: SonarrClient, series: SonarrSeries, req: Request, attempts = 10, delayMs = 3000) {
+async function retryEpisodeSync(api: SonarrClient, series: SonarrSeries, req: Request, attempts = 24, delayMs = 5000) {
   for (let i = 0; i < attempts; i++) {
     await new Promise((r) => setTimeout(r, delayMs));
     try {
@@ -113,8 +112,33 @@ export function episodesInRequest(episodes: SonarrEpisode[], req: Pick<Request, 
 }
 
 /**
- * Monitor exactly the episode range of a split-cour / absolute request and search for it.
- * Returns false when Sonarr has no episodes yet (series still refreshing).
+ * Search a season or whole-series request's missing episodes that have aired, in order, as one EpisodeSearch. Sonarr
+ * grabs each episode as soon as it has searched it, where a season (or series) search grabs nothing until it has
+ * searched every episode, which on a long show can mean an hour of nothing downloading.
+ */
+async function searchRequested(api: SonarrClient, all: SonarrEpisode[], req: Request) {
+  const ids = episodesToSearch(all, req, Date.now());
+  if (ids.length) await api.episodeSearch(ids);
+}
+
+/** A season or whole-series request's monitored, missing episodes that have aired, in airing order. */
+export function episodesToSearch(all: SonarrEpisode[], req: Pick<Request, "absolute" | "seasons">, now: number) {
+  return all
+    .filter(
+      (e) =>
+        e.monitored &&
+        !e.hasFile &&
+        !!e.airDateUtc &&
+        Date.parse(e.airDateUtc) <= now &&
+        (req.absolute ? e.seasonNumber > 0 : (req.seasons ?? []).includes(e.seasonNumber)),
+    )
+    .sort((a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber)
+    .map((e) => e.id);
+}
+
+/**
+ * Search for what a request wants, once Sonarr has the series' episodes: a split-cour / absolute range is monitored
+ * exactly first. Returns false when Sonarr has no episodes yet (series still refreshing).
  */
 export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSeries, req: Request): Promise<boolean> {
   // Until Sonarr finishes adding a series (it clears addOptions then), its last step resets every episode's monitoring
@@ -122,6 +146,11 @@ export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSer
   if ((await api.series(series.id!)).addOptions) return false;
   const all = await api.episodes(series.id!);
   if (!all.length) return false;
+  if (!req.episodeRanges?.length) {
+    await searchRequested(api, all, req);
+    await db.update(schema.requests).set({ needsEpisodeSync: false }).where(eq(schema.requests.id, req.id));
+    return true;
+  }
   const wanted = episodesInRequest(all, req);
   if (!wanted.length) return false;
 
