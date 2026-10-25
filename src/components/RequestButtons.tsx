@@ -10,6 +10,7 @@ import { sized } from "@/lib/img";
 import { episodeRuns } from "@/lib/episodeScope";
 import type { AniListStatus } from "@/lib/clients/anilist";
 import { LIST_COLOR } from "./StatusBadge";
+import { Tabs } from "./PillTabs";
 
 async function postRequest(body: unknown) {
   const res = await fetch("/api/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -162,7 +163,8 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
   const [picking, setPicking] = useState(false);
   const [eps, setEps] = useState<Set<number>>(new Set());
-  const [dub, setDub] = useState(false);
+  // null until the saved choice is read, so the jelly doesn't slide over to it on every visit.
+  const [dub, setDub] = useState<boolean | null>(null);
   const open = pos !== null;
 
   // The last choice sticks, for whoever's browser this is.
@@ -231,20 +233,16 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
           expanded={total > 1 ? open : undefined}
           onClick={() => (total <= 1 ? request() : open ? close() : measure())}
         />
-        {entry.canDub && !done && !busy && !sent && (
-          <div role="group" aria-label="Audio" className="flex rounded-full bg-panel-2 p-0.5 text-xs font-medium">
-            {(["Sub", "Dub"] as const).map((l) => (
-              <button
-                key={l}
-                aria-pressed={(l === "Dub") === dub}
-                title={l === "Dub" ? "Dual audio when there is one, English-only otherwise" : "Original audio with subtitles"}
-                onClick={() => pickDub(l === "Dub")}
-                className={clsx("rounded-full px-3 py-1.5 transition", (l === "Dub") === dub ? "bg-accent text-white" : "text-muted hover:text-fg")}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
+        {entry.canDub && !done && !busy && !sent && dub !== null && (
+          <Tabs
+            className="flex gap-1.5"
+            tabs={[
+              { key: "sub", label: "Sub" },
+              { key: "dub", label: "Dub" },
+            ]}
+            active={dub ? "dub" : "sub"}
+            onSelect={(k) => pickDub(k === "dub")}
+          />
         )}
       </div>
       <Problem text={problem} />
