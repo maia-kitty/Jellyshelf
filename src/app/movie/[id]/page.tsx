@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { AutoHeight } from "@/components/AutoHeight";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
@@ -79,9 +80,11 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         </div>
       </Hero>
 
-      <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Checking the library…" /></div>}>
-        <LibraryCard library={library} title={movie.title} user={user} />
-      </Suspense>
+      <AutoHeight>
+        <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Checking the library…" /></div>}>
+          <LibraryCard library={library} title={movie.title} user={user} />
+        </Suspense>
+      </AutoHeight>
       <CardRow title="More like this" cards={recs} />
     </>
   );

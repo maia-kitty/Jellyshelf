@@ -95,7 +95,7 @@ export function EpisodeList({
   };
 
   return (
-    <section className="card mb-10 p-4">
+    <section className="card rise-in mb-10 p-4">
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h3 className="font-semibold">Episodes</h3>
         <span className="text-sm text-muted">

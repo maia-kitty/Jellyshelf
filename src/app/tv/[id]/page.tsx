@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { AutoHeight } from "@/components/AutoHeight";
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
@@ -108,9 +109,11 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
       </Hero>
 
       {tvdbId && (
-        <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
-          <TvEpisodes library={library} title={tv.name} user={user} />
-        </Suspense>
+        <AutoHeight>
+          <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
+            <TvEpisodes library={library} title={tv.name} user={user} />
+          </Suspense>
+        </AutoHeight>
       )}
       {tvdbId && <TvRequest tmdbId={id} seasons={seasons} />}
       <div id="anilist-entries" className="scroll-mt-24">

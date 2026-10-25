@@ -1,5 +1,6 @@
 import { aniDescription } from "@/lib/text";
 import { Suspense } from "react";
+import { AutoHeight } from "@/components/AutoHeight";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -213,9 +214,11 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         </Suspense>
       </Hero>
 
-      <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
-        <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
-      </Suspense>
+      <AutoHeight>
+        <Suspense fallback={<div className="card mb-10 p-6"><JarLoader width={200} label="Loading episodes…" /></div>}>
+          <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
+        </Suspense>
+      </AutoHeight>
       <Suspense fallback={<AnimeFranchise entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
         <Franchise entry={a} user={user} footer={mappingFooter} />
       </Suspense>
