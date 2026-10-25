@@ -380,7 +380,8 @@ export const anilist = {
 const startOf = (d: FuzzyStart) => (d.year ?? 9999) * 10000 + (d.month ?? 0) * 100 + (d.day ?? 0);
 
 const STORY: AniRelationType[] = ["PREQUEL", "SEQUEL"];
-const OFFSHOOT: AniRelationType[] = ["SIDE_STORY", "SPIN_OFF", "SUMMARY", "ALTERNATIVE", "PARENT", "COMPILATION", "CONTAINS"];
+// OTHER too: AniList links some sequels only that way (Cyberpunk: Edgerunners 2).
+const OFFSHOOT: AniRelationType[] = ["SIDE_STORY", "SPIN_OFF", "SUMMARY", "ALTERNATIVE", "PARENT", "COMPILATION", "CONTAINS", "OTHER"];
 type Edge = AniMediaDetails["relations"]["edges"][number];
 const animeEdge = (e: Edge) => e.node.type === "ANIME" && e.node.format !== "MUSIC";
 

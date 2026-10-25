@@ -57,11 +57,11 @@ describe("franchise map layout", () => {
   const media = (id: number, year: number, edges: [string, number, number, string?][]) =>
     ({ ...(card(id, year) as object), relations: { edges: edges.map(([relationType, to, y, f]) => ({ relationType, node: card(to, y, f) })) } }) as never;
 
-  it("puts the story in airing order with each offshoot once, under the first entry leading to it", async () => {
+  it("puts the story in airing order with each offshoot once, under the first entry leading to it, oldest first", async () => {
     const { mapLayout } = await import("./anilist");
     const s2 = media(2, 2021, [["PREQUEL", 1, 2019], ["SIDE_STORY", 10, 2022, "MOVIE"], ["SUMMARY", 11, 2020, "SPECIAL"]]);
     const s1 = media(1, 2019, [["SEQUEL", 2, 2021], ["SIDE_STORY", 10, 2022, "MOVIE"], ["ADAPTATION", 99, 2010], ["OTHER", 98, 2020]]);
     const map = mapLayout([s2, s1]);
-    expect(map.map((m) => [m.entry.id, m.branches.map((b) => b.entry.id)])).toEqual([[1, [10]], [2, [11]]]);
+    expect(map.map((m) => [m.entry.id, m.branches.map((b) => b.entry.id)])).toEqual([[1, [98, 10]], [2, [11]]]);
   });
 });

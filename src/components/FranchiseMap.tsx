@@ -16,6 +16,7 @@ const RELATION: Partial<Record<AniRelationType, string>> = {
   PARENT: "Main story",
   COMPILATION: "Compilation",
   CONTAINS: "Contains",
+  OTHER: "Related",
 };
 
 const CARD_W = 196;
