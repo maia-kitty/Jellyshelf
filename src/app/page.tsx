@@ -193,6 +193,15 @@ async function myRequests(user: User): Promise<{ inFlight: InFlight[]; landed: C
     .limit(60);
 
   const waiting = rows.filter((r) => r.request.status === "pending" || (r.request.status === "approved" && r.media.status !== "available"));
+  // Anime that hasn't started airing sits here for months: say when it airs, and put it after what's actually coming.
+  const aniIds = waiting.flatMap((r) => (r.media.kind === "anime" && r.media.anilistId ? [r.media.anilistId] : []));
+  const unaired = new Map(
+    (await soft(anilist.byIds(aniIds), [], "on its way"))
+      .filter((m) => m.status === "NOT_YET_RELEASED")
+      .map((m) => [m.id, m.season && m.seasonYear ? `Airs ${seasonLabel({ season: m.season, year: m.seasonYear })}` : m.seasonYear ? `Airs ${m.seasonYear}` : "Air date TBA"]),
+  );
+  const airs = (m: Media) => (m.anilistId && unaired.get(m.anilistId)) || null;
+  waiting.sort((a, b) => Number(!!airs(a.media)) - Number(!!airs(b.media)));
   const queues = waiting.some((r) => r.request.status === "approved") ? await downloadQueues() : null;
   const inFlight: InFlight[] = waiting.slice(0, 9).map(({ request, media }) => {
     const download = queues && request.status === "approved" ? progressFor(request, media, queues) : null;
@@ -202,8 +211,9 @@ async function myRequests(user: User): Promise<{ inFlight: InFlight[]; landed: C
       poster: media.poster,
       href: mediaHref(media),
       scope: requestScope(request),
-      state: request.status === "pending" ? "pending" : download ? "downloading" : "searching",
+      state: request.status === "pending" ? "pending" : download ? "downloading" : airs(media) ? "upcoming" : "searching",
       download,
+      airs: airs(media),
     };
   });
 

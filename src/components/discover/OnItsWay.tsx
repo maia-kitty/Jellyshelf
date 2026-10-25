@@ -13,8 +13,10 @@ export interface InFlight {
   href: string;
   /** What was asked for, e.g. "Season 2" or "Movie". */
   scope: string;
-  state: "pending" | "searching" | "downloading";
+  state: "pending" | "searching" | "downloading" | "upcoming";
   download: DownloadProgress | null;
+  /** For anime that hasn't started airing, e.g. "Airs Winter 2027" or "Air date TBA". */
+  airs: string | null;
 }
 
 const STATE_TEXT = { pending: "Waiting for approval", searching: "Looking for a release" } as const;
@@ -42,8 +44,12 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
                   <DownloadBar d={it.download} />
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-muted">
-                    <span className={it.state === "pending" ? "h-1.5 w-1.5 rounded-full bg-warn" : "h-1.5 w-1.5 animate-pulse rounded-full bg-accent"} />
-                    {STATE_TEXT[it.state === "downloading" ? "searching" : it.state]}
+                    <span
+                      className={
+                        it.state === "pending" ? "h-1.5 w-1.5 rounded-full bg-warn" : it.state === "upcoming" ? "h-1.5 w-1.5 rounded-full bg-muted" : "h-1.5 w-1.5 animate-pulse rounded-full bg-accent"
+                      }
+                    />
+                    {it.state === "upcoming" ? it.airs : STATE_TEXT[it.state === "downloading" ? "searching" : it.state]}
                   </div>
                 )}
               </div>
