@@ -111,7 +111,11 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
           </Suspense>
         </AutoHeight>
       )}
-      {tvdbId && <TvRequest tmdbId={id} seasons={seasons} />}
+      {tvdbId && (
+        <Suspense fallback={<TvRequest tmdbId={id} seasons={seasons} />}>
+          <SeasonRequest tmdbId={id} seasons={seasons} library={library} />
+        </Suspense>
+      )}
       <CardRow title="More like this" cards={recs} />
     </>
   );
@@ -120,6 +124,12 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
 async function PlayButton({ library, user }: { library: Promise<EpisodesInfo | null>; user: User }) {
   const href = (await library)?.playUrl ?? null;
   return <JellyfinButton href={href} resume={await resumeHint(user, href)} />;
+}
+
+/** The seasons to request, once the library is in also knowing which episodes are downloaded. */
+async function SeasonRequest({ tmdbId, seasons, library }: { tmdbId: number; seasons: SeasonOption[]; library: Promise<EpisodesInfo | null> }) {
+  const eps = (await library)?.episodes.filter((e) => e.hasFile) ?? [];
+  return <TvRequest tmdbId={tmdbId} seasons={seasons.map((s) => ({ ...s, have: eps.filter((e) => e.season === s.number).map((e) => e.episode) }))} />;
 }
 
 async function TvEpisodes({ library, title, user }: { library: Promise<EpisodesInfo | null>; title: string; user: User }) {

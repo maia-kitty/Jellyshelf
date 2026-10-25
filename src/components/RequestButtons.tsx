@@ -139,6 +139,38 @@ export interface AnimeEntryOption {
   episodes: number | null;
 }
 
+const flip = (s: Set<number>, n: number) => (s.has(n) ? new Set([...s].filter((x) => x !== n)) : new Set([...s, n]));
+
+/** Episode numbers to tap on and off; the downloaded ones (`have`) are greyed out. */
+function EpisodeGrid({ total, have = [], picked, onToggle, className }: { total: number; have?: number[]; picked: Set<number>; onToggle: (n: number) => void; className: string }) {
+  return (
+    <div className={clsx("grid max-h-60 gap-1.5 overflow-y-auto overscroll-contain p-0.5", className)}>
+      {Array.from({ length: total }, (_, i) => i + 1).map((n, i) => {
+        const got = have.includes(n);
+        const on = picked.has(n);
+        return (
+          <button
+            key={n}
+            disabled={got}
+            aria-pressed={on}
+            title={got ? "Already downloaded" : undefined}
+            onClick={() => onToggle(n)}
+            className={clsx(
+              "card-in rounded-lg py-1.5 text-sm tabular-nums transition enabled:active:scale-90",
+              got ? "bg-ok/10 text-ok/70" : on ? "scale-105 bg-accent text-white" : "bg-panel-2 text-fg/80 hover:bg-accent/20",
+            )}
+            style={{ "--i": Math.min(i, 24) * 0.4 } as React.CSSProperties}
+          >
+            {n}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const runsLabel = (runs: { from: number; to: number }[]) => runs.map((r) => (r.from === r.to ? r.from : `${r.from}–${r.to}`)).join(", ");
+
 /**
  * The current entry's request button, at the top of its page. With more than one episode it opens a menu: all of it,
  * or pick episodes by number (each run of consecutive ones goes as one request). `have` are the downloaded ones.
@@ -205,7 +237,7 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   const total = entry.episodes ?? 0;
   const done = entry.status === "available" ? "Available" : entry.requested ? "Requested" : undefined;
   const runs = episodeRuns([...eps]);
-  const toggle = (n: number) => setEps((s) => (s.has(n) ? new Set([...s].filter((x) => x !== n)) : new Set([...s, n])));
+  const toggle = (n: number) => setEps((s) => flip(s, n));
   const option = "flex w-full flex-col items-start rounded-lg px-3 py-2.5 text-left outline-none hover:bg-panel-2 focus-visible:bg-panel-2";
 
   return (
@@ -274,32 +306,11 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
                       </button>
                     )}
                   </div>
-                  <div className="grid max-h-60 grid-cols-6 gap-1.5 overflow-y-auto overscroll-contain p-0.5">
-                    {Array.from({ length: total }, (_, i) => i + 1).map((n, i) => {
-                      const got = have.includes(n);
-                      const on = eps.has(n);
-                      return (
-                        <button
-                          key={n}
-                          disabled={got}
-                          aria-pressed={on}
-                          title={got ? "Already downloaded" : undefined}
-                          onClick={() => toggle(n)}
-                          className={clsx(
-                            "card-in rounded-lg py-1.5 text-sm tabular-nums transition enabled:active:scale-90",
-                            got ? "bg-ok/10 text-ok/70" : on ? "scale-105 bg-accent text-white" : "bg-panel-2 text-fg/80 hover:bg-accent/20",
-                          )}
-                          style={{ "--i": Math.min(i, 24) * 0.4 } as React.CSSProperties}
-                        >
-                          {n}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <EpisodeGrid total={total} have={have} picked={eps} onToggle={toggle} className="grid-cols-6" />
                   <button className="btn-primary mt-3 w-full" disabled={!eps.size} onClick={() => request(runs)}>
                     {!eps.size
                       ? "Tap episodes to pick them"
-                      : `Request ${eps.size === 1 ? "ep" : "eps"} ${runs.map((r) => (r.from === r.to ? r.from : `${r.from}–${r.to}`)).join(", ")}`}
+                      : `Request ${eps.size === 1 ? "ep" : "eps"} ${runsLabel(runs)}`}
                   </button>
                 </div>
               )}
@@ -334,8 +345,10 @@ export interface PickItem {
   current?: boolean;
   /** Small print under the tile (e.g. the Sonarr target, for admins). */
   note?: { text: string; bad?: boolean };
-  /** Episodes you can pick a range from (null = count unknown); absent when it has no episodes to pick. */
+  /** Episodes you can pick from (null = count unknown); absent when it has no episodes to pick. */
   episodes?: number | null;
+  /** The downloaded ones, which can't be picked. */
+  have?: number[];
 }
 
 /** Only these episodes of the one picked tile; absent means all of it. */
@@ -375,22 +388,17 @@ function PickGrid({
 }) {
   const { busy, sent, problem, run } = useSubmit((id) => items.find((i) => i.id === id)?.title);
   const [picked, setPicked] = useState<Set<number>>(new Set());
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [eps, setEps] = useState<Set<number>>(new Set());
   const pick = (ids: Set<number>) => {
     setPicked(ids);
-    setFrom("");
-    setTo("");
+    setEps(new Set());
   };
   const toggle = (id: number) => pick(picked.has(id) ? new Set([...picked].filter((x) => x !== id)) : new Set([...picked, id]));
   const allOpen = items.filter((i) => i.selectable).map((i) => i.id);
-  // Episodes can be picked from one tile at a time; both boxes empty means all of it.
+  // Episodes can be picked from one tile at a time; none picked means all of it.
   const one = picked.size === 1 ? items.find((i) => picked.has(i.id)) : undefined;
-  const canRange = one?.episodes !== undefined && one.episodes !== 1;
-  const max = one?.episodes ?? undefined;
-  const range: Range | undefined =
-    canRange && (from || to) ? { from: Number(from || 1), to: Number(to || max || from || 1) } : undefined;
-  const badRange = !!range && (range.from < 1 || range.to < range.from || (!!max && range.to > max));
+  const total = one?.episodes && one.episodes > 1 ? one.episodes : 0;
+  const runs = total ? episodeRuns([...eps]) : [];
 
   return (
     <section className="card mb-10 p-5">
@@ -405,22 +413,28 @@ function PickGrid({
         {onRequest && (allOpen.length > 0 || picked.size > 0 || sent) && (
           <div className="ml-auto">
             <SendButton
-              label={range ? (range.from === range.to ? `Request ep ${range.from}` : `Request eps ${range.from}–${range.to}`) : picked.size ? `Request ${picked.size}` : "Pick to request"}
+              label={runs.length ? `Request ${eps.size === 1 ? "ep" : "eps"} ${runsLabel(runs)}` : picked.size ? `Request ${picked.size}` : "Pick to request"}
               busy={busy}
               sent={sent}
-              disabled={picked.size === 0 || badRange}
-              onClick={async () => (await run(onRequest([...picked], range))) && pick(new Set())}
+              disabled={picked.size === 0}
+              // Each run of consecutive episodes goes as one request.
+              onClick={async () => (await run(runs.length ? runs.map((r) => onRequest([...picked], r)) : onRequest([...picked]))) && pick(new Set())}
             />
           </div>
         )}
       </div>
-      {canRange && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">
-          <span>Only episodes</span>
-          <input type="number" inputMode="numeric" min={1} max={max} value={from} onChange={(e) => setFrom(e.target.value)} placeholder="1" aria-label="First episode" className="input w-16 py-1.5 text-center" />
-          <span>to</span>
-          <input type="number" inputMode="numeric" min={1} max={max} value={to} onChange={(e) => setTo(e.target.value)} placeholder={max ? String(max) : "same"} aria-label="Last episode" className="input w-16 py-1.5 text-center" />
-          <span>{badRange ? <span className="text-bad">Not a valid range{max ? ` (1–${max})` : ""}</span> : "Leave empty for all of it."}</span>
+      {total > 0 && (
+        <div className="mb-4 rounded-xl bg-panel-2/40 p-3">
+          <div className="mb-2 flex items-center gap-3 text-sm">
+            <span className="font-medium">Pick episodes of {one!.title}</span>
+            <span className="text-muted">{eps.size ? `${eps.size} picked` : "or leave them all off for the whole season"}</span>
+            {eps.size > 0 && (
+              <button className="ml-auto text-xs text-accent hover:underline" onClick={() => setEps(new Set())}>
+                Clear
+              </button>
+            )}
+          </div>
+          <EpisodeGrid total={total} have={one!.have} picked={eps} onToggle={(n) => setEps((s) => flip(s, n))} className="grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))]" />
         </div>
       )}
       <Problem text={problem} />
@@ -497,6 +511,8 @@ export interface SeasonOption {
   requested: boolean;
   /** Only some of its episodes are requested. */
   someEpisodes?: boolean;
+  /** Downloaded episode numbers. */
+  have?: number[];
 }
 
 const seasonOpen = (s: SeasonOption) => !s.requested && s.status !== "available";
@@ -513,6 +529,7 @@ export function TvRequest({ tmdbId, seasons }: { tmdbId: number; seasons: Season
     cover: s.poster,
     selectable: seasonOpen(s),
     episodes: s.episodes,
+    have: s.have,
     chips: [libraryChip(s.status, s.requested, s.someEpisodes)].filter((c) => c !== null),
   }));
   return (
