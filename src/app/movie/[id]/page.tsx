@@ -17,7 +17,7 @@ import { SourceSwitch } from "@/components/SourceSwitch";
 import { looksLikeAnime, tmdbClient, tmdbImage, type TmdbMovieDetails } from "@/lib/clients/tmdb";
 import { HttpError } from "@/lib/clients/http";
 import { decorate, movieCard } from "@/lib/cards";
-import { anilistIdsFor } from "@/lib/mapping";
+import { anilistFilmByTitle, anilistIdsFor } from "@/lib/mapping";
 import { findMedia } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
@@ -52,6 +52,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
     looksLikeAnime(movie) ? anilistIdsFor({ tmdbMovieId: id, imdbId: movie.external_ids?.imdb_id }).then((ms) => ms.filter((m) => m.type === "MOVIE")) : [],
     decorate((movie.recommendations?.results ?? []).slice(0, 20).map(movieCard), user),
   ]);
+  const anilistId = anime[0]?.anilistId ?? (looksLikeAnime(movie) ? await anilistFilmByTitle([movie.title, movie.original_title], Number(movie.release_date?.slice(0, 4)) || null) : null);
   const available = media?.status === "available";
 
   return (
@@ -67,7 +68,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         status={media?.status}
         aside={<MovieDetails movie={movie} />}
       >
-        <SourceSwitch active="tmdb" anilist={anime[0] ? `/anime/${anime[0].anilistId}` : null} tmdb={`/movie/${id}`} />
+        <SourceSwitch active="tmdb" anilist={anilistId ? `/anime/${anilistId}` : null} tmdb={`/movie/${id}`} />
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             {/* In the library, the thing to do is watch it; otherwise, request it. */}

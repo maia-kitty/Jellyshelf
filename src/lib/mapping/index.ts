@@ -2,7 +2,7 @@ import { eq, or } from "drizzle-orm";
 import { db, ensureMigrated, schema } from "@/db";
 import type { IdMapping } from "@/db/schema";
 import { fetchJson } from "@/lib/clients/http";
-import type { AniTitle } from "@/lib/clients/anilist";
+import { anilist, type AniTitle } from "@/lib/clients/anilist";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { norm } from "@/lib/titleMatch";
 import { resolveAnimeTarget, type AniEntryInfo, type AnimeTarget } from "./resolve";
@@ -66,6 +66,20 @@ async function filmTmdbId(mapping: IdMapping, entry: { title?: AniTitle; seasonY
     if (!name) continue;
     const found = await tmdbClient.searchMovie(name, entry.seasonYear).catch(() => null);
     const hits = found?.results.filter((r) => [r.title, r.original_title].some((t) => norm(t) === norm(name))) ?? [];
+    if (hits.length === 1) return hits[0].id;
+  }
+  return null;
+}
+
+/**
+ * The other way round: an anime film's AniList entry when no id list links it to its TMDB page (they can disagree even
+ * on the IMDb id). A single AniList film with exactly one of these titles, from the same year.
+ */
+export async function anilistFilmByTitle(titles: (string | null | undefined)[], year: number | null) {
+  if (!year) return null;
+  for (const name of new Set(titles.filter((t): t is string => !!t))) {
+    const found = await anilist.search(name, { perPage: 10 }).catch(() => null);
+    const hits = found?.media.filter((m) => m.format === "MOVIE" && m.seasonYear === year && Object.values(m.title).some((t) => t && norm(t) === norm(name))) ?? [];
     if (hits.length === 1) return hits[0].id;
   }
   return null;
