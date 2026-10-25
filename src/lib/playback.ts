@@ -49,8 +49,10 @@ function deviceProfile(caps: BrowserCaps, maxBitrate?: number) {
   const a = caps.audio;
   const videoCodecs = [v.h264 && "h264", v.hevc && "hevc", v.vp9 && "vp9", v.av1 && "av1"].filter(Boolean).join(",");
   const audioCodecs = [a.aac && "aac", a.mp3 && "mp3", a.opus && "opus", a.flac && "flac", a.ac3 && "ac3", a.eac3 && "eac3"].filter(Boolean).join(",");
-  // What the transcoder may produce: the HLS segments must be playable here too.
-  const hlsVideo = [v.hevc && "hevc", "h264"].filter(Boolean).join(",");
+  // What the HLS stream may carry: the segments must be playable here too. Copying needs the file's codec listed: AV1
+  // missing made Firefox (which gets the stream rather than the file, see caps.ts) cost a full CPU transcode of every
+  // AV1 file. h264 first, as it's what a real transcode encodes to.
+  const hlsVideo = ["h264", v.hevc && "hevc", v.av1 && "av1"].filter(Boolean).join(",");
   const hlsAudio = ["aac", a.ac3 && "ac3", a.eac3 && "eac3", a.mp3 && "mp3"].filter(Boolean).join(",");
   return {
     MaxStreamingBitrate: maxBitrate ?? 120_000_000,
