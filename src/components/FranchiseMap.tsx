@@ -44,8 +44,10 @@ function layout(map: FranchiseMapEntry[]) {
     const node = { entry, along: k, across: 0 };
     if (k) edges.push({ from: nodes.findLast((n) => n.across === 0)!, to: node, story: true });
     nodes.push(node);
+    // Just the one entry and one branch: the branch goes on the line too, rather than off to one side.
+    const inline = map.length === 1 && branches.length === 1;
     branches.forEach((b, j) => {
-      const twig = { entry: b.entry, along: k + 1, across: j + 1, relation: b.relation };
+      const twig = { entry: b.entry, along: k + 1, across: inline ? 0 : j + 1, relation: b.relation };
       nodes.push(twig);
       edges.push({ from: node, to: twig, story: false });
     });
@@ -73,13 +75,13 @@ function Graph({ nodes, edges, currentId, statuses, sideways }: ReturnType<typeo
     const b = at(to);
     if (sideways) {
       const [x1, x2] = [a.x + CARD_W / 2 + 2, b.x - CARD_W / 2 - 5];
-      if (story) return `M${x1} ${a.y} H${x2}`;
+      if (story || from.across === to.across) return `M${x1} ${a.y} H${x2}`;
       // Out to a trunk halfway across the gap, down it, and in to the card; every branch of an entry shares the trunk.
       const [y1, mid] = [a.y + CARD_H / 4, (x1 + x2) / 2];
       return `M${x1} ${y1} H${mid - R} Q${mid} ${y1} ${mid} ${y1 + R} V${b.y - R} Q${mid} ${b.y} ${mid + R} ${b.y} H${x2}`;
     }
     const [y1, y2] = [a.y + CARD_H / 2 + 2, b.y - CARD_H / 2 - 5];
-    if (story) return `M${a.x} ${y1} V${y2}`;
+    if (story || from.across === to.across) return `M${a.x} ${y1} V${y2}`;
     // Down to a trunk halfway across the gap, along it, and down onto the card.
     const [x1, mid] = [a.x + CARD_W / 4, (y1 + y2) / 2];
     return `M${x1} ${y1} V${mid - R} Q${x1} ${mid} ${x1 + R} ${mid} H${b.x - R} Q${b.x} ${mid} ${b.x} ${mid + R} V${y2}`;
