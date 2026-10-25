@@ -8,6 +8,8 @@ export interface BrowserCaps {
   /** Native HLS (Safari); elsewhere hls.js does it over MSE. */
   nativeHls: boolean;
   maxChannels: number;
+  /** The screen (and browser) show HDR, so HDR video can be sent as it is instead of tone-mapped to SDR. */
+  hdr: boolean;
 }
 
 export interface PlayRequest {

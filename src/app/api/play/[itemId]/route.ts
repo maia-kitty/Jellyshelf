@@ -11,6 +11,8 @@ const body = z.object({
     mkv: z.boolean(),
     nativeHls: z.boolean(),
     maxChannels: z.number().int().min(1).max(8),
+    // Tabs opened before this existed don't send it.
+    hdr: z.boolean().default(false),
   }),
   audioIndex: z.number().int().optional(),
   subtitleIndex: z.number().int().optional(),

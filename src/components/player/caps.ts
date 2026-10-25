@@ -27,5 +27,6 @@ export function detectCaps(): BrowserCaps {
     mkv: !/Firefox\//.test(navigator.userAgent) && (can("video/x-matroska") || can('video/webm; codecs="avc1.640029"') || /Chrome\//.test(navigator.userAgent)),
     nativeHls: can("application/vnd.apple.mpegurl") && !/Chrome\/|Firefox\//.test(navigator.userAgent),
     maxChannels: 2,
+    hdr: matchMedia("(dynamic-range: high)").matches,
   };
 }

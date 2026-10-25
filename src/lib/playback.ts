@@ -75,7 +75,17 @@ function deviceProfile(caps: BrowserCaps, maxBitrate?: number) {
       },
     ],
     ContainerProfiles: [],
-    CodecProfiles: [],
+    // Unless told otherwise Jellyfin assumes SDR and tone-maps HDR video, a full CPU transcode here (no GPU). On an HDR
+    // screen the HDR10 picture (Dolby Vision's HDR10/HLG/SDR fallback included) can go as it is.
+    CodecProfiles: caps.hdr
+      ? [
+          {
+            Type: "Video",
+            Codec: "hevc,av1,vp9",
+            Conditions: [{ Condition: "EqualsAny", Property: "VideoRangeType", Value: "SDR|HDR10|HDR10Plus|HLG|DOVIWithHDR10|DOVIWithHDR10Plus|DOVIWithHLG|DOVIWithSDR", IsRequired: false }],
+          },
+        ]
+      : [],
     // Styled subtitles stay files (JASSUB draws them); text ones become WebVTT; anything else (PGS, VobSub) is burned in.
     SubtitleProfiles: [
       { Format: "ass", Method: "External" },
