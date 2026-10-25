@@ -74,6 +74,7 @@ export function sonarr(cfg: ArrConfig) {
     deleteEpisodeFiles: (episodeFileIds: number[]) =>
       api.call<unknown>("/episodefile/bulk", { method: "DELETE", body: { episodeFileIds }, timeoutMs: 60_000 }),
     episodeSearch: (episodeIds: number[]) => api.command({ name: "EpisodeSearch", episodeIds }),
+    seasonSearch: (seriesId: number, seasonNumber: number) => api.command({ name: "SeasonSearch", seriesId, seasonNumber }),
   };
 }
 export type SonarrClient = ReturnType<typeof sonarr>;

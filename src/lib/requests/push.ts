@@ -120,14 +120,24 @@ export function episodesInRequest(episodes: SonarrEpisode[], req: Pick<Request, 
  * A request stays flagged (needsEpisodeSync) until all its episodes have been sent, so if Jellyshelf restarts with
  * some still waiting, the availability sync queues them again.
  */
-const waiting: { requestId: number; episodeId: number }[] = [];
-/** "request:episode" already sent, so the sync re-queueing a flagged request doesn't search those twice. */
+type Search =
+  | { requestId: number; key: string; episodeId: number }
+  /** After a request's episodes, one per season: the season search, if some of them still weren't found. */
+  | { requestId: number; key: string; seriesId: number; season: number; episodeIds: number[] };
+const waiting: Search[] = [];
+/** "request:key" already sent, so the sync re-queueing a flagged request doesn't search those twice. */
 const sent = new Set<string>();
 let searching: Promise<void> | null = null;
 
-export async function queueSearch(api: SonarrClient, req: Request, episodeIds: number[]) {
-  const fresh = episodeIds.filter((id) => !waiting.some((w) => w.episodeId === id) && !sent.has(`${req.id}:${id}`));
-  waiting.push(...fresh.map((episodeId) => ({ requestId: req.id, episodeId })));
+export async function queueSearch(api: SonarrClient, req: Request, episodes: SonarrEpisode[]) {
+  const isNew = (key: string) => !waiting.some((w) => w.key === key) && !sent.has(`${req.id}:${key}`);
+  const fresh = episodes.filter((e) => isNew(`${e.id}`));
+  waiting.push(...fresh.map((e) => ({ requestId: req.id, key: `${e.id}`, episodeId: e.id })));
+  for (const season of new Set(fresh.map((e) => e.seasonNumber))) {
+    const key = `season:${req.id}:${fresh[0].seriesId}:${season}`;
+    const episodeIds = fresh.filter((e) => e.seasonNumber === season).map((e) => e.id);
+    if (isNew(key)) waiting.push({ requestId: req.id, key, seriesId: fresh[0].seriesId, season, episodeIds });
+  }
   const pending = waiting.some((w) => w.requestId === req.id);
   await db.update(schema.requests).set({ needsEpisodeSync: pending }).where(eq(schema.requests.id, req.id));
   searching ??= sendSearches(api).finally(() => (searching = null));
@@ -138,17 +148,31 @@ export const searchesSent = () => searching ?? Promise.resolve();
 
 async function sendSearches(api: SonarrClient) {
   while (waiting.length) {
-    const { requestId, episodeId } = waiting[0];
+    const next = waiting[0];
     try {
-      await api.waitForCommand((await api.episodeSearch([episodeId])).id);
+      if ("episodeId" in next) await api.waitForCommand((await api.episodeSearch([next.episodeId])).id);
+      else await seasonFallback(api, next);
     } catch (e) {
-      console.warn(`[search] episode ${episodeId}:`, e instanceof Error ? e.message : e);
+      console.warn(`[search] ${next.key}:`, e instanceof Error ? e.message : e);
     }
-    waiting.shift();
-    sent.add(`${requestId}:${episodeId}`);
+    const { requestId } = waiting.shift()!;
+    sent.add(`${requestId}:${next.key}`);
     if (!waiting.some((w) => w.requestId === requestId))
       await db.update(schema.requests).set({ needsEpisodeSync: false }).where(eq(schema.requests.id, requestId));
   }
+}
+
+/**
+ * A season that dropped all at once mostly comes as season packs, which an episode search turns down ("Full season
+ * pack"). So once a fully aired season's episodes have been searched, any still neither on disk nor downloading get
+ * a season search, which takes packs.
+ */
+async function seasonFallback(api: SonarrClient, s: Extract<Search, { season: number }>) {
+  const season = (await api.episodes(s.seriesId)).filter((e) => e.seasonNumber === s.season);
+  if (!season.every((e) => aired(e, Date.now()))) return;
+  const downloading = new Set((await api.queue(`&seriesIds=${s.seriesId}`)).map((r) => r.episodeId));
+  if (!season.some((e) => s.episodeIds.includes(e.id) && !e.hasFile && !downloading.has(e.id))) return;
+  await api.waitForCommand((await api.seasonSearch(s.seriesId, s.season)).id);
 }
 
 const aired = (e: SonarrEpisode, now: number) => !!e.airDateUtc && Date.parse(e.airDateUtc) <= now;
@@ -163,8 +187,7 @@ export function episodesToSearch(all: SonarrEpisode[], req: Pick<Request, "absol
         aired(e, now) &&
         (req.absolute ? e.seasonNumber > 0 : (req.seasons ?? []).includes(e.seasonNumber)),
     )
-    .sort((a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber)
-    .map((e) => e.id);
+    .sort((a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber);
 }
 
 /**
@@ -203,6 +226,6 @@ export async function syncEpisodeMonitoring(api: SonarrClient, series: SonarrSer
 
   await api.monitorEpisodes(wanted.map((e) => e.id), true);
   const now = Date.now();
-  await queueSearch(api, req, wanted.filter((e) => !e.hasFile && aired(e, now)).map((e) => e.id));
+  await queueSearch(api, req, wanted.filter((e) => !e.hasFile && aired(e, now)));
   return true;
 }

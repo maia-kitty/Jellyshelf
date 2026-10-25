@@ -48,6 +48,7 @@ export interface QueueRecord {
   statusMessages?: { title: string; messages: string[] }[];
   // Sonarr
   seriesId?: number;
+  episodeId?: number;
   episode?: { seasonNumber: number; episodeNumber: number; absoluteEpisodeNumber?: number };
   // Radarr
   movieId?: number;
