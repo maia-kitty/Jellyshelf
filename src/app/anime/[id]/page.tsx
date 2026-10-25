@@ -27,6 +27,8 @@ import { resumeHint } from "@/lib/playback";
 import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
 import { getSettings } from "@/lib/settings";
+import { SourceSwitch } from "@/components/SourceSwitch";
+import { tmdbClient } from "@/lib/clients/tmdb";
 
 /** What the request button needs to know about an entry. */
 async function requestOption(e: AniMediaCard): Promise<AnimeEntryOption> {
@@ -114,6 +116,16 @@ async function MapSection({ id }: { id: number }) {
   return <FranchiseMap map={map} currentId={id} statuses={Object.fromEntries(ids.map((i) => [i, status[`anime:${i}`]]))} />;
 }
 
+/** The same title's TMDB page, for the AniList/TMDB switch: the film, or the series this entry is a season of. */
+async function tmdbHref(entry: AniMediaCard): Promise<string | null> {
+  const { target } = await resolveAnime(entry);
+  if (target.service === "radarr") return `/movie/${target.tmdbId}`;
+  if (target.service !== "sonarr") return null;
+  const [row] = await db.select({ tmdbTvId: schema.idMapping.tmdbTvId }).from(schema.idMapping).where(eq(schema.idMapping.anilistId, entry.id));
+  const tmdb = row?.tmdbTvId ?? (await tmdbClient.tvByTvdb(target.tvdbId).catch(() => null));
+  return tmdb ? `/tv/${tmdb}` : null;
+}
+
 export default async function AnimePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await pageUser();
   const id = Number((await params).id);
@@ -131,10 +143,11 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   // Started once; the hero (Play) and the episode list both wait on it.
   const library = loadLibrary(a, media);
 
-  const [[decorated], requests, current] = await Promise.all([
+  const [[decorated], requests, current, tmdb] = await Promise.all([
     decorate([animeCard(a)], user),
     media ? db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [],
     requestOption(a),
+    tmdbHref(a).catch(() => null),
   ]);
   const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
 
@@ -187,6 +200,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           />
         }
       >
+        <SourceSwitch active="anilist" anilist={`/anime/${a.id}`} tmdb={tmdb} />
         <Suspense fallback={<RequestThis entry={current} />}>
           <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} />
         </Suspense>

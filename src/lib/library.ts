@@ -103,29 +103,10 @@ export async function browse(user: User, viewId: string, opts: { sort: SortKey; 
  * else to its TMDB page, and titles we can't place to the library's own item page.
  */
 async function toCards(items: (JfLibItem & { episodeOf?: JfLibItem })[]): Promise<LibraryItem[]> {
-  const tvdb = items.map((i) => Number(i.ProviderIds?.Tvdb)).filter(Boolean);
-  const tmdbMovies = items.filter((i) => i.Type === "Movie").map((i) => Number(i.ProviderIds?.Tmdb)).filter(Boolean);
-  const maps =
-    tvdb.length || tmdbMovies.length
-      ? await db
-          .select()
-          .from(schema.idMapping)
-          .where(or(tvdb.length ? inArray(schema.idMapping.tvdbId, tvdb) : undefined, tmdbMovies.length ? inArray(schema.idMapping.tmdbMovieId, tmdbMovies) : undefined))
-      : [];
-  const firstEntry = new Map<number, { id: number; key: number }>();
-  for (const m of maps) {
-    if (!m.tvdbId || m.tvdbSeason === null || m.tvdbSeason === 0) continue;
-    const key = (m.tvdbSeason === -1 ? 0 : m.tvdbSeason) * 100000 + m.episodeOffset;
-    const cur = firstEntry.get(m.tvdbId);
-    if (!cur || key < cur.key) firstEntry.set(m.tvdbId, { id: m.anilistId, key });
-  }
-  const animeFilm = new Map(maps.filter((m) => m.tmdbMovieId && m.type === "MOVIE").map((m) => [m.tmdbMovieId!, m.anilistId]));
-
+  const anilistOf = await anilistIdsOf(items);
   return items.map((i) => {
     const tmdb = Number(i.ProviderIds?.Tmdb) || null;
-    const anilistSeries = i.Type === "Series" ? firstEntry.get(Number(i.ProviderIds?.Tvdb))?.id : undefined;
-    const anilistFilm = i.Type === "Movie" && tmdb ? animeFilm.get(tmdb) : undefined;
-    const anilistId = Number(i.ProviderIds?.AniList) || anilistSeries || anilistFilm;
+    const anilistId = anilistOf(i);
     const href = anilistId
       ? `/anime/${anilistId}`
       : tmdb && (i.Type === "Movie" || i.Type === "Series")
@@ -199,5 +180,38 @@ export async function libraryDetail(user: User, id: string): Promise<LibraryDeta
     playHref: item.Type === "Series" ? `/watch/series/${id}` : `/watch/${id}`,
     runtime: item.RunTimeTicks ? Math.round(item.RunTimeTicks / 600_000_000) : null,
     seasons,
+  };
+}
+
+type Ided = { Type: string; ProviderIds?: Record<string, string> };
+
+/**
+ * Which AniList entry a Jellyfin title is, if it's anime: the AniList plugin's id, or else (from the mapping table) a
+ * series' season 1 or earliest mapped entry, or a film's.
+ */
+export async function anilistIdsOf(items: Ided[]): Promise<(i: Ided) => number | undefined> {
+  const tvdb = items.map((i) => Number(i.ProviderIds?.Tvdb)).filter(Boolean);
+  const tmdbMovies = items.filter((i) => i.Type === "Movie").map((i) => Number(i.ProviderIds?.Tmdb)).filter(Boolean);
+  const maps =
+    tvdb.length || tmdbMovies.length
+      ? await db
+          .select()
+          .from(schema.idMapping)
+          .where(or(tvdb.length ? inArray(schema.idMapping.tvdbId, tvdb) : undefined, tmdbMovies.length ? inArray(schema.idMapping.tmdbMovieId, tmdbMovies) : undefined))
+      : [];
+  const firstEntry = new Map<number, { id: number; key: number }>();
+  for (const m of maps) {
+    if (!m.tvdbId || m.tvdbSeason === null || m.tvdbSeason === 0) continue;
+    const key = (m.tvdbSeason === -1 ? 0 : m.tvdbSeason) * 100000 + m.episodeOffset;
+    const cur = firstEntry.get(m.tvdbId);
+    if (!cur || key < cur.key) firstEntry.set(m.tvdbId, { id: m.anilistId, key });
+  }
+  const animeFilm = new Map(maps.filter((m) => m.tmdbMovieId && m.type === "MOVIE").map((m) => [m.tmdbMovieId!, m.anilistId]));
+
+  return (i) => {
+    const tmdb = Number(i.ProviderIds?.Tmdb) || null;
+    const series = i.Type === "Series" ? firstEntry.get(Number(i.ProviderIds?.Tvdb))?.id : undefined;
+    const film = i.Type === "Movie" && tmdb ? animeFilm.get(tmdb) : undefined;
+    return Number(i.ProviderIds?.AniList) || series || film;
   };
 }

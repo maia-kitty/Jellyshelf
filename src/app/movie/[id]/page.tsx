@@ -13,7 +13,7 @@ import { JellyfinButton } from "@/components/Episodes";
 import { FileCard } from "@/components/FileCard";
 import { DetailsPanel } from "@/components/DetailsPanel";
 import { LibraryStatus } from "@/components/LibraryStatus";
-import { AnimeNote } from "@/components/AnimeNote";
+import { SourceSwitch } from "@/components/SourceSwitch";
 import { looksLikeAnime, tmdbClient, tmdbImage, type TmdbMovieDetails } from "@/lib/clients/tmdb";
 import { HttpError } from "@/lib/clients/http";
 import { decorate, movieCard } from "@/lib/cards";
@@ -67,7 +67,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
         status={media?.status}
         aside={<MovieDetails movie={movie} />}
       >
-        {anime[0] && <AnimeNote href={`/anime/${anime[0].anilistId}`} what="film" />}
+        <SourceSwitch active="tmdb" anilist={anime[0] ? `/anime/${anime[0].anilistId}` : null} tmdb={`/movie/${id}`} />
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             {/* In the library, the thing to do is watch it; otherwise, request it. */}

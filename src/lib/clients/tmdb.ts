@@ -117,6 +117,9 @@ export const tmdbClient = {
   /** TMDB's movie for an IMDb id, if it has one. */
   movieByImdb: async (imdbId: string) =>
     (await tmdb<{ movie_results: { id: number }[] }>(`/find/${imdbId}`, { external_source: "imdb_id" }, 86400)).movie_results[0]?.id ?? null,
+  /** TMDB's series for a TVDB id, if it has one. */
+  tvByTvdb: async (tvdbId: number) =>
+    (await tmdb<{ tv_results: { id: number }[] }>(`/find/${tvdbId}`, { external_source: "tvdb_id" }, 86400)).tv_results[0]?.id ?? null,
   ping: () => tmdb<unknown>("/configuration", {}, 0),
 };
 

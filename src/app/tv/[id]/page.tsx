@@ -12,7 +12,7 @@ import { EpisodeList, JellyfinButton } from "@/components/Episodes";
 import { JarLoader } from "@/components/AppIcon";
 import { DetailsPanel } from "@/components/DetailsPanel";
 import { LibraryStatus } from "@/components/LibraryStatus";
-import { AnimeNote } from "@/components/AnimeNote";
+import { SourceSwitch } from "@/components/SourceSwitch";
 import { anilist } from "@/lib/clients/anilist";
 import { looksLikeAnime, tmdbClient, tmdbImage, type TmdbTvDetails } from "@/lib/clients/tmdb";
 import { HttpError } from "@/lib/clients/http";
@@ -92,7 +92,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
         status={media?.status}
         aside={<TvDetails tv={tv} />}
       >
-        {animeCards.length > 0 && <AnimeNote href="#anilist-entries" what="series" />}
+        <SourceSwitch active="tmdb" anilist={entries[0] ? `/anime/${entries[0].id}` : null} tmdb={`/tv/${id}`} />
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             <Suspense fallback={null}>
