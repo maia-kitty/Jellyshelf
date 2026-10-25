@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { DownloadProgress } from "@/lib/downloads";
 import { DownloadBar } from "../DownloadBar";
 import { ShelfHeader } from "../MediaCard";
@@ -13,10 +14,12 @@ export interface InFlight {
   href: string;
   /** What was asked for, e.g. "Season 2" or "Movie". */
   scope: string;
-  state: "pending" | "searching" | "downloading" | "upcoming";
+  state: "pending" | "searching" | "downloading" | "upcoming" | "releasing";
   download: DownloadProgress | null;
   /** For anime that hasn't started airing, e.g. "Airs Winter 2027" or "Air date TBA". */
   airs: string | null;
+  /** For anime that's airing, the next episode and when (unix seconds), if AniList knows. */
+  nextEp: { episode: number; at: number } | null;
 }
 
 const STATE_TEXT = { pending: "Waiting for approval", searching: "Looking for a release" } as const;
@@ -46,10 +49,10 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
                   <div className="flex items-center gap-2 text-xs text-muted">
                     <span
                       className={
-                        it.state === "pending" ? "h-1.5 w-1.5 rounded-full bg-warn" : it.state === "upcoming" ? "h-1.5 w-1.5 rounded-full bg-muted" : "h-1.5 w-1.5 animate-pulse rounded-full bg-accent"
+                        it.state === "pending" ? "h-1.5 w-1.5 rounded-full bg-warn" : it.state === "upcoming" || it.state === "releasing" ? "h-1.5 w-1.5 rounded-full bg-muted" : "h-1.5 w-1.5 animate-pulse rounded-full bg-accent"
                       }
                     />
-                    {it.state === "upcoming" ? it.airs : STATE_TEXT[it.state === "downloading" ? "searching" : it.state]}
+                    {it.state === "upcoming" ? it.airs : it.state === "releasing" ? <NextEp next={it.nextEp} /> : STATE_TEXT[it.state === "downloading" ? "searching" : it.state]}
                   </div>
                 )}
               </div>
@@ -59,4 +62,13 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
       </ul>
     </section>
   );
+}
+
+/** "Ep 6 airs Sat 1 Nov", in the viewer's timezone, so it's filled in once in the browser (the server's may differ). */
+function NextEp({ next }: { next: { episode: number; at: number } | null }) {
+  const [date, setDate] = useState<string | null>(null);
+  useEffect(() => {
+    if (next) setDate(new Date(next.at * 1000).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }));
+  }, [next]);
+  return next && date ? `Ep ${next.episode} airs ${date}` : "Releasing";
 }

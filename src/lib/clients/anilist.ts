@@ -299,10 +299,10 @@ export const anilist = {
 
   byIds: (ids: number[]) =>
     ids.length === 0
-      ? Promise.resolve([] as AniMediaCard[])
+      ? Promise.resolve([] as (AniMediaCard & Pick<AniMediaDetails, "nextAiringEpisode">)[])
       : cachedAniList(`anilist:ids:${[...ids].sort().join(",")}`, 900, async () => {
-          const data = await anilistQuery<{ Page: AniPage<AniMediaCard> }>(
-            `query ($ids: [Int]) { Page(perPage: 50) { pageInfo { currentPage hasNextPage total } media(id_in: $ids, type: ANIME) { ${CARD} } } }`,
+          const data = await anilistQuery<{ Page: AniPage<AniMediaCard & Pick<AniMediaDetails, "nextAiringEpisode">> }>(
+            `query ($ids: [Int]) { Page(perPage: 50) { pageInfo { currentPage hasNextPage total } media(id_in: $ids, type: ANIME) { ${CARD} nextAiringEpisode { episode airingAt } } } }`,
             { ids: ids.slice(0, 50) },
           );
           return data.Page.media;
