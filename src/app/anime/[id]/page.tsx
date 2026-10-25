@@ -8,7 +8,7 @@ import type { Media, Request, User } from "@/db/schema";
 import { Hero } from "@/components/Hero";
 import { CommunityScore } from "@/components/Score";
 import { FranchiseMap } from "@/components/FranchiseMap";
-import { AnimeFranchise, RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
+import { RequestThis, type AnimeEntryOption } from "@/components/RequestButtons";
 import { MappingOverride } from "@/components/MappingOverride";
 import { AniListPanel } from "@/components/AniListPanel";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
@@ -17,12 +17,10 @@ import { LibraryStatus } from "@/components/LibraryStatus";
 import { JarLoader } from "@/components/AppIcon";
 import { movieInfo, seriesEpisodes, type EpisodesInfo, type MovieLibraryInfo } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
-import { LIST_LABEL } from "@/components/StatusBadge";
-import { anilist, aniTitle, FORMAT_LABEL, franchiseChain, franchiseMap, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
+import { anilist, aniTitle, FORMAT_LABEL, franchiseMap, seasonLabel, type AniMediaCard } from "@/lib/clients/anilist";
 import { anilistToken } from "@/lib/auth";
 import { animeCard, decorate } from "@/lib/cards";
 import { getMapping, resolveAnime } from "@/lib/mapping";
-import { describeTarget } from "@/lib/mapping/resolve";
 import { animeMediaMap, statusMap } from "@/lib/media";
 import { pageUser } from "@/lib/page";
 import { resumeHint } from "@/lib/playback";
@@ -30,36 +28,18 @@ import { latestRating } from "@/lib/ratings";
 import { canFixSubs } from "@/lib/subtitles";
 import { getSettings } from "@/lib/settings";
 
-async function entryOptions(entries: AniMediaCard[], currentId: number, user: User): Promise<AnimeEntryOption[]> {
-  const token = anilistToken(user);
-  const [mediaMap, list, settings] = await Promise.all([
-    animeMediaMap(entries.map((e) => e.id)),
-    token && user.anilistId ? anilist.userList(user.anilistId, token).catch(() => null) : null,
-    getSettings(),
-  ]);
-  return Promise.all(
-    entries.map(async (e) => {
-      const { target } = await resolveAnime(e);
-      const m = mediaMap.get(e.id);
-      const l = list?.get(e.id);
-      return {
-        id: e.id,
-        title: aniTitle(e.title),
-        sub: [e.seasonYear, e.format && FORMAT_LABEL[e.format], e.episodes && `${e.episodes} eps`].filter(Boolean).join(" · "),
-        cover: e.coverImage.large,
-        target: describeTarget(target),
-        mapped: target.service !== "unmapped",
-        canDub: target.service !== "unmapped" && !!settings[target.service].animeDubQualityProfileId,
-        status: m?.status,
-        requested: !!m?.requested,
-        someEpisodes: !!m?.someEpisodes,
-        episodes: e.episodes,
-        current: e.id === currentId,
-        list: l ? `${LIST_LABEL[l.status]}${l.status === "CURRENT" ? ` ${l.progress}/${e.episodes ?? "?"}` : ""}` : undefined,
-        listStatus: l?.status,
-      };
-    }),
-  );
+/** What the request button needs to know about an entry. */
+async function requestOption(e: AniMediaCard): Promise<AnimeEntryOption> {
+  const [mediaMap, settings, { target }] = await Promise.all([animeMediaMap([e.id]), getSettings(), resolveAnime(e)]);
+  const m = mediaMap.get(e.id);
+  return {
+    id: e.id,
+    mapped: target.service !== "unmapped",
+    canDub: target.service !== "unmapped" && !!settings[target.service].animeDubQualityProfileId,
+    status: m?.status,
+    requested: !!m?.requested,
+    episodes: e.episodes,
+  };
 }
 
 type Library = { kind: "series"; info: EpisodesInfo } | { kind: "movie"; info: MovieLibraryInfo } | null;
@@ -127,12 +107,6 @@ async function LibrarySection({ library, entry, progress, user }: { library: Pro
   return <EpisodeList info={lib.info} anilist={progress !== null ? { mediaId: entry.id, progress } : null} title={title} canFixSubs={canFix} />;
 }
 
-async function Franchise({ entry, user, footer }: { entry: AniMediaCard; user: User; footer?: React.ReactNode }) {
-  const chain = await franchiseChain(entry.id).catch(() => []);
-  const entries = chain.some((c) => c.id === entry.id) ? chain : [entry];
-  return <AnimeFranchise entries={await entryOptions(entries, entry.id, user)} showTargets={user.role === "admin"} footer={footer} />;
-}
-
 async function MapSection({ id }: { id: number }) {
   const map = await franchiseMap(id).catch(() => []);
   const ids = map.flatMap((m) => [m.entry.id, ...m.branches.map((b) => b.entry.id)]);
@@ -157,13 +131,10 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
   // Started once; the hero (Play) and the episode list both wait on it.
   const library = loadLibrary(a, media);
 
-  // Direct prequels/sequels hint that a franchise list is coming; reserve tiles for it so the page doesn't jump.
-  const neighbours = a.relations.edges.filter((e) => e.node.type === "ANIME" && ["PREQUEL", "SEQUEL"].includes(e.relationType)).length;
-  const franchiseGuess = neighbours ? Math.max(2, neighbours) : 0;
-  const [[decorated], requests, [current]] = await Promise.all([
+  const [[decorated], requests, current] = await Promise.all([
     decorate([animeCard(a)], user),
     media ? db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [],
-    entryOptions([a], id, user),
+    requestOption(a),
   ]);
   const active = requests.filter((r) => r.status !== "declined" && r.status !== "failed");
 
@@ -226,12 +197,10 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
           <LibrarySection library={library} entry={a} progress={token ? (entry?.progress ?? 0) : null} user={user} />
         </Suspense>
       </AutoHeight>
-      <Suspense fallback={<AnimeFranchise entries={[current]} placeholders={franchiseGuess} showTargets={user.role === "admin"} footer={mappingFooter} />}>
-        <Franchise entry={a} user={user} footer={mappingFooter} />
-      </Suspense>
       <Suspense fallback={null}>
         <MapSection id={a.id} />
       </Suspense>
+      {mappingFooter && <section className="card mb-10 p-5">{mappingFooter}</section>}
     </>
   );
 }

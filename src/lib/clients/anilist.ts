@@ -377,33 +377,6 @@ export const anilist = {
 
 };
 
-/**
- * Walk PREQUEL/SEQUEL edges to find the TV-ish entries in the same franchise, oldest first.
- * Only follows formats that live in Sonarr (TV, TV_SHORT, ONA); movies and OVAs break the chain.
- */
-export async function franchiseChain(rootId: number, maxEntries = 12): Promise<AniMediaCard[]> {
-  const SERIES: (AniFormat | null)[] = ["TV", "TV_SHORT", "ONA"];
-  const seen = new Map<number, AniMediaCard & { start: number }>();
-  let frontier = [rootId];
-  // Breadth-first, one ring of prequels/sequels at a time, fetched in parallel.
-  while (frontier.length && seen.size < maxEntries) {
-    const batch = frontier.slice(0, maxEntries - seen.size);
-    frontier = [];
-    for (const m of await Promise.all(batch.map((id) => anilist.media(id)))) {
-      if (!m || seen.has(m.id)) continue;
-      const start = (m.startDate.year ?? 9999) * 10000 + (m.startDate.month ?? 0) * 100 + (m.startDate.day ?? 0);
-      seen.set(m.id, { ...m, start });
-      for (const e of m.relations.edges) {
-        const next = e.node;
-        if ((e.relationType === "PREQUEL" || e.relationType === "SEQUEL") && next.type === "ANIME" && SERIES.includes(next.format) && !seen.has(next.id) && !frontier.includes(next.id)) {
-          frontier.push(next.id);
-        }
-      }
-    }
-  }
-  return [...seen.values()].filter((m) => SERIES.includes(m.format)).sort((a, b) => a.start - b.start);
-}
-
 const startOf = (d: FuzzyStart) => (d.year ?? 9999) * 10000 + (d.month ?? 0) * 100 + (d.day ?? 0);
 
 const STORY: AniRelationType[] = ["PREQUEL", "SEQUEL"];

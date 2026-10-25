@@ -8,8 +8,6 @@ import type { MediaStatus } from "@/db/schema";
 import { AppIcon } from "./AppIcon";
 import { sized } from "@/lib/img";
 import { episodeRuns } from "@/lib/episodeScope";
-import type { AniListStatus } from "@/lib/clients/anilist";
-import { LIST_COLOR } from "./StatusBadge";
 import { Tabs } from "./PillTabs";
 
 async function postRequest(body: unknown) {
@@ -132,24 +130,13 @@ export function MovieRequest({ tmdbId, status, requested }: { tmdbId: number; st
 
 export interface AnimeEntryOption {
   id: number;
-  title: string;
-  sub: string;
-  cover: string | null;
-  /** Where it would go, e.g. "Sonarr TVDB 424536, season 1" (shown to admins). */
-  target: string;
   mapped: boolean;
   /** A dub quality profile is set up where it would go, so the request can ask for dubbed. */
   canDub: boolean;
   status?: MediaStatus;
   requested: boolean;
-  /** Only some of its episodes are requested. */
-  someEpisodes?: boolean;
   /** AniList's episode count; null while unknown (still airing). */
   episodes: number | null;
-  current: boolean;
-  list?: string;
-  /** Which list it's on, for the chip's colour. */
-  listStatus?: AniListStatus;
 }
 
 /**
@@ -498,37 +485,6 @@ function PickGrid({
       {footer && <div className="mt-4">{footer}</div>}
     </section>
   );
-}
-
-/** A franchise's seasons and films, to see where each stands and go to it (each is requested from its own page). */
-export function AnimeFranchise({
-  entries,
-  placeholders = 0,
-  showTargets = false,
-  footer,
-}: {
-  entries: AnimeEntryOption[];
-  placeholders?: number;
-  showTargets?: boolean;
-  footer?: React.ReactNode;
-}) {
-  const items: PickItem[] = entries.map((e) => ({
-    id: e.id,
-    title: e.title,
-    sub: e.sub,
-    cover: e.cover,
-    href: `/anime/${e.id}`,
-    current: e.current,
-    selectable: false,
-    chips: [
-      ...(e.mapped ? [libraryChip(e.status, e.requested, e.someEpisodes)] : [{ label: "Not mapped", tone: "bad" as const }]),
-      e.list ? { label: e.list, tone: "anilist" as const, className: e.listStatus && LIST_COLOR[e.listStatus].tint } : null,
-    ].filter((c) => c !== null),
-    note: showTargets ? { text: `→ ${e.target}`, bad: !e.mapped } : undefined,
-  }));
-  // A franchise of one is just this page again; only the admin's mapping editor is left to show.
-  if (entries.length < 2 && !placeholders) return footer ? <section className="card mb-10 p-5">{footer}</section> : null;
-  return <PickGrid heading="Seasons & films" count={`${entries.length} in this franchise`} items={items} placeholders={placeholders} footer={footer} />;
 }
 
 export interface SeasonOption {
