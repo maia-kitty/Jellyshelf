@@ -130,6 +130,8 @@ const DETAILS = `
 // while this minute's budget lasts; only when it runs out do we wait. A 429 pauses everything for Retry-After.
 const WINDOW_MS = 60_000;
 const MAX_CONCURRENT = 4;
+/** Left over by background requests (sections that stream in after the page is up), for the requests a page needs to show at all. */
+const RESERVE = 10;
 
 interface Limiter {
   /** Start times of requests in the last minute. */
@@ -149,7 +151,7 @@ const cachedAniList = <T>(key: string, ttl: number, fn: () => Promise<T>) => cac
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function acquire() {
+async function acquire(background: boolean) {
   for (;;) {
     const now = Date.now();
     while (limiter.sent.length && limiter.sent[0] <= now - WINDOW_MS) limiter.sent.shift();
@@ -157,7 +159,7 @@ async function acquire() {
       await sleep(limiter.pausedUntil - now);
     } else if (limiter.active >= MAX_CONCURRENT) {
       await sleep(50);
-    } else if (limiter.sent.length >= limiter.limit - 1) {
+    } else if (limiter.sent.length >= limiter.limit - 1 - (background ? Math.min(RESERVE, limiter.limit / 2) : 0)) {
       await sleep(limiter.sent[0] + WINDOW_MS - now); // keep one request of headroom
     } else {
       limiter.sent.push(now);
@@ -178,8 +180,8 @@ function learn(res: Response) {
   }
 }
 
-async function send(init: RequestInit): Promise<Response> {
-  await acquire();
+async function send(init: RequestInit, background: boolean): Promise<Response> {
+  await acquire(background);
   try {
     // The timeout starts once we're through the queue: time spent waiting for rate-limit room isn't AniList being slow.
     const res = await fetch(GRAPHQL, { ...init, signal: AbortSignal.timeout(20_000) });
@@ -190,7 +192,16 @@ async function send(init: RequestInit): Promise<Response> {
   }
 }
 
-export async function anilistQuery<T>(query: string, variables: Record<string, unknown> = {}, token?: string, attempt = 0): Promise<T> {
+/**
+ * `background`: for sections that stream in after the page is up (recommendations, the franchise map). They leave the
+ * last RESERVE requests of each minute alone, so hopping between titles doesn't make the next title wait for room.
+ */
+export async function anilistQuery<T>(
+  query: string,
+  variables: Record<string, unknown> = {},
+  token?: string,
+  { background = false, attempt = 0 } = {},
+): Promise<T> {
   const res = await send({
     method: "POST",
     headers: {
@@ -200,11 +211,11 @@ export async function anilistQuery<T>(query: string, variables: Record<string, u
     },
     body: JSON.stringify({ query, variables }),
     cache: "no-store",
-  });
+  }, background);
   if (res.status === 429 && attempt < 3) {
     const retry = Number(res.headers.get("retry-after") ?? "60") || 60;
     limiter.pausedUntil = Math.max(limiter.pausedUntil, Date.now() + retry * 1000);
-    return anilistQuery(query, variables, token, attempt + 1);
+    return anilistQuery(query, variables, token, { background, attempt: attempt + 1 });
   }
   const json = (await res.json().catch(() => null)) as { data?: T; errors?: { message: string; status?: number }[] } | null;
   if (!res.ok || !json || json.errors?.length) {
@@ -299,6 +310,8 @@ export const anilist = {
       const data = await anilistQuery<{ Media: { recommendations: { nodes: { rating: number; mediaRecommendation: AniMediaCard | null }[] } } | null }>(
         `query ($id: Int) { Media(id: $id, type: ANIME) { recommendations(sort: RATING_DESC, perPage: 20) { nodes { rating mediaRecommendation { ${CARD} } } } } }`,
         { id },
+        undefined,
+        { background: true },
       );
       return (data.Media?.recommendations.nodes ?? []).flatMap((n) => (n.mediaRecommendation && n.rating > 0 ? [n.mediaRecommendation] : []));
     }),
@@ -324,7 +337,7 @@ export const anilist = {
       return data.Media;
     }),
 
-  /** Several entries' details in one request (up to 50), where media() would spend one request on each. */
+  /** Several entries' details in one request (up to 50), where media() would spend one request on each. For the franchise map, so in the background. */
   mediaMany: async (ids: number[]) =>
     ids.length === 0
       ? []
@@ -332,6 +345,8 @@ export const anilist = {
           await anilistQuery<{ Page: { media: AniMediaDetails[] } }>(
             `query ($ids: [Int]) { Page(perPage: 50) { media(id_in: $ids, type: ANIME) { ${DETAILS} } } }`,
             { ids: ids.slice(0, 50) },
+            undefined,
+            { background: true },
           )
         ).Page.media,
 

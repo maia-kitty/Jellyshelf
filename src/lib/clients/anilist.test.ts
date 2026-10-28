@@ -3,7 +3,7 @@ import { anilistQuery } from "./anilist";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function fakeAniList(opts: { delayMs: number; remaining?: () => number }) {
+function fakeAniList(opts: { delayMs: number; remaining?: () => number; limit?: number }) {
   let active = 0;
   let maxActive = 0;
   vi.stubGlobal(
@@ -14,7 +14,7 @@ function fakeAniList(opts: { delayMs: number; remaining?: () => number }) {
       await new Promise((r) => setTimeout(r, opts.delayMs));
       active--;
       return new Response(JSON.stringify({ data: { ok: true } }), {
-        headers: { "x-ratelimit-limit": "90", "x-ratelimit-remaining": String(opts.remaining?.() ?? 80) },
+        headers: { "x-ratelimit-limit": String(opts.limit ?? 90), "x-ratelimit-remaining": String(opts.remaining?.() ?? 80) },
       });
     }),
   );
@@ -46,6 +46,25 @@ describe("AniList rate limiting", () => {
       await vi.advanceTimersByTimeAsync(30_000);
       await second;
       expect(done).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves the last 10 requests of a minute to pages, not background sections", async () => {
+    fakeAniList({ delayMs: 1, limit: 30 });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await vi.advanceTimersByTimeAsync(120_000); // a fresh minute: the other tests' fake clocks ran ahead, so clear well past them
+      await anilistQuery("{ ok }"); // learns the limit of 30
+      for (let i = 0; i < 18; i++) await anilistQuery("{ ok }", {}, undefined, { background: true });
+      let background = false;
+      void anilistQuery("{ ok }", {}, undefined, { background: true }).then(() => (background = true));
+      await anilistQuery("{ ok }"); // a page's request still goes straight out
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(background).toBe(false); // 19 of 30 used: background waits for the next minute
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(background).toBe(true);
     } finally {
       vi.useRealTimers();
     }
