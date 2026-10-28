@@ -604,7 +604,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
                 <button className="btn-primary" onClick={() => load(choice, here())}>
                   Try again
                 </button>
-                <Link className="btn-ghost" href={meta.backHref}>
+                <Link prefetch={false} className="btn-ghost" href={meta.backHref}>
                   Back
                 </Link>
               </div>
@@ -622,7 +622,7 @@ export function Player({ meta }: { meta: WatchMeta }) {
 
       {/* Top bar */}
       <div className={clsx("absolute inset-x-0 top-0 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))] transition-opacity duration-300 sm:px-6", controls ? "opacity-100" : "pointer-events-none opacity-0")}>
-        <Link href={meta.backHref} className="player-back rounded-full p-2 hover:bg-white/10" aria-label="Back">
+        <Link prefetch={false} href={meta.backHref} className="player-back rounded-full p-2 hover:bg-white/10" aria-label="Back">
           <Icon name="back" />
         </Link>
         {/* the splash shows the title big while it's up */}

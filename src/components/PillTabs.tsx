@@ -105,7 +105,7 @@ export function Tabs({
               : "text-fg before:border-accent before:bg-accent/15",
         );
         return t.href ? (
-          <Link
+          <Link prefetch={false}
             key={t.key}
             href={t.href}
             data-tab={t.key}

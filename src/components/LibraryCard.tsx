@@ -12,7 +12,7 @@ const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 export function LibraryCard({ item }: { item: LibraryItem }) {
   return (
     <div className="group relative">
-      <Link href={item.href} className="block" title={item.title}>
+      <Link prefetch={false} href={item.href} className="block" title={item.title}>
         <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-accent group-hover:shadow-[0_10px_30px_-10px_color-mix(in_srgb,var(--color-accent)_55%,transparent)]">
           {item.poster ? (
             <FadeImg fast {...sized(item.poster, 160)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.05]" />
@@ -39,7 +39,7 @@ export function LibraryCard({ item }: { item: LibraryItem }) {
           {item.episode ? <span className="text-accent">New · {item.episode}</span> : [item.year, item.type === "Series" ? "Series" : "Movie"].filter(Boolean).join(" · ")}
         </div>
       </Link>
-      <Link
+      <Link prefetch={false}
         href={item.playHref}
         aria-label={`Play ${item.title}`}
         className="absolute left-1/2 top-[33%] flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 scale-75 items-center justify-center rounded-full text-white opacity-0 shadow-xl transition duration-300 group-hover:scale-100 group-hover:opacity-100 focus-visible:scale-100 focus-visible:opacity-100"

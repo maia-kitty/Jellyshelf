@@ -35,7 +35,7 @@ function audioSummary(eps: EpisodesInfo["episodes"]) {
 export function JellyfinButton({ href, label = "Play", resume }: { href: string | null; label?: string; resume?: string | null }) {
   if (!href) return null;
   return (
-    <Link
+    <Link prefetch={false}
       href={href}
       className="btn bg-[linear-gradient(90deg,#aa5cc3,#00a4dc)] px-5 text-white shadow-[0_8px_24px_-10px_#00a4dc] hover:brightness-110"
     >
@@ -153,7 +153,7 @@ export function EpisodeList({
                 <div className={clsx("group flex items-center gap-3 py-2", !e.hasFile && "opacity-50")}>
                   {e.playUrl ? (
                     // The number is the play button: on hover it shrinks away and a play arrow grows in its place.
-                    <Link
+                    <Link prefetch={false}
                       href={e.playUrl}
                       className={clsx("group/num relative w-10 shrink-0 text-right text-lg font-semibold tabular-nums", watched ? "text-anilist" : "text-muted")}
                       aria-label={`Play episode ${e.n}`}

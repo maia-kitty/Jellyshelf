@@ -33,7 +33,7 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
       <ul className="bounce-y grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((it) => (
           <li key={it.id}>
-            <Link href={it.href} className="flex gap-3 rounded-xl border border-line bg-panel p-2.5 transition hover:border-muted">
+            <Link prefetch={false} href={it.href} className="flex gap-3 rounded-xl border border-line bg-panel p-2.5 transition hover:border-muted">
               {it.poster ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img {...sized(it.poster, 44)} alt="" loading="lazy" decoding="async" className="h-16 w-11 shrink-0 rounded-md object-cover" />

@@ -121,7 +121,7 @@ function Slide({ item: { card, label, description }, active }: { item: Spotlight
       inert={!active}
       className={clsx("flex items-end gap-6 self-end [grid-area:1/1]", active ? "rise-in" : "invisible")}
     >
-      <Link href={card.href} className="hidden w-36 shrink-0 md:block" tabIndex={active ? undefined : -1}>
+      <Link prefetch={false} href={card.href} className="hidden w-36 shrink-0 md:block" tabIndex={active ? undefined : -1}>
         {card.poster && (
           // eslint-disable-next-line @next/next/no-img-element
           <img {...sized(card.poster, 144)} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-xl border border-line object-cover shadow-2xl" />
@@ -134,7 +134,7 @@ function Slide({ item: { card, label, description }, active }: { item: Spotlight
           {card.list && <ListBadge status={card.list.status} progress={card.list.progress} />}
         </div>
         <h2 className="line-clamp-2 text-3xl font-bold leading-tight drop-shadow sm:text-4xl">
-          <Link href={card.href} className="hover:underline">
+          <Link prefetch={false} href={card.href} className="hover:underline">
             {card.title}
           </Link>
         </h2>
@@ -150,7 +150,7 @@ function Slide({ item: { card, label, description }, active }: { item: Spotlight
         </div>
         {description && <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-fg/80">{description}</p>}
         <div className="mt-5 flex items-center gap-3">
-          <Link href={card.href} className="btn-primary">
+          <Link prefetch={false} href={card.href} className="btn-primary">
             View &amp; request
           </Link>
         </div>

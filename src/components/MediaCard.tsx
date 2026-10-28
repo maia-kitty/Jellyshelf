@@ -11,7 +11,7 @@ import { CommunityScore } from "./Score";
 
 export function MediaCard({ card }: { card: Card }) {
   return (
-    <Link href={card.href} className="group block w-full" title={card.title}>
+    <Link prefetch={false} href={card.href} className="group block w-full" title={card.title}>
       {/* Lifts toward you on hover, with a faint accent glow. */}
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-panel-2 transition duration-300 ease-out group-hover:-translate-y-1 group-hover:border-accent group-hover:shadow-[0_10px_30px_-10px_color-mix(in_srgb,var(--color-accent)_55%,transparent)] group-active:translate-y-0 group-active:scale-[0.98]">
         {card.poster ? (
@@ -66,7 +66,7 @@ export function ShelfHeader({ title, href, note, actions }: { title: React.React
       {note && <span className="hidden min-w-0 truncate text-sm text-muted sm:inline">{note}</span>}
       {actions}
       {href && (
-        <Link href={href} className="ml-auto shrink-0 text-sm text-muted hover:text-fg">
+        <Link prefetch={false} href={href} className="ml-auto shrink-0 text-sm text-muted hover:text-fg">
           See all →
         </Link>
       )}

@@ -17,7 +17,7 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
         {cards.map((c, i) => (
           <div key={`${c.kind}:${c.id}`} className="card-in group relative shrink-0 transition duration-300 ease-out hover:-translate-y-1" style={{ "--i": i } as React.CSSProperties}>
           {/* Opens the title's page, where Play picks up at the right episode. */}
-          <Link
+          <Link prefetch={false}
             href={c.href}
             aria-label={c.title}
             className="relative flex h-36 w-72 overflow-hidden rounded-xl border border-line bg-panel transition duration-300 ease-out group-hover:border-accent active:scale-[0.98] sm:w-80"

@@ -169,7 +169,7 @@ export function Nav({ user }: { user: NavUser }) {
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6">
-          <Link href="/" className="jar-trigger flex shrink-0 items-center gap-2 text-lg font-bold">
+          <Link prefetch={false} href="/" className="jar-trigger flex shrink-0 items-center gap-2 text-lg font-bold">
             <AppIcon size={28} animate="hover" /> <span className="hidden sm:inline">Jellyshelf</span>
           </Link>
           {/* Stretched to the header's full height so the jelly line can ride its bottom edge, like the dock's top. */}
@@ -177,7 +177,7 @@ export function Nav({ user }: { user: NavUser }) {
             <PillBg pill={desk.pill} fitY className="left-0 rounded-lg bg-accent/12" />
             <PillBg pill={underText(desk.pill)} className={clsx("-bottom-px", LINE)} />
             {LINKS.map((l) => (
-              <Link
+              <Link prefetch={false}
                 key={l.href}
                 href={l.href}
                 data-active={isActive(path, l)}
@@ -228,7 +228,7 @@ export function Nav({ user }: { user: NavUser }) {
           <PillBg pill={tab.pill} className="bottom-[9px] left-0 top-0 rounded-lg bg-accent/12" />
           <PillBg pill={underText(tab.pill)} className={clsx("bottom-0", LINE)} />
           {LINKS.map((l) => (
-            <Link
+            <Link prefetch={false}
               key={l.href}
               href={l.href}
               data-active={isActive(path, l)}
@@ -259,7 +259,7 @@ export function Nav({ user }: { user: NavUser }) {
         {LINKS.map((l) => {
           const on = isActive(path, l);
           return (
-            <Link
+            <Link prefetch={false}
               key={l.href}
               href={l.href}
               data-active={on}
@@ -368,7 +368,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             <Switch on={drag} />
           </button>
           {user.role === "admin" && (
-            <Link href="/settings" className={item}>
+            <Link prefetch={false} href="/settings" className={item}>
               <MenuIcon d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
               Settings
             </Link>

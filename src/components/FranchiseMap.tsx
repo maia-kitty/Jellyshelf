@@ -125,7 +125,7 @@ function Graph({ nodes, edges, currentId, statuses, sideways }: ReturnType<typeo
           const current = n.entry.id === currentId;
           const status = statuses[n.entry.id];
           return (
-            <Link
+            <Link prefetch={false}
               key={n.entry.id}
               href={`/anime/${n.entry.id}`}
               aria-current={current ? "page" : undefined}

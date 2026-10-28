@@ -6,13 +6,13 @@ export function Pager({ page, hasNext, href }: { page: number; hasNext: boolean;
   return (
     <div className="mt-10 flex items-center justify-center gap-3">
       {page > 1 && (
-        <Link className="btn-ghost" href={href(page - 1)}>
+        <Link prefetch={false} className="btn-ghost" href={href(page - 1)}>
           ← Previous
         </Link>
       )}
       <span className="text-sm text-muted">Page {page}</span>
       {hasNext && (
-        <Link className="btn-ghost" href={href(page + 1)}>
+        <Link prefetch={false} className="btn-ghost" href={href(page + 1)}>
           Next →
         </Link>
       )}

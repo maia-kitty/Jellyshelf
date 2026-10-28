@@ -104,7 +104,7 @@ export function WeekSchedule({ slots, hasList }: { slots: ScheduleSlot[]; hasLis
                 const aired = s.at * 1000 < now!;
                 return (
                   <li key={`${s.id}:${s.episode}`}>
-                    <Link
+                    <Link prefetch={false}
                       href={`/anime/${s.id}`}
                       className={clsx(
                         "flex gap-2 rounded-lg p-1.5 transition hover:bg-panel-2",

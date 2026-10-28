@@ -76,7 +76,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
             <div key={g.label} className="contents lg:block">
               <div className="mb-1.5 hidden px-3 text-[11px] font-medium uppercase tracking-wide text-muted lg:block">{g.label}</div>
               {g.items.map((it) => (
-                <Link
+                <Link prefetch={false}
                   key={it.key}
                   href={`/settings?tab=${it.key}`}
                   aria-current={tab === it.key ? "page" : undefined}

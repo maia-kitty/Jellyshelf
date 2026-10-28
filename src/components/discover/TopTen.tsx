@@ -16,7 +16,7 @@ export function TopTen({ title, href, note, cards }: { title: string; href?: str
       <ol className="scroll-row -mx-1 flex gap-1 overflow-x-auto px-1 pb-3 pt-1.5">
         {cards.map((c, i) => (
           <li key={`${c.kind}:${c.id}`} className="card-in shrink-0" style={{ "--i": i } as React.CSSProperties}>
-            <Link href={c.href} className="group flex items-end" title={c.title}>
+            <Link prefetch={false} href={c.href} className="group flex items-end" title={c.title}>
               <span
                 aria-hidden
                 className="-mr-3 select-none text-[7.5rem] font-black leading-[0.8] tracking-tighter text-transparent transition group-hover:[-webkit-text-stroke-color:var(--color-accent)] sm:text-[9rem]"
