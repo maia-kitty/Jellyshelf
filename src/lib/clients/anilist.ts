@@ -117,6 +117,14 @@ const CARD = `
   coverImage { large extraLarge color }
 `;
 
+const DETAILS = `
+  ${CARD} type description(asHtml: false) bannerImage duration popularity synonyms
+  startDate { year month day }
+  nextAiringEpisode { episode airingAt }
+  studios(isMain: true) { nodes { name } }
+  relations { edges { relationType node { ${CARD} type startDate { year month day } } } }
+`;
+
 // --- rate limiting. AniList counts requests per minute (90, currently degraded to 30) and reports the
 // limit in X-RateLimit-Limit / X-RateLimit-Remaining. Requests go out immediately, a few at a time,
 // while this minute's budget lasts; only when it runs out do we wait. A 429 pauses everything for Retry-After.
@@ -312,18 +320,20 @@ export const anilist = {
 
   media: (id: number) =>
     cachedAniList(`anilist:media:${id}`, 900, async () => {
-      const data = await anilistQuery<{ Media: AniMediaDetails | null }>(
-        `query ($id: Int) { Media(id: $id, type: ANIME) {
-          ${CARD} type description(asHtml: false) bannerImage duration popularity synonyms
-          startDate { year month day }
-          nextAiringEpisode { episode airingAt }
-          studios(isMain: true) { nodes { name } }
-          relations { edges { relationType node { ${CARD} type startDate { year month day } } } }
-        } }`,
-        { id },
-      );
+      const data = await anilistQuery<{ Media: AniMediaDetails | null }>(`query ($id: Int) { Media(id: $id, type: ANIME) { ${DETAILS} } }`, { id });
       return data.Media;
     }),
+
+  /** Several entries' details in one request (up to 50), where media() would spend one request on each. */
+  mediaMany: async (ids: number[]) =>
+    ids.length === 0
+      ? []
+      : (
+          await anilistQuery<{ Page: { media: AniMediaDetails[] } }>(
+            `query ($ids: [Int]) { Page(perPage: 50) { media(id_in: $ids, type: ANIME) { ${DETAILS} } } }`,
+            { ids: ids.slice(0, 50) },
+          )
+        ).Page.media,
 
   viewer: (token: string) =>
     anilistQuery<{ Viewer: { id: number; name: string; avatar: { large: string | null } } }>(
@@ -396,7 +406,11 @@ export interface FranchiseMapEntry {
  * stories, spin-offs and recaps that branch off it. A side story with no prequel or sequel of its own is mapped from
  * its parent, so it shows up as a branch of the story it belongs to.
  */
-export async function franchiseMap(id: number, maxEntries = 24): Promise<FranchiseMapEntry[]> {
+export function franchiseMap(id: number, maxEntries = 24): Promise<FranchiseMapEntry[]> {
+  return cachedAniList(`anilist:map:${id}:${maxEntries}`, 900, () => walkFranchise(id, maxEntries));
+}
+
+async function walkFranchise(id: number, maxEntries: number): Promise<FranchiseMapEntry[]> {
   let root = await anilist.media(id);
   if (!root) return [];
   if (!root.relations.edges.some((e) => animeEdge(e) && STORY.includes(e.relationType))) {
@@ -405,10 +419,11 @@ export async function franchiseMap(id: number, maxEntries = 24): Promise<Franchi
   }
   const story = new Map([[root.id, root]]);
   const next = (m: AniMediaDetails) => m.relations.edges.filter((e) => animeEdge(e) && STORY.includes(e.relationType)).map((e) => e.node.id);
-  // Breadth-first, one ring of prequels/sequels at a time, fetched in parallel.
+  // Breadth-first, one ring of prequels/sequels at a time, each ring in one request: one request per entry used up
+  // AniList's 30 a minute on a long franchise, and the next anime page opened then waited for rate-limit room.
   let frontier = next(root);
   while (frontier.length && story.size < maxEntries) {
-    const ring = (await Promise.all([...new Set(frontier)].slice(0, maxEntries - story.size).map((i) => anilist.media(i)))).filter((m) => !!m);
+    const ring = await anilist.mediaMany([...new Set(frontier)].slice(0, maxEntries - story.size));
     for (const m of ring) story.set(m.id, m);
     frontier = ring.flatMap(next).filter((i) => !story.has(i));
   }
