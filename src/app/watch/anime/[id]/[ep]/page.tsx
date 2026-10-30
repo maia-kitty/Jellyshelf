@@ -44,7 +44,7 @@ export default async function StreamPage({ params, searchParams }: { params: Pro
         <StreamPlayer key={base} src={`${base}/master.m3u8`} subtitles={stream.subtitles && `${base}/subs.vtt`} />
       ) : (
         <div className="card p-8 text-center text-sm text-muted">
-          The stream site doesn&apos;t have episode {ep} {mode === "dub" ? "dubbed" : "subbed"}. <WatchElsewhere title={title} anime />
+          The stream site doesn&apos;t have episode {ep} {mode === "dub" ? "dubbed" : "subbed"}. <WatchElsewhere title={title} anime label="Try another source" />
         </div>
       )}
 

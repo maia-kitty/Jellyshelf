@@ -14,7 +14,7 @@ function copy(text: string) {
 }
 
 /** FMHY's streaming list, for anyone who'd rather not wait; copies the title on the way, ready to paste into a site's search. */
-export function WatchElsewhere({ title, anime }: { title: string; anime?: boolean }) {
+export function WatchElsewhere({ title, anime, label = "Don't want to wait?" }: { title: string; anime?: boolean; label?: string }) {
   return (
     <a
       className="text-accent hover:underline"
@@ -24,7 +24,7 @@ export function WatchElsewhere({ title, anime }: { title: string; anime?: boolea
       title={`Copies “${title}” to paste into a site's search`}
       onClick={() => copy(title)}
     >
-      Don&apos;t want to wait?
+      {label}
     </a>
   );
 }

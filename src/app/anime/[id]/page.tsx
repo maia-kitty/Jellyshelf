@@ -15,6 +15,7 @@ import { AniListPanel } from "@/components/AniListPanel";
 import { EpisodeList, JellyfinButton } from "@/components/Episodes";
 import { FileCard } from "@/components/FileCard";
 import { LibraryStatus } from "@/components/LibraryStatus";
+import { WatchElsewhere } from "@/components/WatchElsewhere";
 import { JarLoader } from "@/components/AppIcon";
 import { movieInfo, seriesEpisodes, type EpisodesInfo, type MovieLibraryInfo } from "@/lib/episodes";
 import { findMedia } from "@/lib/media";
@@ -95,14 +96,19 @@ async function HeroActions({
     <div className="space-y-3">
       <div className="flex flex-wrap items-start gap-3">
         <JellyfinButton href={playUrl} label={label} resume={await resumeHint(user, playUrl, nextEp && `episode ${nextEp.n}`)} />
+        {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={{ ...current, episodes }} have={eps.filter((e) => e.hasFile).map((e) => e.n)} />}
         {!playUrl && malId && (
           <Link prefetch={false} href={`/watch/anime/${current.id}/${progress && current.episodes && progress < current.episodes ? progress + 1 : 1}`} className="btn-ghost">
             Stream now
           </Link>
         )}
-        {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={{ ...current, episodes }} have={eps.filter((e) => e.hasFile).map((e) => e.n)} />}
+        {!playUrl && (
+          <span className="self-center text-sm">
+            <WatchElsewhere title={title} anime label="Other sources" />
+          </span>
+        )}
       </div>
-      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} title={title} anime />
+      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} />
     </div>
   );
 }
