@@ -7,8 +7,10 @@ import { HttpError } from "./http";
  */
 const EMBED = "https://zokoanime.video";
 export const STREAM_HEADERS = {
-  // The stream host answers 403 to anyone not coming from the embed.
+  // The stream host answers 403 to anyone not coming from the embed. A browser can't pretend that (it always sends its
+  // own Origin), so everything, video included, goes through /api/stream.
   Referer: `${EMBED}/`,
+  Origin: EMBED,
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 };
 const KEY = Buffer.from("otaku-embed-v1");
@@ -42,4 +44,13 @@ export function zokoStream(malId: number, ep: number, mode: StreamMode): Promise
     const subs = cfg.subtitles ?? [];
     return { src: cfg.src, subtitles: (subs.find((s) => s.default) ?? subs[0])?.src ?? null };
   });
+}
+
+/** A playlist with every link in it (variants, segments, keys, audio) resolved against `from` and passed to `to`. */
+export function rewritePlaylist(text: string, from: string, to: (url: string) => string): string {
+  const link = (uri: string) => to(new URL(uri, from).href);
+  return text
+    .split("\n")
+    .map((l) => (l.startsWith("#") ? l.replace(/URI="([^"]+)"/g, (_, u: string) => `URI="${link(u)}"`) : l.trim() ? link(l.trim()) : l))
+    .join("\n");
 }
