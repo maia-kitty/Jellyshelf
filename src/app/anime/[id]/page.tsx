@@ -92,7 +92,7 @@ async function HeroActions({
         <JellyfinButton href={playUrl} label={label} resume={await resumeHint(user, playUrl, nextEp && `episode ${nextEp.n}`)} />
         {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={{ ...current, episodes }} have={eps.filter((e) => e.hasFile).map((e) => e.n)} />}
       </div>
-      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} />
+      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} anime />
     </div>
   );
 }
