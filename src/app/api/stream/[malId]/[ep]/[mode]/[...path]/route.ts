@@ -42,5 +42,6 @@ export async function GET(req: Request, { params }: Ctx) {
   const headers = { "content-type": type, "cache-control": "private, max-age=3600" };
   if (!upstream.ok || (!/mpegurl/i.test(type) && !new URL(url).pathname.endsWith(".m3u8"))) return new Response(upstream.body, { status: upstream.status, headers });
   const playlist = rewritePlaylist(await upstream.text(), url, (u) => `${base}/u/${Buffer.from(u).toString("base64url")}.${sign(u)}`);
-  return new Response(playlist, { headers });
+  // Playlists aren't kept: how they point here may change (it did once), the video pieces they list don't.
+  return new Response(playlist, { headers: { ...headers, "cache-control": "no-store" } });
 }
