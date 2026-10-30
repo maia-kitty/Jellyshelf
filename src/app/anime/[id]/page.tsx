@@ -1,5 +1,6 @@
 import { aniDescription } from "@/lib/text";
 import { Suspense } from "react";
+import Link from "next/link";
 import { AutoHeight } from "@/components/AutoHeight";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -71,6 +72,7 @@ async function HeroActions({
   progress,
   user,
   title,
+  malId,
 }: {
   library: Promise<Library>;
   current: AnimeEntryOption;
@@ -79,6 +81,7 @@ async function HeroActions({
   progress: number | null;
   user: User;
   title: string;
+  malId: number | null;
 }) {
   const lib = await library;
   // A series entry starts at the episode after your AniList progress (or its first), not wherever the series left off.
@@ -92,6 +95,11 @@ async function HeroActions({
     <div className="space-y-3">
       <div className="flex flex-wrap items-start gap-3">
         <JellyfinButton href={playUrl} label={label} resume={await resumeHint(user, playUrl, nextEp && `episode ${nextEp.n}`)} />
+        {!playUrl && malId && (
+          <Link prefetch={false} href={`/watch/anime/${current.id}/${progress && current.episodes && progress < current.episodes ? progress + 1 : 1}`} className="btn-ghost">
+            Stream now
+          </Link>
+        )}
         {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={{ ...current, episodes }} have={eps.filter((e) => e.hasFile).map((e) => e.n)} />}
       </div>
       <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} title={title} anime />
@@ -203,7 +211,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         }
       >
         <Suspense fallback={<RequestThis entry={current} />}>
-          <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} title={aniTitle(a.title)} />
+          <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} title={aniTitle(a.title)} malId={a.idMal} />
         </Suspense>
       </Hero>
 
