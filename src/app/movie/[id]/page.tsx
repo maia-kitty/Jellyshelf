@@ -73,7 +73,7 @@ export default async function MoviePage({ params }: { params: Promise<{ id: stri
             </Suspense>
             {!available && <MovieRequest tmdbId={id} status={media?.status ?? "unknown"} requested={active.length > 0} />}
           </div>
-          <LibraryStatus requests={active} media={media} inLibrary={available} />
+          <LibraryStatus requests={active} media={media} inLibrary={available} title={movie.title} />
         </div>
       </Hero>
 

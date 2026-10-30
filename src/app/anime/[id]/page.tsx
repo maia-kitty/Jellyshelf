@@ -70,6 +70,7 @@ async function HeroActions({
   media,
   progress,
   user,
+  title,
 }: {
   library: Promise<Library>;
   current: AnimeEntryOption;
@@ -77,6 +78,7 @@ async function HeroActions({
   media: Media | undefined;
   progress: number | null;
   user: User;
+  title: string;
 }) {
   const lib = await library;
   // A series entry starts at the episode after your AniList progress (or its first), not wherever the series left off.
@@ -92,7 +94,7 @@ async function HeroActions({
         <JellyfinButton href={playUrl} label={label} resume={await resumeHint(user, playUrl, nextEp && `episode ${nextEp.n}`)} />
         {current.status !== "available" && !(playUrl && current.requested) && <RequestThis entry={{ ...current, episodes }} have={eps.filter((e) => e.hasFile).map((e) => e.n)} />}
       </div>
-      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} anime />
+      <LibraryStatus requests={requests} media={media} inLibrary={!!playUrl || current.status === "available"} title={title} anime />
     </div>
   );
 }
@@ -201,7 +203,7 @@ export default async function AnimePage({ params }: { params: Promise<{ id: stri
         }
       >
         <Suspense fallback={<RequestThis entry={current} />}>
-          <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} />
+          <HeroActions library={library} current={current} requests={active} media={media} progress={token ? (entry?.progress ?? 0) : null} user={user} title={aniTitle(a.title)} />
         </Suspense>
       </Hero>
 

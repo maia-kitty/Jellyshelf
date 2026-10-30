@@ -100,7 +100,7 @@ export default async function TvPage({ params }: { params: Promise<{ id: string 
               <p className="text-sm text-bad">No TVDB id on TMDB — Sonarr can&apos;t add this show.</p>
             )}
           </div>
-          <LibraryStatus requests={active} media={media} inLibrary={media?.status === "available"} />
+          <LibraryStatus requests={active} media={media} inLibrary={media?.status === "available"} title={tv.name} />
         </div>
       </Hero>
 
