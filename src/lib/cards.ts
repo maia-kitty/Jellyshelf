@@ -1,5 +1,5 @@
 import type { MediaKind, MediaStatus, User } from "@/db/schema";
-import type { AniListStatus, AniMediaCard } from "@/lib/clients/anilist";
+import type { AniListStatus, AniMangaCard, AniMediaCard } from "@/lib/clients/anilist";
 import { anilist, aniTitle, FORMAT_LABEL } from "@/lib/clients/anilist";
 import { looksLikeAnime, tmdbImage, type TmdbMovie, type TmdbTv } from "@/lib/clients/tmdb";
 import { anilistToken } from "@/lib/auth";
@@ -74,12 +74,27 @@ export function animeCard(a: AniMediaCard): Card {
   };
 }
 
+export function mangaCard(m: AniMangaCard): Card {
+  const fmt = m.format ? FORMAT_LABEL[m.format] : "Manga";
+  return {
+    kind: "manga",
+    id: m.id,
+    title: aniTitle(m.title),
+    poster: m.coverImage.extraLarge ?? m.coverImage.large,
+    year: m.startDate?.year ?? null,
+    href: `/manga/${m.id}`,
+    sub: m.chapters ? `${fmt} · ${m.chapters} ch` : fmt,
+    score: m.averageScore,
+    genres: m.genres?.slice(0, 3),
+  };
+}
+
 /** Attach availability (from our DB) and, for anime, the viewer's AniList list status and their own score. */
 export async function decorate(cards: Card[], user: User | null): Promise<Card[]> {
   const token = user ? anilistToken(user) : null;
   const anime = !!user && cards.some((c) => c.kind === "anime");
   const [statuses, list, ratings] = await Promise.all([
-    statusMap(cards.map((c) => (c.kind === "anime" ? { kind: c.kind, anilistId: c.id } : { kind: c.kind, tmdbId: c.id }))),
+    statusMap(cards.map((c) => (c.kind === "anime" || c.kind === "manga" ? { kind: c.kind, anilistId: c.id } : { kind: c.kind, tmdbId: c.id }))),
     anime && token && user.anilistId ? anilist.userList(user.anilistId, token).catch(() => null) : null,
     anime ? listRatings(user.id) : [],
   ]);

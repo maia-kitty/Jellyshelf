@@ -72,6 +72,7 @@ export function POST(req: Request) {
               autoApproveMovie: first || s.general.defaultAutoApprove,
               autoApproveTv: first || s.general.defaultAutoApprove,
               autoApproveAnime: first || s.general.defaultAutoApprove,
+              autoApproveManga: first || s.general.defaultAutoApprove,
             })
             .returning()
         )[0];

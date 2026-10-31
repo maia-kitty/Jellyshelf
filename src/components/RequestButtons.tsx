@@ -561,3 +561,42 @@ export function TvRequestAll({ tmdbId, seasons }: { tmdbId: number; seasons: Sea
     </div>
   );
 }
+
+/** Request a manga for Mangarr: every chapter, or from a chapter on (e.g. where the anime stops). */
+export function RequestManga({ anilistId, done }: { anilistId: number; done?: string }) {
+  const { busy, sent, problem, run } = useSubmit();
+  const [from, setFrom] = useState("");
+  const start = Number(from);
+  const bad = from !== "" && !(start >= 0);
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-3">
+        <SendButton
+          label={from && start > 0 ? `Request from ch. ${start}` : "Request"}
+          done={done}
+          busy={busy}
+          sent={sent}
+          disabled={bad}
+          onClick={() => run({ kind: "manga", anilistId, ...(start > 0 ? { startChapter: start } : {}) })}
+        />
+        {!done && !busy && !sent && (
+          <label className="flex items-center gap-2 text-sm text-muted">
+            from chapter
+            <input
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              placeholder="1"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="input w-20 py-1"
+              aria-label="Start from chapter (empty for every chapter)"
+            />
+          </label>
+        )}
+      </div>
+      <Problem text={problem} />
+    </div>
+  );
+}

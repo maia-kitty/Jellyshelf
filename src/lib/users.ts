@@ -23,6 +23,7 @@ export async function mergeAnilistAccount(from: User, into: User, link: Partial<
         autoApproveMovie: from.autoApproveMovie || into.autoApproveMovie,
         autoApproveTv: from.autoApproveTv || into.autoApproveTv,
         autoApproveAnime: from.autoApproveAnime || into.autoApproveAnime,
+        autoApproveManga: from.autoApproveManga || into.autoApproveManga,
       })
       .where(eq(schema.users.id, into.id));
   });

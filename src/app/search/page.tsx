@@ -1,8 +1,8 @@
 import { CardGrid } from "@/components/MediaCard";
 import { Tabs } from "@/components/Tabs";
-import { anilist } from "@/lib/clients/anilist";
+import { anilist, anilistManga } from "@/lib/clients/anilist";
 import { tmdbClient } from "@/lib/clients/tmdb";
-import { animeCard, decorate, movieCard, soft, tvCard, type Card } from "@/lib/cards";
+import { animeCard, decorate, mangaCard, movieCard, soft, tvCard, type Card } from "@/lib/cards";
 import { pageUser, param, type SearchParams } from "@/lib/page";
 
 export default async function Search({ searchParams }: { searchParams: SearchParams }) {
@@ -12,15 +12,17 @@ export default async function Search({ searchParams }: { searchParams: SearchPar
   const tab = param(sp, "tab") ?? "anime";
   if (!q) return <p className="text-muted">Type something in the search box.</p>;
 
-  const [ani, tmdb] = await Promise.all([
+  const [ani, tmdb, manga] = await Promise.all([
     soft(anilist.search(q, { perPage: 42 }), null, "anilist search"),
     soft(tmdbClient.search(q), null, "tmdb search"),
+    soft(anilistManga.search(q, { perPage: 42 }), null, "anilist manga search"),
   ]);
+  const mangaCards = manga?.media.map(mangaCard) ?? [];
   const animeCards = ani?.media.map(animeCard) ?? [];
   const tmdbCards: Card[] = (tmdb?.results ?? []).flatMap((r) =>
     r.media_type === "movie" ? [movieCard(r)] : r.media_type === "tv" ? [tvCard(r)] : [],
   );
-  const cards = await decorate(tab === "anime" ? animeCards : tmdbCards, user);
+  const cards = await decorate(tab === "anime" ? animeCards : tab === "manga" ? mangaCards : tmdbCards, user);
   const enc = encodeURIComponent(q);
 
   return (
@@ -31,6 +33,7 @@ export default async function Search({ searchParams }: { searchParams: SearchPar
         tabs={[
           { key: "anime", label: `Anime (AniList) · ${animeCards.length}`, href: `/search?q=${enc}&tab=anime` },
           { key: "tmdb", label: `Movies & Series · ${tmdbCards.length}`, href: `/search?q=${enc}&tab=tmdb` },
+          { key: "manga", label: `Manga · ${mangaCards.length}`, href: `/search?q=${enc}&tab=manga` },
         ]}
       />
       {tab === "tmdb" && tmdbCards.some((c) => c.isAnime) && (

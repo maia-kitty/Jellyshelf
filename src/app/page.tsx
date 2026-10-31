@@ -1,3 +1,4 @@
+import { mediaPath } from "@/lib/notify";
 import { cache as reactCache, Suspense } from "react";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -6,6 +7,7 @@ import { aniDescription } from "@/lib/text";
 import { CardRow } from "@/components/MediaCard";
 import { Spotlight, type SpotlightItem } from "@/components/Spotlight";
 import { ContinueRow } from "@/components/discover/ContinueRow";
+import { continueReading } from "@/lib/mangaProgress";
 import { OnItsWay, type InFlight } from "@/components/discover/OnItsWay";
 import { WeekSchedule, type ScheduleSlot } from "@/components/discover/WeekSchedule";
 import { TopTen } from "@/components/discover/TopTen";
@@ -41,6 +43,9 @@ export default async function Home() {
       </Suspense>
       <Suspense fallback={hasList || user.jellyfinUserId ? <WideRowSkeleton title="Continue watching" /> : null}>
         <ContinueSection user={user} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ContinueReadingSection user={user} />
       </Suspense>
       <Suspense fallback={null}>
         <RequestsSection user={user} part="inFlight" />
@@ -126,6 +131,10 @@ async function SpotlightSection({ user }: { user: User }) {
 async function ContinueSection({ user }: { user: User }) {
   const watching = await continueWatching(user, await listOf(user));
   return <ContinueRow cards={await decorate(watching.slice(0, 30), user)} />;
+}
+
+async function ContinueReadingSection({ user }: { user: User }) {
+  return <ContinueRow title="Continue reading" cards={await continueReading(user).catch(() => [])} />;
 }
 
 async function RequestsSection({ user, part }: { user: User; part: "inFlight" | "landed" }) {
@@ -238,7 +247,7 @@ async function myRequests(user: User): Promise<{ inFlight: InFlight[]; landed: C
   return { inFlight, landed };
 }
 
-const mediaHref = (m: Media) => (m.kind === "anime" ? `/anime/${m.anilistId}` : `/${m.kind}/${m.tmdbId}`);
+const mediaHref = mediaPath;
 
 function ago(d: Date) {
   const days = Math.floor((Date.now() - d.getTime()) / (DAY * 1000));

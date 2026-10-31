@@ -11,7 +11,7 @@ export interface MediaKey {
 export async function findMedia(key: MediaKey): Promise<Media | undefined> {
   await ensureMigrated();
   const where =
-    key.kind === "anime"
+    key.kind === "anime" || key.kind === "manga"
       ? eq(schema.media.anilistId, key.anilistId!)
       : and(eq(schema.media.kind, key.kind), eq(schema.media.tmdbId, key.tmdbId!));
   const [row] = await db.select().from(schema.media).where(where);
@@ -46,7 +46,7 @@ export async function setMediaStatus(id: number, status: MediaStatus, extra: Par
 export async function statusMap(items: MediaKey[]): Promise<Record<string, MediaStatus>> {
   await ensureMigrated();
   const out: Record<string, MediaStatus> = {};
-  const anime = items.filter((i) => i.kind === "anime" && i.anilistId).map((i) => i.anilistId!);
+  const anime = items.filter((i) => (i.kind === "anime" || i.kind === "manga") && i.anilistId).map((i) => i.anilistId!);
   const movies = items.filter((i) => i.kind === "movie" && i.tmdbId).map((i) => i.tmdbId!);
   const tv = items.filter((i) => i.kind === "tv" && i.tmdbId).map((i) => i.tmdbId!);
   const rows = [
@@ -57,7 +57,7 @@ export async function statusMap(items: MediaKey[]): Promise<Record<string, Media
     ...(tv.length ? await db.select().from(schema.media).where(and(eq(schema.media.kind, "tv"), inArray(schema.media.tmdbId, tv))) : []),
   ];
   for (const r of rows) {
-    const key = r.kind === "anime" ? `anime:${r.anilistId}` : `${r.kind}:${r.tmdbId}`;
+    const key = r.kind === "anime" || r.kind === "manga" ? `${r.kind}:${r.anilistId}` : `${r.kind}:${r.tmdbId}`;
     if (r.status !== "unknown") out[key] = r.status;
   }
   return out;

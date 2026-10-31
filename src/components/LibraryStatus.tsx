@@ -8,7 +8,7 @@ export async function LibraryStatus({ requests, media, inLibrary, title }: { req
   const approved = requests.find((r) => r.status === "approved");
   const download = approved && media ? progressFor(approved, media, await downloadQueues()) : null;
   if (download) return <DownloadBar d={download} className="max-w-md" />;
-  const service = approved?.target === "radarr" ? "Radarr" : "Sonarr";
+  const service = approved?.target === "radarr" ? "Radarr" : approved?.target === "mangarr" ? "Mangarr" : "Sonarr";
   if (inLibrary) return null;
   // Anime pages have their own way to stream instead (and "Other sources" next to it).
   const elsewhere = title && <WatchElsewhere title={title} />;

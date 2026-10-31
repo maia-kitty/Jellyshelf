@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import type { MediaStatus, RequestStatus } from "@/db/schema";
+import type { MediaStatus, RequestStatus, ServiceTarget } from "@/db/schema";
 import type { DownloadProgress } from "@/lib/downloads";
 import { StatusBadge } from "./StatusBadge";
 import { SubsChip } from "./Subtitles";
@@ -19,12 +19,13 @@ export interface RequestRow {
   status: RequestStatus;
   error: string | null;
   createdAt: string;
-  target: "sonarr" | "radarr";
+  target: ServiceTarget;
   /** Other sent-on requests for the same Sonarr series / Radarr movie ("Title (who)"): removing this one takes them too, unless it's for part of a series. */
   sharedWith: string[];
   seasons: number[] | null;
   episodeRanges: { from: number; to: number | null }[] | null;
   absolute: boolean;
+  startChapter: number | null;
   download: DownloadProgress | null;
   /** From Bazarr, once there are files. */
   subs: SubsSummary | null;
@@ -59,6 +60,7 @@ function ago(iso: string) {
 }
 
 const scope = requestScope;
+const SERVICE: Record<ServiceTarget, string> = { sonarr: "Sonarr", radarr: "Radarr", mangarr: "Mangarr" };
 /** Approved, but the availability sync found nothing coming for it (its reason is the error). */
 const stuck = (r: RequestRow) => r.status === "approved" && !!r.error;
 
@@ -127,7 +129,7 @@ export function RequestList({ rows, isAdmin, userId, qbit }: { rows: RequestRow[
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
                 <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] uppercase">{r.media.kind}</span>
                 <span>
-                  {scope(r)} → {r.target === "sonarr" ? "Sonarr" : "Radarr"}
+                  {scope(r)} → {SERVICE[r.target]}
                 </span>
                 {/* The request's own status already says pending/processing; only show the library state when it adds something. */}
                 {(r.media.status === "available" || r.media.status === "partially_available") && <StatusBadge status={r.media.status} />}
@@ -183,10 +185,11 @@ export function RequestList({ rows, isAdmin, userId, qbit }: { rows: RequestRow[
 function RemoveConfirm({ r, qbit, busy, onCancel, onRemove }: { r: RequestRow; qbit: boolean; busy: boolean; onCancel: () => void; onRemove: (files: boolean) => void }) {
   // Keeping the files is the default: it's the one that can be undone (add it back to Sonarr/Radarr).
   const [files, setFiles] = useState(false);
-  const service = r.target === "sonarr" ? "Sonarr" : "Radarr";
+  const service = SERVICE[r.target];
+  const manga = r.target === "mangarr";
   // Part of a series: only that part goes, and other requests for the series stay.
   const part = r.target === "sonarr" && !wholeSeries(r);
-  const what = part ? scope(r) : r.target === "sonarr" ? "the whole series" : "the film";
+  const what = part ? scope(r) : r.target === "radarr" ? "the film" : "the whole series";
   const choice = (value: boolean, title: string, desc: string) => (
     <label className={clsx("flex cursor-pointer gap-3 rounded-lg border p-3", files === value ? "border-accent bg-accent/10" : "border-line hover:border-muted")}>
       <input type="radio" name="remove-files" className="mt-0.5 accent-accent" checked={files === value} onChange={() => setFiles(value)} />
@@ -200,15 +203,24 @@ function RemoveConfirm({ r, qbit, busy, onCancel, onRemove }: { r: RequestRow; q
     <Modal title={`Remove ${r.media.title}?`} onClose={() => !busy && onCancel()} className="max-w-md">
       <div className="space-y-3 p-5 text-sm">
         <div className="space-y-2">
-          {choice(false, `From ${service} only`, `Removes ${what} from ${service}. The files stay, so it's still in Jellyfin to watch.`)}
-          {choice(true, "From Jellyfin too", `Removes ${what} from ${service} and deletes its files, so it's gone from Jellyfin. Can't be undone.`)}
+          {manga ? (
+            <>
+              {choice(false, "From Mangarr only", "Stops downloading it. The chapters already there stay, readable here and in Mihon.")}
+              {choice(true, "Delete the chapters too", "Removes it from Mangarr and deletes its folder with every chapter. Can't be undone.")}
+            </>
+          ) : (
+            <>
+              {choice(false, `From ${service} only`, `Removes ${what} from ${service}. The files stay, so it's still in Jellyfin to watch.`)}
+              {choice(true, "From Jellyfin too", `Removes ${what} from ${service} and deletes its files, so it's gone from Jellyfin. Can't be undone.`)}
+            </>
+          )}
         </div>
         <ul className="list-disc space-y-1 pl-5 text-muted">
           <li>This request goes too, so it can be requested again.</li>
           {part && <li>The rest of the series, and episodes another request still wants, stay. If this is all {service} has of it, the series goes.</li>}
           {/* A whole title: with it gone from Sonarr/Radarr, nothing else would clean them up. A part: Sonarr still does, unless its files go. */}
-          {qbit && (!part || files) && <li>Its torrents are removed from qBittorrent, with their downloads.{!files && " Your library's copy stays."}</li>}
-          {!part && r.sharedWith.length > 0 && <li>So do {r.sharedWith.join(", ")}, which went to the same {r.target === "sonarr" ? "series" : "film"}.</li>}
+          {qbit && !manga && (!part || files) && <li>Its torrents are removed from qBittorrent, with their downloads.{!files && " Your library's copy stays."}</li>}
+          {!part && r.sharedWith.length > 0 && <li>So do {r.sharedWith.join(", ")}, which went to the same {r.target === "radarr" ? "film" : "series"}.</li>}
         </ul>
         <p className="text-xs text-muted">If it isn&apos;t in {service} any more, only the request is removed.</p>
         <div className="flex justify-end gap-2 pt-2">

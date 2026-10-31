@@ -10,7 +10,7 @@ export function anilistRedirectUri(appUrl: string) {
   return new URL("/api/auth/anilist/callback", appUrl).toString();
 }
 
-export type AniFormat = "TV" | "TV_SHORT" | "MOVIE" | "SPECIAL" | "OVA" | "ONA" | "MUSIC";
+export type AniFormat = "TV" | "TV_SHORT" | "MOVIE" | "SPECIAL" | "OVA" | "ONA" | "MUSIC" | "MANGA" | "NOVEL" | "ONE_SHOT";
 export type AniStatus = "FINISHED" | "RELEASING" | "NOT_YET_RELEASED" | "CANCELLED" | "HIATUS";
 export type AniSeason = "WINTER" | "SPRING" | "SUMMER" | "FALL";
 export type AniListStatus = "CURRENT" | "PLANNING" | "COMPLETED" | "DROPPED" | "PAUSED" | "REPEATING";
@@ -66,6 +66,20 @@ export interface AniMediaDetails extends AniMediaCard {
   relations: { edges: { relationType: AniRelationType; node: AniMediaCard & { type: "ANIME" | "MANGA"; startDate: FuzzyStart } }[] };
 }
 
+export interface AniMangaCard extends AniMediaCard {
+  chapters: number | null;
+  volumes: number | null;
+  startDate: FuzzyStart;
+}
+
+export interface AniMangaDetails extends AniMangaCard {
+  description: string | null;
+  bannerImage: string | null;
+  popularity: number | null;
+  synonyms: string[];
+  staff: { edges: { role: string; node: { name: { full: string } } }[] };
+}
+
 export interface AniPage<T> {
   pageInfo: { currentPage: number; hasNextPage: boolean; total: number };
   media: T[];
@@ -115,6 +129,13 @@ const CARD = `
   id idMal format status season seasonYear episodes averageScore genres
   title { romaji english native userPreferred }
   coverImage { large extraLarge color }
+`;
+
+const MANGA_CARD = `${CARD} chapters volumes startDate { year month day }`;
+
+const MANGA_DETAILS = `
+  ${MANGA_CARD} description(asHtml: false) bannerImage popularity synonyms
+  staff(perPage: 6, sort: RELEVANCE) { edges { role node { name { full } } } }
 `;
 
 const DETAILS = `
@@ -244,6 +265,9 @@ export const FORMAT_LABEL: Record<AniFormat, string> = {
   OVA: "OVA",
   ONA: "ONA",
   MUSIC: "Music",
+  MANGA: "Manga",
+  NOVEL: "Light novel",
+  ONE_SHOT: "One-shot",
 };
 
 /** "FALL", 2026 → "Fall 2026" */
@@ -257,11 +281,11 @@ export function aniTitle(t: AniTitle) {
 
 type PageArgs = { page?: number; perPage?: number };
 
-function pageQuery(filter: string, varDefs: string) {
+function pageQuery(filter: string, varDefs: string, type: "ANIME" | "MANGA" = "ANIME") {
   return `query (${varDefs}$page: Int, $perPage: Int) {
     Page(page: $page, perPage: $perPage) {
       pageInfo { currentPage hasNextPage total }
-      media(type: ANIME, isAdult: false, ${filter}) { ${CARD} }
+      media(type: ${type}, isAdult: false, ${type === "MANGA" ? "format_not: NOVEL, " : ""}${filter}) { ${type === "MANGA" ? MANGA_CARD : CARD} }
     }
   }`;
 }
@@ -272,6 +296,49 @@ async function page(key: string, filter: string, varDefs: string, vars: Record<s
     return data.Page;
   });
 }
+
+function mangaPage(key: string, filter: string, varDefs: string, vars: Record<string, unknown>, { page = 1, perPage = 30 }: PageArgs, ttl = 900) {
+  return cachedAniList(`anilist:manga:${key}:${JSON.stringify(vars)}:${page}:${perPage}`, ttl, async () => {
+    const data = await anilistQuery<{ Page: AniPage<AniMangaCard> }>(pageQuery(filter, varDefs, "MANGA"), { ...vars, page, perPage });
+    return data.Page;
+  });
+}
+
+/** Manga: browsed and requested like anime, downloaded by Mangarr. */
+export const anilistManga = {
+  trending: (p: PageArgs = {}) => mangaPage("trending", "sort: TRENDING_DESC", "", {}, p),
+  popular: (p: PageArgs = {}) => mangaPage("popular", "sort: POPULARITY_DESC", "", {}, p, 3600),
+  search: (search: string, p: PageArgs = {}) => mangaPage("search", "search: $search, sort: SEARCH_MATCH", "$search: String, ", { search }, p, 300),
+  media: (id: number) =>
+    cachedAniList(`anilist:manga:media:${id}`, 900, async () => {
+      const data = await anilistQuery<{ Media: AniMangaDetails | null }>(`query ($id: Int) { Media(id: $id, type: MANGA) { ${MANGA_DETAILS} } }`, { id });
+      return data.Media;
+    }),
+  /** Same mutation as anime (AniList list entries don't care about the type). */
+  updateList: (userId: number, token: string, mediaId: number, patch: ListEntryPatch) => anilist.updateListEntry(userId, token, mediaId, patch),
+  /** The user's manga list, keyed by media id. Same cache prefix as the anime list, so updateListEntry clears both. */
+  userList: (userId: number, token: string) =>
+    cachedAniList(`anilist:list:${userId}:manga`, 120, async () => {
+      const data = await anilistQuery<{ MediaListCollection: { lists: { entries: (AniListEntry & { media: AniMangaCard })[] }[] } }>(
+        `query ($userId: Int) { MediaListCollection(userId: $userId, type: MANGA) { lists { entries { ${ENTRY} media { ${MANGA_CARD} } } } } }`,
+        { userId },
+        token,
+      );
+      const map = new Map<number, AniListEntry & { media: AniMangaCard }>();
+      for (const list of data.MediaListCollection.lists) for (const e of list.entries) map.set(e.mediaId, e);
+      return map;
+    }),
+  recommendations: (id: number) =>
+    cachedAniList(`anilist:manga:recs:${id}`, 86400, async () => {
+      const data = await anilistQuery<{ Media: { recommendations: { nodes: { rating: number; mediaRecommendation: AniMangaCard | null }[] } } | null }>(
+        `query ($id: Int) { Media(id: $id, type: MANGA) { recommendations(sort: RATING_DESC, perPage: 20) { nodes { rating mediaRecommendation { ${MANGA_CARD} } } } } }`,
+        { id },
+        undefined,
+        { background: true },
+      );
+      return (data.Media?.recommendations.nodes ?? []).flatMap((n) => (n.mediaRecommendation && n.rating > 0 ? [n.mediaRecommendation] : []));
+    }),
+};
 
 export const anilist = {
   trending: (p: PageArgs = {}) => page("trending", "sort: TRENDING_DESC", "", {}, p),

@@ -1,7 +1,7 @@
-import { sqliteTable, text, integer, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-export type MediaKind = "movie" | "tv" | "anime";
+export type MediaKind = "movie" | "tv" | "anime" | "manga";
 export type MediaStatus = "unknown" | "pending" | "processing" | "partially_available" | "available";
 export type RequestStatus = "pending" | "approved" | "declined" | "failed" | "completed";
 
@@ -24,6 +24,7 @@ export const users = sqliteTable("users", {
   autoApproveMovie: integer("auto_approve_movie", { mode: "boolean" }).notNull().default(false),
   autoApproveTv: integer("auto_approve_tv", { mode: "boolean" }).notNull().default(false),
   autoApproveAnime: integer("auto_approve_anime", { mode: "boolean" }).notNull().default(false),
+  autoApproveManga: integer("auto_approve_manga", { mode: "boolean" }).notNull().default(false),
   ...timestamps,
 });
 
@@ -31,7 +32,7 @@ export const media = sqliteTable(
   "media",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    kind: text("kind", { enum: ["movie", "tv", "anime"] }).notNull(),
+    kind: text("kind", { enum: ["movie", "tv", "anime", "manga"] }).notNull(),
     title: text("title").notNull(),
     poster: text("poster"),
     /** AniList format (TV, MOVIE, ONA, ...) and episode count, for anime rows. */
@@ -58,7 +59,7 @@ export const media = sqliteTable(
   ],
 );
 
-export type ServiceTarget = "sonarr" | "radarr";
+export type ServiceTarget = "sonarr" | "radarr" | "mangarr";
 
 export const requests = sqliteTable(
   "requests",
@@ -77,8 +78,8 @@ export const requests = sqliteTable(
     seasons: text("seasons", { mode: "json" }).$type<number[]>(),
     /** For anime: absolute episode ranges when the mapping uses absolute numbering. */
     episodeRanges: text("episode_ranges", { mode: "json" }).$type<{ from: number; to: number | null }[]>(),
-    target: text("target", { enum: ["sonarr", "radarr"] }).notNull(),
-    /** TVDB id (sonarr) or TMDB movie id (radarr) the request resolved to. */
+    target: text("target", { enum: ["sonarr", "radarr", "mangarr"] }).notNull(),
+    /** TVDB id (sonarr), TMDB movie id (radarr) or AniList manga id (mangarr) the request resolved to. */
     targetId: integer("target_id").notNull(),
     /** Anime with absolute episode numbering (episodeRanges are absolute numbers). */
     absolute: integer("absolute", { mode: "boolean" }).notNull().default(false),
@@ -86,6 +87,8 @@ export const requests = sqliteTable(
     partial: integer("partial", { mode: "boolean" }).notNull().default(false),
     /** Anime asked for dubbed: sent with the dub quality profile (dual audio first). */
     dub: integer("dub", { mode: "boolean" }).notNull().default(false),
+    /** Manga: download from this chapter on (null = the whole series). */
+    startChapter: real("start_chapter"),
     /** Episode-level monitoring still has to be applied (Sonarr hadn't populated episodes yet). */
     needsEpisodeSync: integer("needs_episode_sync", { mode: "boolean" }).notNull().default(false),
     error: text("error"),

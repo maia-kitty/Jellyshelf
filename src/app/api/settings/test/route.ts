@@ -5,13 +5,14 @@ import { radarr } from "@/lib/clients/radarr";
 import { sonarr } from "@/lib/clients/sonarr";
 import { jellyfin } from "@/lib/clients/jellyfin";
 import { bazarr } from "@/lib/clients/bazarr";
+import { mangarr } from "@/lib/clients/mangarr";
 import { qbittorrent } from "@/lib/clients/qbittorrent";
 import { tmdbClient } from "@/lib/clients/tmdb";
 import { MASK, getSettings } from "@/lib/settings";
 import { topicFor } from "@/lib/notify";
 
 const body = z.object({
-  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr", "ntfy", "qbittorrent"]),
+  service: z.enum(["tmdb", "sonarr", "radarr", "jellyfin", "bazarr", "ntfy", "qbittorrent", "mangarr"]),
   url: z.string().optional(),
   apiKey: z.string().optional(),
   /** qBittorrent only (its password comes as apiKey). */
@@ -57,6 +58,10 @@ export function POST(req: Request) {
     }
     const saved = s[service];
     const cfg = { url: url || saved.url, apiKey: apiKey && apiKey !== MASK ? apiKey : saved.apiKey };
+    if (service === "mangarr") {
+      const st = await mangarr(cfg).status();
+      return { ok: true, message: `Mangarr ${st.version}${st.suwayomi.ok ? "" : " (its Suwayomi is unreachable)"}` };
+    }
     if (service === "bazarr") {
       const st = await bazarr(cfg).status();
       return { ok: true, message: `Bazarr ${st.bazarr_version}` };

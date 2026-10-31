@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/settings";
 import { radarr, type RadarrMovie } from "@/lib/clients/radarr";
 import { sonarr, type SonarrClient, type SonarrEpisode, type SonarrSeries, type SonarrSeasonStats } from "@/lib/clients/sonarr";
 import { jellyfin } from "@/lib/clients/jellyfin";
+import { mangarr, type MangarrSeries } from "@/lib/clients/mangarr";
 import { episodesInRequest, syncEpisodeMonitoring } from "@/lib/requests/push";
 import type { EpisodeRange } from "@/lib/mapping/resolve";
 import { notifyAdmins, notifyCompleted } from "@/lib/notify";
@@ -50,9 +51,24 @@ export function stuckReason(service: "Sonarr" | "Radarr", missing: { monitored: 
     : `${service} hasn't found a download for ${what(missing.length)} yet`;
 }
 
+/** A manga's status from what Mangarr has of it: everything asked for on disk, some of it, or none yet. */
+export function mangaStatus(s: Pick<MangarrSeries, "chaptersOnDisk" | "chaptersMissing">): MediaStatus | null {
+  if (!s.chaptersOnDisk) return null;
+  return s.chaptersMissing ? "partially_available" : "available";
+}
+
+/** Why Mangarr isn't getting a manga, or null when it is (or has it all). */
+export function mangaStuck(s: Pick<MangarrSeries, "state" | "error" | "monitored" | "chaptersMissing">): string | null {
+  if (s.state === "no_match") return "Mangarr didn't find it on any of its sources (Change Source in Mangarr to pick one)";
+  if (s.state === "error") return `Mangarr's source is failing: ${s.error ?? "unknown error"}`;
+  if (s.chaptersMissing && !s.monitored) return "Mangarr has it switched off (unmonitored), so it isn't downloading";
+  return null;
+}
+
 export interface SyncReport {
   radarr?: string;
   sonarr?: string;
+  mangarr?: string;
   jellyfin?: string;
   updatedMedia: number;
   completedRequests: number;
@@ -147,6 +163,32 @@ async function syncAvailability(): Promise<SyncReport> {
       await syncSonarr(api, series, allMedia, activeReqs, { upgrade, patch, completed, newAnime, knownAnime, stuck, judged: new Set(judged), queued });
     } catch (e) {
       report.sonarr = `error: ${(e as Error).message}`;
+      incomplete = true;
+    }
+  }
+
+  // ---------- Mangarr ----------
+  if (settings.mangarr.url) {
+    try {
+      const all = new Map((await mangarr(settings.mangarr).allSeries()).map((s) => [s.anilistId, s]));
+      report.mangarr = `${all.size} manga`;
+      for (const m of allMedia) {
+        const s = m.kind === "manga" && m.anilistId ? all.get(m.anilistId) : undefined;
+        if (s) upgrade(m.id, mangaStatus(s));
+      }
+      for (const r of activeReqs) {
+        if (r.status !== "approved" || r.target !== "mangarr") continue;
+        const s = all.get(r.targetId);
+        if (!s) {
+          removed.set(r.id, "Removed from Mangarr");
+          continue;
+        }
+        // Finished on AniList and every chapter on disk: done. A running series stays approved, like a continuing show.
+        if (s.anilistStatus === "FINISHED" && mangaStatus(s) === "available") completed.add(r.id);
+        else if (judged.includes(r)) stuck.set(r.id, mangaStuck(s));
+      }
+    } catch (e) {
+      report.mangarr = `error: ${(e as Error).message}`;
       incomplete = true;
     }
   }

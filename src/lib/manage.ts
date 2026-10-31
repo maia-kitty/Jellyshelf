@@ -9,6 +9,8 @@ import { getSettings } from "@/lib/settings";
 import type { Request } from "@/db/schema";
 import { episodesInRequest } from "@/lib/requests/push";
 import { sentOn, wholeSeries } from "@/lib/requestScope";
+import { mediaPath } from "@/lib/notify";
+import { mangarr } from "@/lib/clients/mangarr";
 
 export type ManagedService = "sonarr" | "radarr";
 
@@ -44,7 +46,7 @@ export async function managedTitles(): Promise<{ titles: ManagedTitle[]; errors:
   for (const r of reqs) requesters.set(`${r.target}:${r.targetId}`, (requesters.get(`${r.target}:${r.targetId}`) ?? new Set()).add(r.user));
   const by = (k: string) => [...(requesters.get(k) ?? [])];
   // Anime is browsed by AniList entry; plain titles by TMDB.
-  const page = (m: (typeof media)[number] | undefined) => m && (m.kind === "anime" ? `/anime/${m.anilistId}` : `/${m.kind}/${m.tmdbId}`);
+  const page = (m: (typeof media)[number] | undefined) => m && mediaPath(m);
 
   const titles: ManagedTitle[] = [
     ...series.map((x) => ({
@@ -79,6 +81,16 @@ export async function managedTitles(): Promise<{ titles: ManagedTitle[]; errors:
  */
 export async function deleteRequested(r: Request, deleteFiles: boolean) {
   const s = await getSettings();
+  if (r.target === "mangarr") {
+    if (!s.mangarr.url) return null;
+    const api = mangarr(s.mangarr);
+    if (!(await api.series(r.targetId).catch(() => null))) return null;
+    await api.remove(r.targetId, deleteFiles);
+    // Every request for it goes, as with deleteTitle; its status settles from what's left (nothing).
+    await db.delete(schema.requests).where(and(eq(schema.requests.target, "mangarr"), eq(schema.requests.targetId, r.targetId)));
+    await db.update(schema.media).set({ status: "unknown" }).where(eq(schema.media.id, r.mediaId));
+    return { note: null };
+  }
   if (!s[r.target].url || !s[r.target].apiKey) return null;
   if (r.target === "radarr") {
     const movie = await radarr(s.radarr).movieByTmdb(r.targetId);

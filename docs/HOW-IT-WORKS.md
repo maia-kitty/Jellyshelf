@@ -16,6 +16,7 @@ talks to everything else for you:
   Your browser ───► Jellyshelf ────────► Sonarr     series and anime requests, download progress
   (phone, PC)      (localhost:3000)  ──► Radarr     movie requests
                         ├──────────────► Bazarr     subtitles
+                        ├──────────────► Mangarr    manga requests and the pages the reader shows (optional)
                         └──────────────► Jellyfin   sign-in, your library, video streaming
                         │
                         └── config/  its own memory: settings, users, requests, ratings (SQLite database)
@@ -29,10 +30,31 @@ Some consequences of this design:
 - **Nothing important lives only in Jellyshelf** apart from requests, ratings and settings, which are kept in
   `config/`. If the container is deleted and rebuilt, `config/` survives and nothing is lost.
 - **Two things happen in the background:**
-  - Every 10 minutes it asks Sonarr, Radarr and Jellyfin what's downloaded, and updates the "Available" badges.
+  - Every 10 minutes it asks Sonarr, Radarr, Mangarr and Jellyfin what's downloaded, and updates the "Available" badges.
   - Once a day it downloads the anime ID lists that map AniList to TVDB.
 
   Sonarr and Radarr can also notify it right away through a webhook (Settings → Jobs & webhooks shows the URL).
+
+### Manga
+
+Manga works like anime, with [Mangarr](https://github.com/maia-kitty/mangarr) (a Sonarr-style manga downloader) in Sonarr's place:
+
+- **Browse → Manga** and the **Manga** tab in search list AniList manga (light novels are left out: there's nothing to
+  download them from).
+- **Request** on a manga's page asks for every chapter, or, with a number in "from chapter", from that chapter on. It
+  goes through the same approval as everything else (auto-approve has its own "Manga" switch per user) and is then
+  sent to Mangarr, which finds the manga on its sources and keeps downloading new chapters.
+- The availability sync reads Mangarr: some chapters on disk = partly available, every chapter asked for = available.
+  A request for a finished manga completes once it's all there; one for a manga still coming out stays "processing",
+  like a continuing show.
+- **The reader** (`/read/<anilist id>/<chapter>`) shows a chapter as one long strip. The pages come from Mangarr
+  through Jellyshelf (`/api/manga/...`), so the browser never needs to reach Mangarr.
+- **AniList progress:** when the end of a chapter scrolls into view, your AniList progress moves up to it (as the
+  player does for episodes at 90%). Whole chapters only, as AniList counts them: 12.5 counts as 12. Only ever
+  forward; it puts the manga on your list as Reading, and the last chapter of a finished manga completes it.
+  Without AniList linked nothing is saved. Code: `src/lib/mangaProgress.ts`, `src/components/ChapterDone.tsx`.
+- **Continue reading** (Discover, under Continue watching): manga you're Reading on AniList that Mangarr has the next
+  chapter of. The manga page's button says "Continue ch. N" the same way.
 
 ---
 
@@ -73,6 +95,7 @@ Inside `src/` there are four parts:
 | Poster cards and sideways rows | `src/components/MediaCard.tsx` |
 | Big header on a title's page (backdrop, poster, Play) | `src/components/Hero.tsx` |
 | Anime / movie / series pages | `src/app/anime/[id]/page.tsx`, `src/app/movie/[id]/page.tsx`, `src/app/tv/[id]/page.tsx` |
+| Manga page, manga browsing, the reader | `src/app/manga/[id]/page.tsx`, `src/app/discover/manga/page.tsx`, `src/app/read/[id]/[chapter]/page.tsx` |
 | Episode list | `src/components/Episodes.tsx` |
 | Request buttons and season picker | `src/components/RequestButtons.tsx` |
 | Library pages | `src/app/library/` and `src/components/LibraryNav.tsx`, `LibraryControls.tsx`, `LibraryCard.tsx` |

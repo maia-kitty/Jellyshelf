@@ -12,6 +12,7 @@ const body = z
     autoApproveMovie: z.boolean(),
     autoApproveTv: z.boolean(),
     autoApproveAnime: z.boolean(),
+    autoApproveManga: z.boolean(),
   })
   .partial();
 

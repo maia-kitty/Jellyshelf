@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import type { Media, Request, User } from "@/db/schema";
 import { ApiError } from "@/lib/api";
 import { anilistToken } from "@/lib/auth";
-import { anilist, aniTitle } from "@/lib/clients/anilist";
+import { anilist, anilistManga, aniTitle } from "@/lib/clients/anilist";
 import { tmdbClient, tmdbImage } from "@/lib/clients/tmdb";
 import { resolveAnime } from "@/lib/mapping";
 import { describeTarget, type EpisodeRange } from "@/lib/mapping/resolve";
@@ -27,6 +27,8 @@ export const createRequestInput = z.discriminatedUnion("kind", [
   z
     .object({ kind: z.literal("anime"), anilistIds: z.array(z.number().int().positive()).min(1).max(25), episodes: episodes.optional(), dub: z.boolean().optional() })
     .refine((r) => !r.episodes || r.anilistIds.length === 1, "Pick episodes from one entry at a time"),
+  /** A manga for Mangarr: every chapter, or from `startChapter` on. */
+  z.object({ kind: z.literal("manga"), anilistId: z.number().int().positive(), startChapter: z.number().min(0).max(100_000).optional() }),
 ]);
 export type CreateRequestInput = z.infer<typeof createRequestInput>;
 
@@ -42,7 +44,7 @@ async function activeRequests(mediaId: number) {
 
 function autoApproves(user: User, kind: Media["kind"]) {
   if (user.role === "admin") return true;
-  return kind === "movie" ? user.autoApproveMovie : kind === "tv" ? user.autoApproveTv : user.autoApproveAnime;
+  return kind === "movie" ? user.autoApproveMovie : kind === "tv" ? user.autoApproveTv : kind === "manga" ? user.autoApproveManga : user.autoApproveAnime;
 }
 
 async function insertRequest(user: User, media: Media, values: Omit<typeof schema.requests.$inferInsert, "mediaId" | "userId">) {
@@ -97,6 +99,19 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
       created: [await insertRequest(user, media, { target: "sonarr", targetId: tvdbId, seasons, ...picked })],
       skipped: [],
     };
+  }
+
+  if (input.kind === "manga") {
+    const m = await anilistManga.media(input.anilistId);
+    if (!m) throw new ApiError(404, "Not found on AniList");
+    const media = await upsertMedia(
+      { kind: "manga", anilistId: m.id },
+      { title: aniTitle(m.title), poster: m.coverImage.extraLarge ?? m.coverImage.large, format: m.format },
+    );
+    if ((await activeRequests(media.id)).length) throw new ApiError(409, "Already requested");
+    const startChapter = input.startChapter || null;
+    console.info(`[request] ${user.displayName} → ${media.title} (manga${startChapter ? `, from chapter ${startChapter}` : ""})`);
+    return { created: [await insertRequest(user, media, { target: "mangarr", targetId: m.id, startChapter })], skipped: [] };
   }
 
   // Anime: one request per AniList entry so each season/cour tracks its own status.

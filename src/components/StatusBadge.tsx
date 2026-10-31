@@ -35,11 +35,11 @@ export const LIST_COLOR: Record<AniListStatus, { solid: string; tint: string }> 
   DROPPED: { solid: "bg-[#e85d75] text-white", tint: "bg-[#e85d75]/15 text-[#e85d75]" },
 };
 
-export function ListBadge({ status, progress, total, className }: { status: AniListStatus; progress?: number; total?: number | null; className?: string }) {
+export function ListBadge({ status, progress, total, className, reading }: { status: AniListStatus; progress?: number; total?: number | null; className?: string; reading?: boolean }) {
   const showProgress = (status === "CURRENT" || status === "PAUSED" || status === "REPEATING") && progress !== undefined;
   return (
     <span className={clsx("rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", LIST_COLOR[status].solid, className)}>
-      {LIST_LABEL[status]}
+      {reading && status === "CURRENT" ? "Reading" : reading && status === "REPEATING" ? "Rereading" : LIST_LABEL[status]}
       {showProgress && ` ${progress}${total ? `/${total}` : ""}`}
     </span>
   );

@@ -8,11 +8,11 @@ import { sized } from "@/lib/img";
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 
 /** Wide cards for things you're part-way through: the art blurred behind, where you're up to, and a progress bar. */
-export function ContinueRow({ cards }: { cards: Card[] }) {
+export function ContinueRow({ cards, title = "Continue watching" }: { cards: Card[]; title?: string }) {
   if (!cards.length) return null;
   return (
     <section className="mb-10">
-      <ShelfHeader title="Continue watching" />
+      <ShelfHeader title={title} />
       <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3 pt-1.5">
         {cards.map((c, i) => (
           <div key={`${c.kind}:${c.id}`} className="card-in group relative shrink-0 transition duration-300 ease-out hover:-translate-y-1" style={{ "--i": i } as React.CSSProperties}>
@@ -37,7 +37,7 @@ export function ContinueRow({ cards }: { cards: Card[] }) {
                 <div className="h-full w-[5rem] shrink-0 rounded-lg bg-panel-2" />
               )}
               <div className="flex min-w-0 flex-1 flex-col">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-fg/60">{c.kind === "anime" ? "Anime" : c.kind === "tv" ? "Series" : "Movie"}</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-fg/60">{c.kind === "anime" ? "Anime" : c.kind === "tv" ? "Series" : c.kind === "manga" ? "Manga" : "Movie"}</div>
                 <div className="mt-0.5 line-clamp-2 font-semibold leading-snug">{c.title}</div>
                 {c.sub && <div className="mt-1 text-sm text-fg/75">{c.sub}</div>}
                 <div className="mt-auto flex items-center gap-2">

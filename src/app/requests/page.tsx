@@ -1,3 +1,4 @@
+import { mediaPath } from "@/lib/notify";
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { RequestList } from "@/components/RequestList";
@@ -61,6 +62,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
           seasons: r.request.seasons,
           episodeRanges: r.request.episodeRanges,
           absolute: r.request.absolute,
+          startChapter: r.request.startChapter,
           download: queues && r.request.status === "approved" ? progressFor(r.request, r.media, queues) : null,
           subs: subs[i],
           media: {
@@ -68,7 +70,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
             title: r.media.title,
             poster: r.media.poster,
             status: r.media.status,
-            href: r.media.kind === "anime" ? `/anime/${r.media.anilistId}` : `/${r.media.kind}/${r.media.tmdbId}`,
+            href: mediaPath(r.media),
           },
           user: r.user,
         }))}

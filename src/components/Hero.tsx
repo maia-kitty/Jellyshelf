@@ -14,7 +14,7 @@ export function Hero(props: {
   genres?: string[];
   overview?: string | null;
   status?: MediaStatus;
-  list?: { status: AniListStatus; progress: number; total?: number | null };
+  list?: { status: AniListStatus; progress: number; total?: number | null; reading?: boolean };
   accentColor?: string | null;
   children?: React.ReactNode;
   /** A panel to the right of the text on wide screens (below it on narrow ones). */

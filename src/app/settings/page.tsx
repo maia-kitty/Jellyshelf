@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import {
   AniListSettings,
   BazarrSettings,
+  MangarrSettings,
   CopyField,
   GeneralSettings,
   JellyfinSettings,
@@ -33,6 +34,7 @@ const GROUPS: { label: string; items: { key: string; label: string; on?: (s: Set
       { key: "sonarr", label: "Sonarr", on: (s) => !!(s.sonarr.url && s.sonarr.apiKey) },
       { key: "radarr", label: "Radarr", on: (s) => !!(s.radarr.url && s.radarr.apiKey) },
       { key: "bazarr", label: "Bazarr", on: (s) => !!(s.bazarr.url && s.bazarr.apiKey) },
+      { key: "mangarr", label: "Mangarr", on: (s) => !!s.mangarr.url },
       { key: "qbittorrent", label: "qBittorrent", on: (s) => !!s.qbittorrent.url },
       { key: "ntfy", label: "Notifications", on: (s) => !!s.ntfy.url },
     ],
@@ -98,6 +100,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           {tab === "sonarr" && <SonarrSettings initial={s.sonarr} />}
           {tab === "radarr" && <RadarrSettings initial={s.radarr} />}
           {tab === "bazarr" && <BazarrSettings initial={s.bazarr} />}
+          {tab === "mangarr" && <MangarrSettings initial={s.mangarr} />}
           {tab === "qbittorrent" && <QbittorrentSettings initial={s.qbittorrent} />}
           {tab === "ntfy" && <NtfySettings initial={s.ntfy} />}
           {tab === "general" && <GeneralSettings initial={s.general} />}
@@ -117,6 +120,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                   autoApproveMovie: u.autoApproveMovie,
                   autoApproveTv: u.autoApproveTv,
                   autoApproveAnime: u.autoApproveAnime,
+                  autoApproveManga: u.autoApproveManga,
                 }))}
               />
             </Section>

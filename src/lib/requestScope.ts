@@ -1,7 +1,8 @@
 import type { Request } from "@/db/schema";
 
 /** What a request asked for, in a few words: "Movie", "S2", "S3 · ep 13–24", "Absolute ep 1089–…", "S1 · Dub". */
-export function requestScope(r: Pick<Request, "target" | "seasons" | "episodeRanges" | "absolute"> & { dub?: boolean }) {
+export function requestScope(r: Pick<Request, "target" | "seasons" | "episodeRanges" | "absolute"> & { dub?: boolean; startChapter?: number | null }) {
+  if (r.target === "mangarr") return r.startChapter ? `From chapter ${r.startChapter}` : "Every chapter";
   return r.dub ? `${scope(r)} · Dub` : scope(r);
 }
 

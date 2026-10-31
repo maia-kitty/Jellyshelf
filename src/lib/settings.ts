@@ -67,6 +67,13 @@ export const settingsSchema = z.object({
       password: z.string().default(""),
     })
     .prefault({}),
+  /** Manga downloads through Mangarr. Its API needs no key from a local address; the key is sent when set. */
+  mangarr: z
+    .object({
+      url: z.string().default(""),
+      apiKey: z.string().default(""),
+    })
+    .prefault({}),
   ntfy: z
     .object({
       url: z.string().default(""),
@@ -113,6 +120,7 @@ export function redactSettings(s: Settings) {
     radarr: { ...s.radarr, apiKey: mask(s.radarr.apiKey) },
     jellyfin: { ...s.jellyfin, apiKey: mask(s.jellyfin.apiKey) },
     bazarr: { ...s.bazarr, apiKey: mask(s.bazarr.apiKey) },
+    mangarr: { ...s.mangarr, apiKey: mask(s.mangarr.apiKey) },
     ntfy: { ...s.ntfy, token: mask(s.ntfy.token) },
     qbittorrent: { ...s.qbittorrent, password: mask(s.qbittorrent.password) },
   };

@@ -5,11 +5,28 @@ import { getSettings } from "@/lib/settings";
 import { radarr } from "@/lib/clients/radarr";
 import { sonarr, type SonarrClient, type SonarrEpisode, type SonarrSeries } from "@/lib/clients/sonarr";
 import { setMediaStatus } from "@/lib/media";
+import { mangarr } from "@/lib/clients/mangarr";
+import { HttpError } from "@/lib/clients/http";
 
 /** Send an approved request to Sonarr/Radarr. Throws on failure; caller records the error. */
 export async function pushRequest(req: Request, media: Media) {
   if (req.target === "radarr") return pushMovie(req, media);
+  if (req.target === "mangarr") return pushManga(req, media);
   return pushSeries(req, media);
+}
+
+/** Add the manga to Mangarr, or if it's there already, switch it on and reach back to the asked-for chapter. */
+async function pushManga(req: Request, media: Media) {
+  const api = mangarr((await getSettings()).mangarr);
+  const start = req.startChapter ?? 0;
+  try {
+    await api.add(req.targetId, start);
+  } catch (e) {
+    if (!(e instanceof HttpError && e.status === 409)) throw e;
+    const s = await api.series(req.targetId);
+    await api.update(req.targetId, { monitored: true, startChapter: Math.min(s.startChapter, start) });
+  }
+  await setMediaStatus(media.id, "processing");
 }
 
 async function pushMovie(req: Request, media: Media) {

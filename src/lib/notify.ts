@@ -25,7 +25,7 @@ export async function knownTopics(topics: string[]) {
   return topics.length > 0 && topics.every((t) => mine.has(t));
 }
 
-export const mediaPath = (m: Media) => (m.kind === "anime" ? `/anime/${m.anilistId}` : `/${m.kind}/${m.tmdbId}`);
+export const mediaPath = (m: Media) => (m.kind === "anime" || m.kind === "manga" ? `/${m.kind}/${m.anilistId}` : `/${m.kind}/${m.tmdbId}`);
 
 type Note = { title: string; message: string; path?: string; tags?: string[] };
 

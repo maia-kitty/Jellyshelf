@@ -322,7 +322,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function Connection<K extends "sonarr" | "radarr" | "jellyfin" | "bazarr">({
+function Connection<K extends "sonarr" | "radarr" | "jellyfin" | "bazarr" | "mangarr">({
   v,
   set,
   placeholder,
@@ -476,6 +476,25 @@ export function BazarrSettings({ initial }: { initial: Settings["bazarr"] }) {
           ]}
         />
       </Field>
+      <SaveBar form={form} />
+    </Section>
+  );
+}
+
+export function MangarrSettings({ initial }: { initial: Settings["mangarr"] }) {
+  const form = useSection("mangarr", initial);
+  const { v, set } = form;
+  const configured = !!initial.url;
+  const check = useCheck(() => test("mangarr", v.url, v.apiKey), configured);
+  return (
+    <Section
+      title="Mangarr"
+      check={check}
+      configured={configured}
+      desc="Optional. Downloads manga (Sonarr for manga), so manga can be requested and read here."
+      more={<p>Mangarr picks the source and keeps checking for new chapters. Jellyshelf only sends it requests and reads the pages it serves. The API key isn&apos;t needed when Jellyshelf reaches Mangarr on a local address.</p>}
+    >
+      <Connection v={v} set={set} placeholder="http://mangarr:8206" keyHint="Mangarr → Settings → General. Optional on a local address" />
       <SaveBar form={form} />
     </Section>
   );
@@ -669,6 +688,7 @@ export interface UserRow {
   autoApproveMovie: boolean;
   autoApproveTv: boolean;
   autoApproveAnime: boolean;
+  autoApproveManga: boolean;
 }
 
 /** A pill toggle: ✓ and accent when on. */
@@ -698,6 +718,7 @@ export function UsersTable({ users, selfId }: { users: UserRow[]; selfId: number
     ["autoApproveMovie", "Movies"],
     ["autoApproveTv", "Series"],
     ["autoApproveAnime", "Anime"],
+    ["autoApproveManga", "Manga"],
   ] as const;
   return (
     <div className="overflow-x-auto">
