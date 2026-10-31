@@ -108,8 +108,12 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
       { kind: "manga", anilistId: m.id },
       { title: aniTitle(m.title), poster: m.coverImage.extraLarge ?? m.coverImage.large, format: m.format },
     );
-    if ((await activeRequests(media.id)).length) throw new ApiError(409, "Already requested");
     const startChapter = input.startChapter || null;
+    // Another request may reach further back (chapters before an earlier "from chapter N"); one that doesn't is a repeat.
+    const active = await activeRequests(media.id);
+    if (active.length && (startChapter ?? 0) >= Math.min(...active.map((r) => r.startChapter ?? 0))) {
+      throw new ApiError(409, "Already requested");
+    }
     console.info(`[request] ${user.displayName} → ${media.title} (manga${startChapter ? `, from chapter ${startChapter}` : ""})`);
     return { created: [await insertRequest(user, media, { target: "mangarr", targetId: m.id, startChapter })], skipped: [] };
   }

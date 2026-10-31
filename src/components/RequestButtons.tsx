@@ -600,3 +600,14 @@ export function RequestManga({ anilistId, done }: { anilistId: number; done?: st
     </div>
   );
 }
+
+/** For a run of chapters that were never asked for (before the start chapter): request them, from `from` on. */
+export function RequestChapters({ anilistId, from, done }: { anilistId: number; from: number; done?: string }) {
+  const { busy, sent, problem, run } = useSubmit();
+  return (
+    <span className="inline-flex flex-col">
+      <SendButton label="Request" done={done} busy={busy} sent={sent} onClick={() => run({ kind: "manga", anilistId, startChapter: from })} />
+      <Problem text={problem} />
+    </span>
+  );
+}

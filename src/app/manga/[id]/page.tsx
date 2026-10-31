@@ -5,13 +5,13 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { Hero } from "@/components/Hero";
 import { CommunityScore } from "@/components/Score";
-import { RequestManga } from "@/components/RequestButtons";
+import { RequestChapters, RequestManga } from "@/components/RequestButtons";
 import { CardRow } from "@/components/MediaCard";
 import { anilistManga, aniTitle, FORMAT_LABEL } from "@/lib/clients/anilist";
 import { mangarr, type MangarrChapter, type MangarrSeries } from "@/lib/clients/mangarr";
 import { decorate, mangaCard } from "@/lib/cards";
 import { findMedia } from "@/lib/media";
-import { pageUser } from "@/lib/page";
+import { pageUser, param, type SearchParams } from "@/lib/page";
 import { getSettings } from "@/lib/settings";
 import { aniDescription } from "@/lib/text";
 import { mangaStuck } from "@/lib/jobs/availability";
@@ -26,11 +26,17 @@ async function MoreLikeThis({ id, user }: { id: number; user: Awaited<ReturnType
   return <CardRow title="More like this" cards={await decorate(recs.slice(0, 20).map(mangaCard), user)} />;
 }
 
-function Chapters({ id, chapters }: { id: number; chapters: MangarrChapter[] }) {
+function Chapters({ id, chapters, showMissing, requestedFrom }: { id: number; chapters: MangarrChapter[]; showMissing: boolean; requestedFrom: number | null }) {
   if (!chapters.length) return null;
   return (
     <section className="card mb-10 p-5">
-      <h2 className="mb-3 text-lg font-semibold">Chapters</h2>
+      <div className="mb-3 flex flex-wrap items-baseline gap-3">
+        <h2 className="text-lg font-semibold">Chapters</h2>
+        {/* The chapters the source has that were never asked for (before the start chapter). */}
+        <Link prefetch={false} scroll={false} href={showMissing ? `/manga/${id}` : `/manga/${id}?missing=1`} className={showMissing ? "text-sm text-accent" : "text-sm text-muted hover:text-fg"}>
+          {showMissing ? "✓ " : ""}Show missing chapters
+        </Link>
+      </div>
       {/* bounce-y: drag-to-scroll (and the overscroll bounce) like every other list */}
       <ul className="bounce-y grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         {chapterRuns(chapters).map((r) =>
@@ -41,11 +47,18 @@ function Chapters({ id, chapters }: { id: number; chapters: MangarrChapter[] }) 
                 <span className="truncate text-sm text-muted">{r.chapter.name !== `Chapter ${r.chapter.number}` ? r.chapter.name : ""}</span>
               </Link>
             </li>
-          ) : (
+          ) : r.requested ? (
             // A run of chapters that aren't here yet: one full-width line.
             <li key={`missing-${r.last}`} className="col-span-full flex items-baseline gap-2 px-3 py-2 text-muted" title="Not downloaded yet">
               <span className="whitespace-nowrap tabular-nums">{r.first === r.last ? `Ch. ${r.first}` : `Ch. ${r.first}–${r.last}`}</span>
               <span className="text-xs">{r.count === 1 ? "on its way" : `${r.count} on their way`}</span>
+            </li>
+          ) : (
+            // Never asked for: Request gets them (from the first of the run on, through the normal approval).
+            <li key={`unrequested-${r.last}`} className="col-span-full flex items-center gap-3 px-3 py-2 text-muted">
+              <span className="whitespace-nowrap tabular-nums">{r.first === r.last ? `Ch. ${r.first}` : `Ch. ${r.first}–${r.last}`}</span>
+              <span className="text-xs">{r.count === 1 ? "not requested" : `${r.count} not requested`}</span>
+              <RequestChapters anilistId={id} from={r.first} done={requestedFrom !== null && requestedFrom <= r.first ? "Requested" : undefined} />
             </li>
           ),
         )}
@@ -76,9 +89,10 @@ function StatusLine({ series, pending, approved }: { series: MangarrSeries | nul
   return null;
 }
 
-export default async function MangaPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MangaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   const user = await pageUser();
   const id = Number((await params).id);
+  const showMissing = param(await searchParams, "missing") === "1";
   if (!Number.isInteger(id) || id <= 0) notFound();
   const settings = (await getSettings()).mangarr;
   const api = settings.url ? mangarr(settings) : null;
@@ -86,7 +100,7 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
     anilistManga.media(id),
     findMedia({ kind: "manga", anilistId: id }),
     api ? api.series(id).catch(() => null) : null,
-    api ? api.chapters(id).catch(() => []) : [],
+    api ? api.chapters(id, showMissing).catch(() => []) : [],
   ]);
   if (!m) notFound();
   const requests = media ? await db.select().from(schema.requests).where(eq(schema.requests.mediaId, media.id)) : [];
@@ -132,7 +146,16 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
           <StatusLine series={series} pending={active.some((r) => r.status === "pending")} approved={active.some((r) => r.status === "approved")} />
         </div>
       </Hero>
-      <Chapters id={id} chapters={chapters} />
+      <Chapters
+        id={id}
+        chapters={chapters}
+        showMissing={showMissing}
+        // The earliest chapter a request still waiting for approval asks for: those runs say "Requested".
+        requestedFrom={(() => {
+          const pending = active.filter((r) => r.status === "pending");
+          return pending.length ? Math.min(...pending.map((r) => r.startChapter ?? 0)) : null;
+        })()}
+      />
       <Suspense fallback={null}>
         <MoreLikeThis id={id} user={user} />
       </Suspense>

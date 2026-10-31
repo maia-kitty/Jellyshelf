@@ -26,6 +26,8 @@ export interface MangarrChapter {
   number: number;
   name: string | null;
   onDisk: boolean;
+  /** False for a chapter the source has that wasn't asked for (before the start chapter); only with `all`. */
+  wanted: boolean;
   imported: number | null;
 }
 
@@ -42,7 +44,8 @@ export function mangarr(cfg: MangarrConfig) {
     update: (anilistId: number, patch: { monitored?: boolean; startChapter?: number }) =>
       call<MangarrSeries>(`/series/${anilistId}`, { method: "PATCH", body: patch }),
     remove: (anilistId: number, deleteFiles: boolean) => call(`/series/${anilistId}?deleteFiles=${deleteFiles}`, { method: "DELETE", timeoutMs: 60_000 }),
-    chapters: (anilistId: number) => call<MangarrChapter[]>(`/series/${anilistId}/chapters`),
+    /** `all`: also the source's chapters that weren't asked for (before the start chapter). */
+    chapters: (anilistId: number, all = false) => call<MangarrChapter[]>(`/series/${anilistId}/chapters${all ? "?all=true" : ""}`),
     pageCount: (anilistId: number, chapter: number) =>
       call<{ count: number }>(`/series/${anilistId}/chapters/${chapter}/pages`, { timeoutMs: 60_000 }).then((r) => r.count),
     /** The raw image response, to stream on to the browser. */
