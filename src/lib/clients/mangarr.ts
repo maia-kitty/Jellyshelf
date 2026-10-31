@@ -20,6 +20,8 @@ export interface MangarrSeries {
   chaptersOnDisk: number;
   chaptersMissing: number;
   latestChapter: number | null;
+  /** When it was added to Mangarr (ms). */
+  added: number;
 }
 
 export interface MangarrChapter {

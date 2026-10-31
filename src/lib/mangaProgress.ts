@@ -84,7 +84,7 @@ export async function continueReading(user: User): Promise<Card[]> {
  * Library → Manga: everything Mangarr has chapters of, as library cards. With AniList linked, the play button opens
  * the next chapter after your progress and the badge counts the downloaded chapters you haven't read.
  */
-export async function mangaShelf(user: User): Promise<LibraryItem[]> {
+export async function mangaShelf(user: User): Promise<(LibraryItem & { added: number })[]> {
   const s = (await getSettings()).mangarr;
   if (!s.url) return [];
   const api = mangarr(s);
@@ -95,7 +95,7 @@ export async function mangaShelf(user: User): Promise<LibraryItem[]> {
   ]);
   const have = all.filter((m) => m.chaptersOnDisk > 0);
   return Promise.all(
-    have.map(async (m): Promise<LibraryItem> => {
+    have.map(async (m): Promise<LibraryItem & { added: number }> => {
       const chapters = await api.chapters(m.anilistId).catch(() => []);
       const onDisk = chapters.filter((c) => c.onDisk).map((c) => c.number);
       const progress = list?.get(m.anilistId)?.progress ?? 0;
@@ -114,6 +114,7 @@ export async function mangaShelf(user: User): Promise<LibraryItem[]> {
         unplayed: list ? onDisk.filter((n) => Math.floor(n) > progress).length : null,
         episode: null,
         rating: null,
+        added: m.added,
       };
     }),
   );

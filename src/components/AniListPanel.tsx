@@ -13,15 +13,18 @@ import { Select } from "./Select";
 import { unreachable } from "@/lib/unreachable";
 
 const STATUSES = Object.keys(LIST_LABEL) as AniListStatus[];
+/** The manga words for the two statuses that differ. */
+const label = (s: AniListStatus, manga?: boolean) => (manga && s === "CURRENT" ? "Reading" : manga && s === "REPEATING" ? "Rereading" : LIST_LABEL[s]);
 
 type Rating = { scores: Record<string, number>; total: number; ratedOn: string } | null;
 
 /**
  * Your AniList entry for this anime (status, episodes, score) plus your rubric rating, in one compact panel that
- * sits beside the title.
+ * sits beside the title. With `manga`: the same for a manga (chapters, Reading), without the rubric (it's for anime).
  */
 export function AniListPanel(props: {
   mediaId: number;
+  manga?: boolean;
   title: string;
   episodes: number | null;
   /** Episodes aired so far, for shows still airing. */
@@ -45,7 +48,7 @@ export function AniListPanel(props: {
     setBusy(true);
     setErr("");
     try {
-      const next = await patchEntry(props.mediaId, change);
+      const next = await patchEntry(props.mediaId, change, props.manga ? "manga" : "anime");
       setEntry(next);
       setScoreDraft(String(next.score || ""));
       router.refresh();
@@ -57,9 +60,9 @@ export function AniListPanel(props: {
   };
 
   const remove = async () => {
-    if (!confirm("Remove this anime from your AniList list?")) return;
+    if (!confirm(`Remove this ${props.manga ? "manga" : "anime"} from your AniList list?`)) return;
     setBusy(true);
-    const res = await fetch(`/api/anilist/entry?mediaId=${props.mediaId}`, { method: "DELETE" }).catch(unreachable);
+    const res = await fetch(`/api/anilist/entry?mediaId=${props.mediaId}${props.manga ? "&type=manga" : ""}`, { method: "DELETE" }).catch(unreachable);
     setBusy(false);
     if (!res.ok) return setErr((await res.json().catch(() => ({}))).error ?? "Failed");
     setEntry(null);
@@ -80,7 +83,7 @@ export function AniListPanel(props: {
         {/* Without AniList linked, all that's left here is your own rating. */}
         <h3 className="text-sm font-semibold">{props.linked ? "Your AniList" : "Your rating"}</h3>
         <span className="ml-auto flex gap-3 text-xs">
-          <a className="text-anilist hover:underline" href={`https://anilist.co/anime/${props.mediaId}`} target="_blank" rel="noreferrer">
+          <a className="text-anilist hover:underline" href={`https://anilist.co/${props.manga ? "manga" : "anime"}/${props.mediaId}`} target="_blank" rel="noreferrer">
             AniList ↗
           </a>
           {props.links?.map((l) => (
@@ -100,7 +103,7 @@ export function AniListPanel(props: {
               disabled={busy}
               onClick={() => apply({ kind: "status", value: s })}
             >
-              {s === "PLANNING" ? "+ Planning" : s === "CURRENT" ? "Watching" : "Completed"}
+              {s === "PLANNING" ? "+ Planning" : s === "CURRENT" ? label(s, props.manga) : "Completed"}
             </button>
           ))}
         </div>
@@ -113,7 +116,7 @@ export function AniListPanel(props: {
               value={entry.status}
               disabled={busy}
               onChange={(value) => apply({ kind: "status", value })}
-              options={STATUSES.map((s) => ({ value: s, label: LIST_LABEL[s] }))}
+              options={STATUSES.map((s) => ({ value: s, label: label(s, props.manga) }))}
             />
             <input
               className="input w-16 py-1.5 text-center text-sm"
@@ -136,7 +139,7 @@ export function AniListPanel(props: {
             <div className="mb-1.5 flex items-center gap-2">
               <button
                 className="h-8 w-8 rounded-lg bg-panel-2 text-lg leading-none hover:text-anilist disabled:opacity-40"
-                aria-label="One episode less"
+                aria-label={props.manga ? "One chapter less" : "One episode less"}
                 disabled={busy || entry.progress <= 0}
                 onClick={() => apply({ kind: "progress", value: entry.progress - 1 })}
               >
@@ -144,11 +147,11 @@ export function AniListPanel(props: {
               </button>
               <div className="flex-1 text-center text-sm tabular-nums">
                 <span className="text-lg font-semibold">{entry.progress}</span>
-                <span className="text-muted"> / {props.episodes ?? "?"} eps</span>
+                <span className="text-muted"> / {props.episodes ?? "?"} {props.manga ? "ch" : "eps"}</span>
               </div>
               <button
                 className="h-8 w-8 rounded-lg bg-anilist text-lg leading-none text-white hover:brightness-110 disabled:opacity-40"
-                aria-label="Watched the next episode"
+                aria-label={props.manga ? "Read the next chapter" : "Watched the next episode"}
                 disabled={busy || (!!max && entry.progress >= max)}
                 onClick={() => apply({ kind: "progress", value: entry.progress + 1 })}
               >
@@ -165,7 +168,7 @@ export function AniListPanel(props: {
         </div>
       )}
 
-      {rateButton}
+      {!props.manga && rateButton}
       {entry && (
         <button className="mt-2 text-xs text-muted hover:text-bad" disabled={busy} onClick={remove}>
           Remove from list

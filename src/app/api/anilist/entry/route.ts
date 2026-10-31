@@ -47,8 +47,10 @@ export function DELETE(req: Request) {
   return handle(async () => {
     const user = await apiUser();
     const { token, anilistId } = requireAnilist(user);
-    const mediaId = Number(new URL(req.url).searchParams.get("mediaId"));
-    const entry = (await anilist.userList(anilistId, token)).get(mediaId);
+    const url = new URL(req.url);
+    const mediaId = Number(url.searchParams.get("mediaId"));
+    const list = url.searchParams.get("type") === "manga" ? anilistManga.userList(anilistId, token) : anilist.userList(anilistId, token);
+    const entry = (await list).get(mediaId);
     if (!entry) throw new ApiError(404, "Not on your list");
     await anilist.deleteListEntry(anilistId, token, entry.id);
     return { ok: true };
