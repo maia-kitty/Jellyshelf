@@ -31,7 +31,8 @@ function Chapters({ id, chapters }: { id: number; chapters: MangarrChapter[] }) 
   return (
     <section className="card mb-10 p-5">
       <h2 className="mb-3 text-lg font-semibold">Chapters</h2>
-      <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+      {/* bounce-y: drag-to-scroll (and the overscroll bounce) like every other list */}
+      <ul className="bounce-y grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
         {chapterRuns(chapters).map((r) =>
           r.kind === "chapter" ? (
             <li key={r.chapter.number}>
