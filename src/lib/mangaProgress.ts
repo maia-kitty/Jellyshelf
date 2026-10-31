@@ -3,6 +3,7 @@ import { anilistToken } from "@/lib/auth";
 import { anilistManga, aniTitle } from "@/lib/clients/anilist";
 import { mangarr, type MangarrChapter } from "@/lib/clients/mangarr";
 import type { Card } from "@/lib/cards";
+import type { LibraryItem } from "@/lib/library";
 import { listPatch } from "@/lib/listEntry";
 import { getSettings } from "@/lib/settings";
 import { viewerToday } from "@/lib/today";
@@ -77,4 +78,43 @@ export async function continueReading(user: User): Promise<Card[]> {
     }),
   );
   return cards.filter((c): c is Card => c !== null);
+}
+
+/**
+ * Library → Manga: everything Mangarr has chapters of, as library cards. With AniList linked, the play button opens
+ * the next chapter after your progress and the badge counts the downloaded chapters you haven't read.
+ */
+export async function mangaShelf(user: User): Promise<LibraryItem[]> {
+  const s = (await getSettings()).mangarr;
+  if (!s.url) return [];
+  const api = mangarr(s);
+  const token = anilistToken(user);
+  const [all, list] = await Promise.all([
+    api.allSeries(),
+    token && user.anilistId ? anilistManga.userList(user.anilistId, token).catch(() => null) : null,
+  ]);
+  const have = all.filter((m) => m.chaptersOnDisk > 0);
+  return Promise.all(
+    have.map(async (m): Promise<LibraryItem> => {
+      const chapters = await api.chapters(m.anilistId).catch(() => []);
+      const onDisk = chapters.filter((c) => c.onDisk).map((c) => c.number);
+      const progress = list?.get(m.anilistId)?.progress ?? 0;
+      const next = nextChapter(progress, chapters) ?? Math.min(...onDisk);
+      const last = Math.max(...onDisk);
+      return {
+        id: String(m.anilistId),
+        type: "Manga",
+        title: m.title,
+        year: null,
+        poster: m.cover,
+        href: `/manga/${m.anilistId}`,
+        playHref: `/read/${m.anilistId}/${next}`,
+        played: !!list && progress >= last,
+        progress: list && last > 0 ? Math.min(1, progress / last) : null,
+        unplayed: list ? onDisk.filter((n) => Math.floor(n) > progress).length : null,
+        episode: null,
+        rating: null,
+      };
+    }),
+  );
 }

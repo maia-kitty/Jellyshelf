@@ -19,7 +19,7 @@ export interface LibraryItem {
   progress: number | null;
   /** Series: episodes not yet watched. */
   unplayed: number | null;
-  /** For a new episode shown as its series: "S1 E2". */
+  /** For a new episode or season shown as its series: "S1 E2" / "S3". */
   episode: string | null;
   rating: number | null;
 }
@@ -60,12 +60,18 @@ export async function libraryViews(user: User): Promise<LibraryView[]> {
 export async function latestIn(user: User, viewId: string, limit = 20): Promise<LibraryItem[]> {
   const jf = await asUser(user);
   const items = await jf.call<JfLibItem[]>(`/Items/Latest?userId=${jf.userId}&ParentId=${viewId}&Limit=${limit}&GroupItems=true&${FIELDS}`);
-  // A lone new episode comes back as itself; show it as its series (linked like the series), playing that episode.
-  const seriesIds = [...new Set(items.filter((i) => i.Type === "Episode" && i.SeriesId).map((i) => i.SeriesId!))];
+  // A lone new episode comes back as itself, several new episodes of one season as that season (no poster of its own,
+  // named just "Season 3"): show either as its series (linked like the series), playing that episode / the series.
+  const inSeries = (i: JfLibItem) => (i.Type === "Episode" || i.Type === "Season") && !!i.SeriesId;
+  const seriesIds = [...new Set(items.filter(inSeries).map((i) => i.SeriesId!))];
   const series = seriesIds.length
     ? new Map((await jf.call<{ Items: JfLibItem[] }>(`/Items?userId=${jf.userId}&Ids=${seriesIds.join(",")}&${FIELDS}`)).Items.map((s) => [s.Id, s]))
     : new Map<string, JfLibItem>();
-  const shown = items.map((i) => (i.Type === "Episode" && i.SeriesId && series.has(i.SeriesId) ? { ...series.get(i.SeriesId)!, episodeOf: i } : i));
+  const shown = items.map((i) =>
+    inSeries(i) && series.has(i.SeriesId!)
+      ? { ...series.get(i.SeriesId!)!, ...(i.Type === "Episode" ? { episodeOf: i } : { seasonOf: i }) }
+      : i,
+  );
   const seen = new Set<string>();
   return toCards(shown.filter((i) => !seen.has(i.Id) && seen.add(i.Id)));
 }
@@ -102,7 +108,7 @@ export async function browse(user: User, viewId: string, opts: { sort: SortKey; 
  * Cards with links into Jellyshelf: anime to its AniList entry (season 1, or the earliest mapped one), everything
  * else to its TMDB page, and titles we can't place to the library's own item page.
  */
-async function toCards(items: (JfLibItem & { episodeOf?: JfLibItem })[]): Promise<LibraryItem[]> {
+async function toCards(items: (JfLibItem & { episodeOf?: JfLibItem; seasonOf?: JfLibItem })[]): Promise<LibraryItem[]> {
   const anilistOf = await anilistIdsOf(items);
   return items.map((i) => {
     const tmdb = Number(i.ProviderIds?.Tmdb) || null;
@@ -121,7 +127,11 @@ async function toCards(items: (JfLibItem & { episodeOf?: JfLibItem })[]): Promis
       poster: i.ImageTags?.Primary ? relayUrl(`/Items/${i.Id}/Images/Primary?maxWidth=360&tag=${i.ImageTags.Primary}`) : null,
       href,
       playHref: i.episodeOf ? `/watch/${i.episodeOf.Id}` : i.Type === "Series" ? `/watch/series/${i.Id}` : `/watch/${i.Id}`,
-      episode: i.episodeOf ? `S${i.episodeOf.ParentIndexNumber ?? "?"} E${i.episodeOf.IndexNumber ?? "?"}` : null,
+      episode: i.episodeOf
+        ? `S${i.episodeOf.ParentIndexNumber ?? "?"} E${i.episodeOf.IndexNumber ?? "?"}`
+        : i.seasonOf
+          ? (i.seasonOf.IndexNumber ? `S${i.seasonOf.IndexNumber}` : i.seasonOf.Name)
+          : null,
       played: !!i.UserData?.Played,
       progress: pct ? pct / 100 : null,
       unplayed: i.Type === "Series" ? (i.UserData?.UnplayedItemCount ?? null) : null,

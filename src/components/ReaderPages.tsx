@@ -51,7 +51,7 @@ export function ReaderPages({ id, chapter, count, rtl, strip }: { id: number; ch
       )}
       <div
         dir={double && rtl ? "rtl" : "ltr"}
-        className={clsx("my-4", double ? "mx-auto grid grid-cols-2 items-center" : "-mx-4 flex flex-col items-center sm:mx-auto sm:max-w-3xl")}
+        className={clsx("my-4", double ? "mx-auto grid grid-cols-2 items-center gap-x-3 gap-y-4" : "-mx-4 flex flex-col items-center sm:mx-auto sm:max-w-3xl")}
         // Two manga pages side by side are about 1.3 times as wide as tall; 125vh leaves room for the top bar, so a
         // spread fits the window.
         style={double ? { maxWidth: "min(100%, 125vh)" } : undefined}

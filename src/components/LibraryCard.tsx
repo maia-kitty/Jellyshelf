@@ -36,7 +36,7 @@ export function LibraryCard({ item }: { item: LibraryItem }) {
         </div>
         <div className="mt-2 line-clamp-2 text-sm font-medium leading-tight">{item.title}</div>
         <div className="mt-0.5 text-xs text-muted">
-          {item.episode ? <span className="text-accent">New · {item.episode}</span> : [item.year, item.type === "Series" ? "Series" : "Movie"].filter(Boolean).join(" · ")}
+          {item.episode ? <span className="text-accent">New · {item.episode}</span> : [item.year, item.type === "Series" ? "Series" : item.type === "Movie" ? "Movie" : item.type === "Manga" ? "Manga" : null].filter(Boolean).join(" · ")}
         </div>
       </Link>
       <Link prefetch={false}
