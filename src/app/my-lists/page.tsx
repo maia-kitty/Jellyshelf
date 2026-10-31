@@ -18,7 +18,7 @@ export default async function MyLists({ searchParams }: { searchParams: SearchPa
     const configured = !!(await getSettings()).anilist.clientId;
     return (
       <>
-        <MyAniListTabs active="connect" list={null} linked={false} />
+        <MyAniListTabs kind="anime" linked={false} />
         <AniListConnect configured={configured} admin={user.role === "admin"} />
       </>
     );
@@ -34,7 +34,7 @@ export default async function MyLists({ searchParams }: { searchParams: SearchPa
 
   return (
     <>
-      <MyAniListTabs active={status} list={list} href={(s) => q(s)} />
+      <MyAniListTabs kind="anime" status={status} list={list} href={(s) => q(s)} />
       <div className="mb-6 flex items-center gap-4 text-sm">
         <Link prefetch={false} href={q(status, !missingOnly)} className={missingOnly ? "text-accent" : "text-muted hover:text-fg"}>
           {missingOnly ? "✓ " : ""}Only show what&apos;s not in the library or requested
