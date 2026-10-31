@@ -73,6 +73,8 @@ export interface AniMangaCard extends AniMediaCard {
 }
 
 export interface AniMangaDetails extends AniMangaCard {
+  /** JP (read right to left), KR / CN / TW (usually long-strip webtoons), ... */
+  countryOfOrigin: string | null;
   description: string | null;
   bannerImage: string | null;
   popularity: number | null;
@@ -134,7 +136,7 @@ const CARD = `
 const MANGA_CARD = `${CARD} chapters volumes startDate { year month day }`;
 
 const MANGA_DETAILS = `
-  ${MANGA_CARD} description(asHtml: false) bannerImage popularity synonyms
+  ${MANGA_CARD} description(asHtml: false) bannerImage popularity synonyms countryOfOrigin
   staff(perPage: 6, sort: RELEVANCE) { edges { role node { name { full } } } }
 `;
 

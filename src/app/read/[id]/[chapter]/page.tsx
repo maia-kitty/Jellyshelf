@@ -5,9 +5,12 @@ import { pageUser } from "@/lib/page";
 import { anilistToken } from "@/lib/auth";
 import { ChapterDone } from "@/components/ChapterDone";
 import { getSettings } from "@/lib/settings";
+import { ReaderPages } from "@/components/ReaderPages";
+import { anilistManga } from "@/lib/clients/anilist";
 
 /**
- * The manga reader: one long strip of the chapter's pages (lazy-loaded), next chapter at the bottom. Pages come
+ * The manga reader: the chapter's pages as one strip, or two side by side on wide screens (ReaderPages), next chapter
+ * at the bottom. Pages come
  * through /api/manga, so the browser never talks to Mangarr. Reaching the end moves AniList progress (ChapterDone).
  */
 export default async function Reader({ params }: { params: Promise<{ id: string; chapter: string }> }) {
@@ -19,11 +22,14 @@ export default async function Reader({ params }: { params: Promise<{ id: string;
   const s = (await getSettings()).mangarr;
   if (!s.url) notFound();
   const api = mangarr(s);
-  const [series, chapters, count] = await Promise.all([
+  const [series, chapters, count, info] = await Promise.all([
     api.series(id).catch(() => null),
     api.chapters(id).catch(() => []),
     api.pageCount(id, chapter).catch(() => 0),
+    anilistManga.media(id).catch(() => null),
   ]);
+  // Japanese manga read right to left; Korean/Chinese ones are mostly long-strip webtoons, best as one strip.
+  const country = info?.countryOfOrigin ?? "JP";
   if (!series || !count) notFound();
   const onDisk = chapters.filter((c) => c.onDisk);
   const at = onDisk.findIndex((c) => c.number === chapter);
@@ -49,6 +55,7 @@ export default async function Reader({ params }: { params: Promise<{ id: string;
   );
 
   return (
+    <>
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <Link prefetch={false} href={`/manga/${id}`} className="font-semibold hover:underline">
@@ -59,22 +66,12 @@ export default async function Reader({ params }: { params: Promise<{ id: string;
         </span>
       </div>
       {nav}
-      <div className="-mx-4 my-4 flex flex-col items-center sm:mx-0">
-        {Array.from({ length: count }, (_, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={`/api/manga/${id}/${chapter}/${i}`}
-            alt={`Page ${i + 1}`}
-            loading={i < 3 ? "eager" : "lazy"}
-            decoding="async"
-            className="block h-auto w-full bg-panel-2"
-            style={{ minHeight: "40vh" }}
-          />
-        ))}
-      </div>
+    </div>
+    <ReaderPages id={id} chapter={chapter} count={count} rtl={country === "JP"} strip={country === "KR" || country === "CN" || country === "TW"} />
+    <div className="mx-auto max-w-3xl">
       <ChapterDone anilistId={id} chapter={chapter} linked={!!(anilistToken(user) && user.anilistId)} />
       {nav}
     </div>
+    </>
   );
 }

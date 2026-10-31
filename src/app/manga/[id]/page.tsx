@@ -17,6 +17,7 @@ import { aniDescription } from "@/lib/text";
 import { mangaStuck } from "@/lib/jobs/availability";
 import { anilistToken } from "@/lib/auth";
 import { nextChapter } from "@/lib/mangaProgress";
+import { chapterRuns } from "@/lib/chapterRuns";
 
 const STATUS: Record<string, string> = { RELEASING: "Releasing", FINISHED: "Finished", HIATUS: "On hiatus", CANCELLED: "Cancelled", NOT_YET_RELEASED: "Not out yet" };
 
@@ -31,18 +32,19 @@ function Chapters({ id, chapters }: { id: number; chapters: MangarrChapter[] }) 
     <section className="card mb-10 p-5">
       <h2 className="mb-3 text-lg font-semibold">Chapters</h2>
       <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-        {[...chapters].reverse().map((c) =>
-          c.onDisk ? (
-            <li key={c.number}>
-              <Link prefetch={false} href={`/read/${id}/${c.number}`} className="flex items-baseline gap-2 rounded-lg px-3 py-2 hover:bg-panel-2">
-                <span className="w-14 shrink-0 font-semibold tabular-nums">Ch. {c.number}</span>
-                <span className="truncate text-sm text-muted">{c.name !== `Chapter ${c.number}` ? c.name : ""}</span>
+        {chapterRuns(chapters).map((r) =>
+          r.kind === "chapter" ? (
+            <li key={r.chapter.number}>
+              <Link prefetch={false} href={`/read/${id}/${r.chapter.number}`} className="flex items-baseline gap-2 rounded-lg px-3 py-2 hover:bg-panel-2">
+                <span className="min-w-[4.5rem] shrink-0 whitespace-nowrap font-semibold tabular-nums">Ch. {r.chapter.number}</span>
+                <span className="truncate text-sm text-muted">{r.chapter.name !== `Chapter ${r.chapter.number}` ? r.chapter.name : ""}</span>
               </Link>
             </li>
           ) : (
-            <li key={c.number} className="flex items-baseline gap-2 px-3 py-2 text-muted" title="Not downloaded yet">
-              <span className="w-14 shrink-0 tabular-nums">Ch. {c.number}</span>
-              <span className="text-xs">on its way</span>
+            // A run of chapters that aren't here yet: one full-width line.
+            <li key={`missing-${r.last}`} className="col-span-full flex items-baseline gap-2 px-3 py-2 text-muted" title="Not downloaded yet">
+              <span className="whitespace-nowrap tabular-nums">{r.first === r.last ? `Ch. ${r.first}` : `Ch. ${r.first}–${r.last}`}</span>
+              <span className="text-xs">{r.count === 1 ? "on its way" : `${r.count} on their way`}</span>
             </li>
           ),
         )}
