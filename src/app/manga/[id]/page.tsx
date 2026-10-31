@@ -63,7 +63,10 @@ function StatusLine({ series, pending, approved }: { series: MangarrSeries | nul
         </p>
       );
     if (series.state === "matching") return <p className="text-sm text-muted">Mangarr is looking for a source…</p>;
-    return series.chaptersOnDisk ? <p className="text-sm text-muted">All {series.chaptersOnDisk} chapters are here. New ones download as they come out.</p> : null;
+    if (!series.chaptersOnDisk) return null;
+    const all = series.chaptersOnDisk === 1 ? "The chapter is here" : `All ${series.chaptersOnDisk} chapters are here`;
+    // A finished manga gets no new chapters; only say so for one that's still coming out.
+    return <p className="text-sm text-muted">{all}.{series.anilistStatus === "FINISHED" ? "" : " New ones download as they come out."}</p>;
   }
   if (approved) return <p className="text-sm text-muted">Approved: Mangarr is on it.</p>;
   if (pending) return <p className="text-sm text-muted">Requested: waiting for an admin to approve it.</p>;
