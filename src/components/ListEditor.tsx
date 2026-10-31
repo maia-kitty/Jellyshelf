@@ -12,19 +12,19 @@ export interface EditableEntry {
   score: number;
 }
 
-export async function patchEntry(mediaId: number, change: ListChange): Promise<EditableEntry> {
+export async function patchEntry(mediaId: number, change: ListChange, type: "anime" | "manga" = "anime"): Promise<EditableEntry> {
   const res = await fetch("/api/anilist/entry", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mediaId, change }),
+    body: JSON.stringify({ mediaId, change, type }),
   });
   const j = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(j.error ?? "AniList update failed");
   return j;
 }
 
-/** Compact "+1 episode" control for list grids. */
-export function ProgressBump({ mediaId, progress, episodes }: { mediaId: number; progress: number; episodes: number | null }) {
+/** Compact "+1 episode" (or chapter, with `manga`) control for list grids. */
+export function ProgressBump({ mediaId, progress, episodes, manga }: { mediaId: number; progress: number; episodes: number | null; manga?: boolean }) {
   const router = useRouter();
   const [p, setP] = useState(progress);
   const [busy, setBusy] = useState(false);
@@ -39,7 +39,7 @@ export function ProgressBump({ mediaId, progress, episodes }: { mediaId: number;
         setBusy(true);
         setErr(false);
         try {
-          const next = await patchEntry(mediaId, { kind: "progress", value: p + 1 });
+          const next = await patchEntry(mediaId, { kind: "progress", value: p + 1 }, manga ? "manga" : "anime");
           setP(next.progress);
           if (next.status === "COMPLETED") router.refresh();
         } catch {
@@ -49,7 +49,7 @@ export function ProgressBump({ mediaId, progress, episodes }: { mediaId: number;
         }
       }}
     >
-      {done ? "Done" : busy ? "…" : `+1 · ${p}/${episodes ?? "?"}`}
+      {done ? "Done" : busy ? "…" : `+1${manga ? " ch" : ""} · ${p}/${episodes ?? "?"}`}
     </button>
   );
 }
