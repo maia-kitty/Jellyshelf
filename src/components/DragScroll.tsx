@@ -13,8 +13,8 @@ export const dragOn = () => {
 };
 
 /**
- * What a press scrolls: a card row sideways, a list (.bounce-y) up and down in whatever it scrolls in, or else, on a
- * page's own content, the page. Text (paragraphs, headings) stays selectable, and the player is left alone.
+ * What a press scrolls: a card row sideways, a list (.bounce-y) up and down in whatever it scrolls in, or the page when
+ * the press is on its empty space (the sides), not on anything in it.
  */
 function grabbed(t: Element): { el: HTMLElement; across: boolean } | null {
   if (t.closest("input, textarea, select, [contenteditable]")) return null;
@@ -22,7 +22,9 @@ function grabbed(t: Element): { el: HTMLElement; across: boolean } | null {
   const row = t.closest(".scroll-row:not(nav)");
   if (row instanceof HTMLElement) return row.scrollWidth > row.clientWidth ? { el: row, across: true } : null;
   if (!t.closest(".bounce-y")) {
-    if (!t.closest("main") || t.closest("p, h1, h2, h3, pre, code, label, video, [data-no-drag]")) return null;
+    // The page's empty space: the sides around the content column, and main's own padding (not any content).
+    const main = document.querySelector("main");
+    if (t !== document.documentElement && t !== document.body && t !== main && t !== main?.parentElement) return null;
     const page = document.scrollingElement;
     return page instanceof HTMLElement && page.scrollHeight > page.clientHeight ? { el: page, across: false } : null;
   }
