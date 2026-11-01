@@ -12,11 +12,19 @@ const KIND = { anime: "Anime", tv: "Series", manga: "Manga", movie: "Movie" } as
  * One of the home page's side-by-side panels (Continue watching, Continue reading, On its way): stretched to its grid
  * row so neighbours end level, the first item large and the rest listed under it.
  */
-export function HomePanel({ title, note, href, children }: { title: string; note?: string; href?: string; children: React.ReactNode }) {
+export function HomePanel({ title, note, href, art, children }: { title: string; note?: string; href?: string; art?: string | null; children: React.ReactNode }) {
   return (
     <section className="flex min-w-0 flex-col">
       <ShelfHeader title={title} note={note} href={href} />
-      <div className="card flex flex-1 flex-col overflow-hidden">{children}</div>
+      <div className="card relative flex flex-1 flex-col overflow-hidden">
+        {/* The first item's art, blurred behind the whole panel, so a panel with one item isn't half empty. */}
+        {art && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img {...sized(art, 48)} alt="" aria-hidden loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-br from-panel/40 via-panel/70 to-panel" />
+        <div className="relative flex flex-1 flex-col">{children}</div>
+      </div>
     </section>
   );
 }
@@ -39,21 +47,16 @@ export function ContinueRow({ cards, title = "Continue watching" }: { cards: Car
   if (!cards.length) return null;
   const [top, ...rest] = cards;
   return (
-    <HomePanel title={title}>
+    <HomePanel title={title} art={top.poster}>
       {/* Opens the title's page, where Play picks up at the right episode. */}
-      <Link prefetch={false} href={top.href} aria-label={top.title} className="group relative flex gap-4 p-4">
-        {top.poster && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(top.poster, 48)} alt="" aria-hidden loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-35 blur-2xl" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-r from-panel/80 to-panel/20" />
+      <Link prefetch={false} href={top.href} aria-label={top.title} className="group flex gap-4 p-4">
         {top.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(top.poster, 112)} alt="" loading="lazy" decoding="async" className="relative h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
+          <img {...sized(top.poster, 112)} alt="" loading="lazy" decoding="async" className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
         ) : (
-          <div className="relative h-36 w-24 shrink-0 rounded-lg bg-panel-2" />
+          <div className="h-36 w-24 shrink-0 rounded-lg bg-panel-2" />
         )}
-        <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-fg/60">{KIND[top.kind] ?? "Movie"}</div>
           <div className="mt-0.5 line-clamp-2 text-lg font-semibold leading-snug group-hover:underline">{top.title}</div>
           {top.sub && <div className="mt-1 text-sm text-fg/75">{top.sub}</div>}

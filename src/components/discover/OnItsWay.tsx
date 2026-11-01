@@ -29,20 +29,15 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
   if (!items.length) return null;
   const [top, ...rest] = items;
   return (
-    <HomePanel title="On its way" note={`${items.length} request${items.length === 1 ? "" : "s"}`} href="/requests">
-      <Link prefetch={false} href={top.href} className="group relative flex gap-4 p-4">
-        {top.poster && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(top.poster, 48)} alt="" aria-hidden loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-35 blur-2xl" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-r from-panel/80 to-panel/20" />
+    <HomePanel art={top.poster} title="On its way" note={`${items.length} request${items.length === 1 ? "" : "s"}`} href="/requests">
+      <Link prefetch={false} href={top.href} className="group flex gap-4 p-4">
         {top.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(top.poster, 112)} alt="" loading="lazy" decoding="async" className="relative h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg" />
+          <img {...sized(top.poster, 112)} alt="" loading="lazy" decoding="async" className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg" />
         ) : (
-          <div className="relative h-36 w-24 shrink-0 rounded-lg bg-panel-2" />
+          <div className="h-36 w-24 shrink-0 rounded-lg bg-panel-2" />
         )}
-        <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-fg/60">{top.scope}</div>
           <div className="mt-0.5 line-clamp-2 text-lg font-semibold leading-snug group-hover:underline">{top.title}</div>
           <div className="mt-auto">
