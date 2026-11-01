@@ -17,8 +17,10 @@ android {
         applicationId = "io.github.maiakitty.jellyshelf"
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+        // Phones (and the x86_64 emulator): libass's native code for older 32-bit CPUs would double the size.
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     signingConfigs {
@@ -38,4 +40,11 @@ android {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    // The offline player: Media3 (ExoPlayer) reads MKV directly; ass-media draws styled anime subtitles with libass.
+    implementation("androidx.media3:media3-exoplayer:1.8.0")
+    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("io.github.peerless2012:ass-media:0.5.1")
 }

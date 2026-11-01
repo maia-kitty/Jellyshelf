@@ -127,6 +127,8 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
         anilist={entry ? { progress: entry.progress } : null}
         // What requests still waiting for approval ask for: those chapters say "requested".
         requested={active.filter((r) => r.status === "pending").map(requestRange)}
+        title={aniTitle(m.title)}
+        poster={m.coverImage.extraLarge ?? m.coverImage.large}
       />
       <Suspense fallback={null}>
         <MoreLikeThis id={id} user={user} />

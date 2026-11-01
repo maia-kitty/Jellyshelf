@@ -17,7 +17,29 @@ What the app adds:
 - **Plain http on your home network** is allowed, since that's how most home servers run.
 - The web app can tell it's in the app: the user agent ends in `JellyshelfAndroid/<version>`.
 
-Android 11 or newer. No Google Play services, no extra libraries, no tracking: the release APK is about 40 KB.
+### Offline: downloads, reader and player
+
+Inside the app, Jellyshelf's pages get **download buttons**: on each manga chapter (plus "Download unread"), each
+episode, and a film's "In your library" card. Account menu → **Downloads** (also on the "Can't connect" screen) is the
+app's own screen, bundled in the app so it works with no connection at all:
+
+- **Manga** is read in the app (one long strip, "Next chapter" at the end). Chapters are stored as CBZs in Mihon's
+  Local-source layout (`Manga/<Series>/<Series> - Ch. 012.cbz`), so Mihon can read the same folder.
+- **Episodes and films** are the original files, played in the app with Media3 (ExoPlayer), the file's own audio and
+  subtitle tracks, and styled anime subtitles drawn by libass ([ass-media](https://github.com/peerless2012/libass-android)).
+  It picks up where you left off.
+- **Progress made offline** (chapters read to the end, how far you got in an episode) is sent to the server the next
+  time the app reaches it, so AniList and Jellyfin catch up.
+- **Where downloads go:** the app's own storage, or a folder you pick (Downloads → Choose a folder). Each place keeps
+  its own list (`jellyshelf-downloads.json` next to the files); switching doesn't move what's already downloaded.
+- Downloads run in the background with a progress notification, one at a time, and a dropped download resumes where it
+  stopped.
+
+The server side: chapters come from `/api/manga/<id>/<chapter>/file` (Mangarr's CBZ), videos through the Jellyfin relay
+(`/api/jf/Videos/<item>/stream?static=true`), both with the app's sign-in.
+
+Android 11 or newer. No Google Play services, no tracking. The release APK is about 10 MB (most of it is libass), built
+for 64-bit phones and the x86_64 emulator.
 
 ## Build
 
@@ -49,4 +71,5 @@ uninstalling (and signing in again) to update.
 - Uploading files from the phone (nothing in Jellyshelf needs it today)
 - Pull to refresh
 - Notifications: use the ntfy app with Jellyshelf's **Phone notifications** as before
-- Offline manga: use Mihon with the Syncthing'd folder (see the Mangarr docs)
+- Two pages side by side in the offline reader (the online reader has it)
+- Picking which audio/subtitle track to download: the whole file comes down

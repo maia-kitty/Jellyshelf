@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reader</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <button class="icon" onclick="history.back()" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+  <h1 id="title"></h1>
+</header>
+<main><div class="pages" id="pages"></div><div class="end" id="end"></div></main>
+<script>
+"use strict";
+// A downloaded chapter, straight out of its CBZ: one long strip, like Jellyshelf's reader on a phone. Reaching the
+// last page marks it read (AniList follows once the server is reachable).
+const app = window.JellyshelfApp;
+const enc = encodeURIComponent;
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const key = new URLSearchParams(location.hash.slice(1)).get("key");
+const lib = JSON.parse(app.library());
+const item = lib.items.find((i) => i.key === key);
+const chapters = lib.items.filter((i) => i.group === item.group && i.state === "done").sort((a, b) => a.sort - b.sort);
+const next = chapters[chapters.findIndex((i) => i.key === key) + 1];
+document.getElementById("title").textContent = `${item.group} · ${item.title}`;
+const count = app.pages(key);
+document.getElementById("pages").innerHTML = Array.from({ length: count }, (_, n) =>
+  `<img src="/page/${enc(key)}/${n}" alt="Page ${n + 1}" loading="${n < 3 ? "eager" : "lazy"}" decoding="async">`).join("");
+const end = document.getElementById("end");
+end.innerHTML = count
+  ? `<div>End of ${esc(item.title)}</div>${next ? `<a class="btn" href="reader.html#key=${enc(next.key)}" onclick="location.replace(this.href);location.reload();return false">Next: ${esc(next.title)}</a>` : `<div>That's the last one on this phone.</div>`}`
+  : "This chapter's file couldn't be opened.";
+if (count) new IntersectionObserver((e, o) => { if (e[0].isIntersecting) { app.markRead(key); o.disconnect(); } }).observe(end);
+</script>
+</body>
+</html>

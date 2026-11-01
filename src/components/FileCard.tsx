@@ -3,6 +3,8 @@ import type { MovieLibraryInfo } from "@/lib/episodes";
 import { canFixSubs } from "@/lib/subtitles";
 import { langName } from "@/lib/langs";
 import { SubsBar } from "./Subtitles";
+import { DownloadButton } from "./DownloadButton";
+import { videoDownload } from "@/lib/appDownloads";
 
 const gb = (bytes: number) => (bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1e6))} MB`);
 
@@ -49,6 +51,7 @@ export async function FileCard({
     <section className="card p-5">
       <div className="mb-4 flex min-w-0 items-baseline gap-3">
         <h3 className="shrink-0 font-semibold">In your library</h3>
+        {info.playUrl && <DownloadButton item={videoDownload(info.playUrl, title, title, 0, file.size)} className="self-center" />}
         {file.name && (
           <span className="truncate text-xs text-muted" title={file.name}>
             {file.name}

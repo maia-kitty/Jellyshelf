@@ -8,6 +8,7 @@ import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
 import { DRAG_KEY, dragOn } from "./DragScroll";
 import { SMOOTH_KEY, smoothOn } from "./SmoothScroll";
+import { openDownloads, useInApp } from "@/lib/app";
 import { PhoneNotifications } from "./PhoneNotifications";
 import { unreachable } from "@/lib/unreachable";
 import { initial } from "@/lib/initial";
@@ -300,6 +301,7 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
 
   const [drag, setDrag] = useState(true);
   const [smooth, setSmooth] = useState(false);
+  const app = useInApp();
   useEffect(() => {
     if (open) setDrag(dragOn());
     if (open) setSmooth(smoothOn());
@@ -352,6 +354,19 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             >
               <MenuIcon d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />
               Phone notifications
+            </button>
+          )}
+          {/* Inside the Android app: what's kept on the phone, to read and watch offline. */}
+          {app && (
+            <button
+              className={item}
+              onClick={() => {
+                setOpen(false);
+                openDownloads();
+              }}
+            >
+              <MenuIcon d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />
+              Downloads
             </button>
           )}
           {/* Only where there's a mouse to drag with. */}

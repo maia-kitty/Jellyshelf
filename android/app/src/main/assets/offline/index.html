@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Downloads</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <button class="icon" id="back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></button>
+  <h1 id="title">Downloads</h1>
+</header>
+<main id="main"></main>
+<script>
+"use strict";
+// The app's Downloads screen: what's on this phone, grouped by series, to read and watch with no connection.
+const app = window.JellyshelfApp;
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const enc = encodeURIComponent;
+const gb = (b) => (b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB");
+const time = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+let lib = { items: [], storage: "", server: false };
+let timer;
+
+function load() {
+  try { lib = JSON.parse(app.library()); } catch { lib = { items: [] }; }
+  render();
+  clearTimeout(timer);
+  // Live while something downloads.
+  if (lib.items.some((i) => i.state === "queued" || i.state === "downloading")) timer = setTimeout(load, 1000);
+}
+const route = () => Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+
+function render() {
+  const r = route();
+  $("#back").onclick = () => (r.g ? history.back() : app.home());
+  if (r.g) return renderGroup(r.g);
+  $("#title").textContent = "Downloads";
+  const kinds = [["manga", "Manga"], ["video", "Watch"]].filter(([k]) => lib.items.some((i) => i.kind === k));
+  const kind = kinds.some(([k]) => k === r.k) ? r.k : kinds[0]?.[0];
+  const groups = new Map();
+  for (const i of lib.items.filter((i) => i.kind === kind)) groups.set(i.group, [...(groups.get(i.group) ?? []), i]);
+  $("#main").innerHTML = `
+    ${kinds.length > 1 ? `<div class="tabs">${kinds.map(([k, l]) => `<button class="tab ${k === kind ? "on" : ""}" data-k="${k}">${l}</button>`).join("")}</div>` : ""}
+    ${groups.size ? `<div class="grid">${[...groups].map(([g, items]) => card(g, items)).join("")}</div>`
+      : `<div class="empty">Nothing on this phone yet.<br>Use the download buttons on a manga's chapters, an episode or a film in Jellyshelf.</div>`}
+    <div class="storage"><b>Where downloads go</b><div class="s">${esc(lib.storage)}</div>
+      <div class="actions"><button class="btn ghost" id="pick">Choose a folder</button>${lib.storage.startsWith("Folder") ? `<button class="btn ghost" id="appstore">Back to the app's storage</button>` : ""}</div>
+      <div class="s" style="margin-top:10px">Switching starts a new list there; what's already downloaded stays where it is, and shows up again if you switch back.</div></div>`;
+  document.querySelectorAll("[data-k]").forEach((b) => (b.onclick = () => (location.hash = `k=${b.dataset.k}`)));
+  document.querySelectorAll("[data-g]").forEach((b) => (b.onclick = () => (location.hash = `g=${enc(b.dataset.g)}`)));
+  $("#pick").onclick = () => app.chooseFolder();
+  $("#appstore") && ($("#appstore").onclick = () => app.useAppStorage());
+}
+
+function card(g, items) {
+  const manga = items[0].kind === "manga";
+  const done = items.filter((i) => i.state === "done");
+  const busy = items.some((i) => i.state === "queued" || i.state === "downloading");
+  const left = done.filter((i) => !(manga ? i.read : i.watched)).length;
+  const sub = `${done.length} ${manga ? (done.length === 1 ? "chapter" : "chapters") : items.length === 1 && items[0].sort === 0 ? "film" : done.length === 1 ? "episode" : "episodes"}${left && left < done.length ? ` · ${left} ${manga ? "unread" : "unwatched"}` : ""}${busy ? " · downloading" : ""}`;
+  return `<button class="card" data-g="${esc(g)}"><img class="poster" src="/poster/${enc(g)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'), { className: 'poster' }))"><div class="t">${esc(g)}</div><div class="s">${sub}</div></button>`;
+}
+
+function renderGroup(g) {
+  $("#title").textContent = g;
+  const items = lib.items.filter((i) => i.group === g).sort((a, b) => a.sort - b.sort);
+  if (!items.length) return history.back();
+  $("#main").innerHTML = `<ul class="list">${items.map(row).join("")}</ul>`;
+  document.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => open(items.find((i) => i.key === b.dataset.open))));
+  document.querySelectorAll("[data-retry]").forEach((b) => (b.onclick = () => (app.retry(b.dataset.retry), load())));
+  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => {
+    // A second tap confirms: no pop-up dialog.
+    if (b.dataset.sure) return app.remove(b.dataset.del), load();
+    b.dataset.sure = "1";
+    b.textContent = "Sure?";
+    setTimeout(() => { delete b.dataset.sure; b.textContent = "Delete"; }, 3000);
+  }));
+}
+
+function row(i) {
+  const pct = i.total > 0 ? Math.round((i.bytes / i.total) * 100) : 0;
+  const finished = i.kind === "manga" ? i.read : i.watched;
+  let s;
+  if (i.state === "downloading") s = `Downloading ${pct}%${i.total > 0 ? ` of ${gb(i.total)}` : ""}<div class="bar"><i style="width:${pct}%"></i></div>`;
+  else if (i.state === "queued") s = "Waiting to download";
+  else if (i.state === "failed") s = `<span style="color:var(--bad)">${esc(i.error || "Failed")}</span>`;
+  else s = [finished ? `<span class="tick">✓ ${i.kind === "manga" ? "read" : "watched"}</span>` : i.position > 0 ? `at ${time(i.position)}` : "", i.total ? gb(i.total) : ""].filter(Boolean).join(" · ");
+  const ready = i.state === "done";
+  return `<li class="row ${finished ? "done-read" : ""}">
+    <button class="main" ${ready ? `data-open="${esc(i.key)}"` : "disabled"}><div class="t">${esc(i.title)}</div><div class="s">${s}</div></button>
+    ${i.state === "failed" ? `<button class="small" data-retry="${esc(i.key)}">Retry</button>` : ""}
+    <button class="small danger" data-del="${esc(i.key)}">Delete</button></li>`;
+}
+
+function open(i) {
+  if (i.kind === "video") app.play(i.key);
+  else location.href = `reader.html#key=${enc(i.key)}`;
+}
+
+window.addEventListener("hashchange", render);
+// Coming back from the player or the reader: positions and ticks may have changed.
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && load());
+window.addEventListener("pageshow", load);
+</script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { DownloadButton } from "./DownloadButton";
+import { videoDownload } from "@/lib/appDownloads";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import clsx from "clsx";
@@ -209,6 +211,9 @@ export function EpisodeList({
                     ) : (
                       <SubsChips subs={e.subs} />
                     ))}
+                  {e.playUrl && e.hasFile && title && (
+                    <DownloadButton item={videoDownload(e.playUrl, title, `${code(e.season, e.episode)} · ${e.title || `Episode ${e.n}`}`, e.season * 10000 + e.episode, e.size)} />
+                  )}
                   {!e.playUrl && e.hasFile && (
                     <span className="shrink-0 text-xs text-muted" title="Downloaded, but Jellyfin hasn't picked it up yet">not in Jellyfin</span>
                   )}

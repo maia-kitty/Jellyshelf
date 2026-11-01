@@ -6,6 +6,8 @@ import { useState } from "react";
 import clsx from "clsx";
 import type { MangarrChapter } from "@/lib/clients/mangarr";
 import { patchEntry } from "./ListEditor";
+import { DownloadButton } from "./DownloadButton";
+import { download, mangaDownload, useInApp } from "@/lib/app";
 import { inRanges, type ChapterRange } from "@/lib/requestScope";
 
 const PAGE = 60;
@@ -21,8 +23,13 @@ export function ChapterList({
   chapters,
   anilist,
   requested: pending,
+  title,
+  poster,
 }: {
   mangaId: number;
+  /** The series' title and cover, for the Android app's Downloads screen. */
+  title: string;
+  poster: string | null;
   /** Everything Mangarr knows, including chapters that weren't requested (`wanted: false`). */
   chapters: MangarrChapter[];
   /** Your AniList progress, when AniList is linked. */
@@ -42,6 +49,10 @@ export function ChapterList({
   const rows = sorted.filter((c) => c.onDisk || showMissing);
   const shown = rows.slice(0, limit);
   const missing = sorted.length - downloaded;
+  const app = useInApp();
+  const keep = (c: MangarrChapter) => mangaDownload(mangaId, c.number, title, c.name, poster);
+  // "Download unread": what's here past your AniList progress (all of it without AniList).
+  const unread = sorted.filter((c) => c.onDisk && Math.floor(c.number) > progress);
 
   const act = async (n: number, fn: () => Promise<unknown>) => {
     setBusy(n);
@@ -81,6 +92,11 @@ export function ChapterList({
             <input type="checkbox" className="accent-accent" checked={showMissing} onChange={(e) => setShowMissing(e.target.checked)} />
             show missing
           </label>
+        )}
+        {app && unread.length > 0 && (
+          <button className="ml-auto text-sm text-muted hover:text-fg" onClick={() => download(unread.map(keep))}>
+            Download {anilist ? "unread" : "all"} ({unread.length})
+          </button>
         )}
       </div>
       {err && <p className="mb-2 text-sm text-bad">{err}</p>}
@@ -144,6 +160,7 @@ export function ChapterList({
                       )}
                     </div>
                   </div>
+                  {c.onDisk && <DownloadButton item={keep(c)} />}
                 </div>
               </li>
             );

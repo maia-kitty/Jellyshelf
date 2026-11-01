@@ -52,7 +52,7 @@ export function mangarr(cfg: MangarrConfig) {
     update: (anilistId: number, patch: { monitored?: boolean; addRange?: ChapterRange }) =>
       call<MangarrSeries>(`/series/${anilistId}`, { method: "PATCH", body: patch }),
     remove: (anilistId: number, deleteFiles: boolean) => call(`/series/${anilistId}?deleteFiles=${deleteFiles}`, { method: "DELETE", timeoutMs: 60_000 }),
-    /** `all`: also the source's chapters that weren't asked for (before the start chapter). */
+    /** `all`: also the source's chapters that weren't asked for (outside the requested ranges). */
     chapters: (anilistId: number, all = false) => call<MangarrChapter[]>(`/series/${anilistId}/chapters${all ? "?all=true" : ""}`),
     pageCount: (anilistId: number, chapter: number) =>
       call<{ count: number }>(`/series/${anilistId}/chapters/${chapter}/pages`, { timeoutMs: 60_000 }).then((r) => r.count),
@@ -61,6 +61,13 @@ export function mangarr(cfg: MangarrConfig) {
       fetch(joinUrl(cfg.url, `/api/v1/series/${anilistId}/chapters/${chapter}/pages/${page}`), {
         headers: cfg.apiKey ? { "X-Api-Key": cfg.apiKey } : {},
         signal: AbortSignal.timeout(60_000),
+        cache: "no-store",
+      }),
+    /** The chapter's CBZ as a raw response (the Android app's offline download). `signal`: the app hanging up. */
+    file: (anilistId: number, chapter: number, signal?: AbortSignal) =>
+      fetch(joinUrl(cfg.url, `/api/v1/series/${anilistId}/chapters/${chapter}/file`), {
+        headers: cfg.apiKey ? { "X-Api-Key": cfg.apiKey } : {},
+        signal,
         cache: "no-store",
       }),
   };
