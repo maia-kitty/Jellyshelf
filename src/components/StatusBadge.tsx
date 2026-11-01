@@ -11,10 +11,10 @@ const MEDIA: Record<MediaStatus, { label: string; cls: string } | null> = {
 };
 
 /**
- * A small uppercase pill. The text box is trimmed to the capitals (text-box), so the letters sit in the middle
- * instead of riding low on room left for descenders capitals don't have.
+ * A small uppercase pill. Its text is centred in it (flex), so a row that stretches the pill taller (the hero's
+ * badge row has a minimum height) doesn't leave the letters at the top.
  */
-export const PILL = "inline-block rounded-md px-1.5 py-[5px] text-[10px] font-semibold uppercase leading-none tracking-wide [text-box:trim-both_cap_alphabetic]";
+export const PILL = "inline-flex items-center rounded-md px-1.5 py-1 text-[10px] font-semibold uppercase leading-none tracking-wide";
 
 export function StatusBadge({ status, className }: { status?: MediaStatus; className?: string }) {
   const s = status && MEDIA[status];

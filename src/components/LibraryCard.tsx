@@ -63,9 +63,10 @@ export function LibraryPanel({ title, href, items }: { title: string; href?: str
   if (!items.length) return null;
   const [top, ...rest] = items;
   return (
-    <section className="min-w-0">
+    // Stretched to its grid row, so the two panels side by side end level even when one has a single title.
+    <section className="flex min-w-0 flex-col">
       <ShelfHeader title={title} href={href} />
-      <div className="card overflow-hidden">
+      <div className="card flex-1 overflow-hidden">
         <Featured item={top} />
         {rest.length > 0 && (
           <div className="scroll-row flex gap-3 overflow-x-auto px-4 pb-3 pt-1.5">
