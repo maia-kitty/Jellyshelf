@@ -52,6 +52,9 @@ class MainActivity : Activity() {
     private var overlay: View? = null
     private var fullscreen: View? = null
     private var fullscreenDone: WebChromeClient.CustomViewCallback? = null
+    /** The player is up: sideways, bars hidden, page edge to edge. */
+    private var immersive = false
+    private val ui = android.os.Handler(android.os.Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("jellyshelf", MODE_PRIVATE) }
     private val server get() = prefs.getString(KEY_SERVER, null)
     /**
@@ -72,7 +75,7 @@ class MainActivity : Activity() {
         // the keyboard), except for a full-screen video.
         root.setOnApplyWindowInsetsListener { v, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime() or WindowInsets.Type.displayCutout())
-            if (fullscreen == null) v.setPadding(bars.left, bars.top, bars.right, bars.bottom) else v.setPadding(0, 0, 0, 0)
+            if (fullscreen == null && !immersive) v.setPadding(bars.left, bars.top, bars.right, bars.bottom) else v.setPadding(0, 0, 0, 0)
             insets
         }
         setContentView(root)
@@ -177,6 +180,8 @@ class MainActivity : Activity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 CookieManager.getInstance().flush()
+                // Left the player some way its page didn't report (e.g. Back before it played).
+                if (immersive && !Uri.parse(url).path.orEmpty().startsWith("/watch")) playerMode(false)
                 // Back in touch with the server: send what was read and watched offline.
                 if (sameServer(Uri.parse(url))) Thread(::sendPending).start()
             }
@@ -252,6 +257,12 @@ class MainActivity : Activity() {
             }
         }
 
+        /** The web player started (on) or closed (off). */
+        @JavascriptInterface
+        fun immersive(on: Boolean) {
+            if (fromServer()) runOnUiThread { playerMode(on) }
+        }
+
         @JavascriptInterface
         fun status(): String = if (fromServer() || fromApp()) Library.status() else "{}"
 
@@ -321,6 +332,27 @@ class MainActivity : Activity() {
         fun home() {
             if (fromApp()) runOnUiThread { server?.let { openWeb(it) } ?: showSetup(null) }
         }
+    }
+
+    private val leaveImmersive = Runnable {
+        immersive = false
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        window.insetsController?.show(WindowInsets.Type.systemBars())
+        root.requestApplyInsets()
+    }
+
+    /** Sideways with the bars hidden while the player is up. Turning back waits a moment, so the next episode (a new page) doesn't flip the phone upright and back. */
+    private fun playerMode(on: Boolean) {
+        ui.removeCallbacks(leaveImmersive)
+        if (!on) return run { ui.postDelayed(leaveImmersive, 1500) }
+        immersive = true
+        // Either way round, following the phone's tilt.
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        window.insetsController?.apply {
+            hide(WindowInsets.Type.systemBars())
+            systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+        root.requestApplyInsets()
     }
 
     @Deprecated("Fine for a one-off picker; the AndroidX result API would be a dependency")

@@ -14,6 +14,7 @@ import { JarLoader } from "../AppIcon";
 import { sized } from "@/lib/img";
 import { Modal } from "../Modal";
 import { RatingForm } from "../RatingForm";
+import { appImmersive } from "@/lib/app";
 
 type HlsLike = {
   destroy(): void;
@@ -415,9 +416,19 @@ export function Player({ meta }: { meta: WatchMeta }) {
   }, [meta.next, router]);
 
   useEffect(() => {
-    const fs = () => setFullscreen(!!document.fullscreenElement);
+    const fs = () => {
+      setFullscreen(!!document.fullscreenElement);
+      // Phone browsers only let a page rotate itself while it's full screen: going full screen turns it sideways.
+      const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+      if (document.fullscreenElement && matchMedia("(pointer: coarse)").matches) o.lock?.("landscape").catch(() => {});
+      else if (!document.fullscreenElement) o.unlock?.();
+    };
     document.addEventListener("fullscreenchange", fs);
-    return () => document.removeEventListener("fullscreenchange", fs);
+    return () => {
+      document.removeEventListener("fullscreenchange", fs);
+      // Leaving the player: the app goes back to following the phone.
+      appImmersive(false);
+    };
   }, []);
 
   // Keyboard: space/k play, ←/→ 5 s, j/l 10 s, ↑/↓ volume, f fullscreen, m mute, c subtitles, n next, </> speed.
@@ -530,6 +541,8 @@ export function Player({ meta }: { meta: WatchMeta }) {
           setPlaying(true);
           if (!started.current) {
             started.current = true;
+            // Phones in the app: playing turns it sideways (the player already fills the screen).
+            appImmersive(true);
             report("start");
           } else report("progress");
           poke();

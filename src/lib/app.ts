@@ -13,6 +13,7 @@ interface Bridge {
   download(json: string): void;
   status(): string;
   openDownloads(): void;
+  immersive(on: boolean): void;
 }
 
 export type DownloadState = { state: "queued" | "downloading" | "done" | "failed"; progress: number };
@@ -29,6 +30,8 @@ export function download(items: AppDownload | AppDownload[]) {
   poke();
 }
 export const openDownloads = () => bridge()?.openDownloads();
+/** The app turns sideways (following the phone's tilt) with its bars hidden, for the player; off puts it back. */
+export const appImmersive = (on: boolean) => bridge()?.immersive?.(on);
 
 // One poll for the whole page, however many buttons are on it: every second while the app is downloading, every five
 // otherwise (downloads can also be started or deleted from the app's own screen).
