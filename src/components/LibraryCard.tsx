@@ -89,11 +89,14 @@ function Featured({ item }: { item: LibraryItem }) {
   const kind = item.type === "Series" ? "Series" : item.type === "Movie" ? "Movie" : item.type === "Manga" ? "Manga" : null;
   return (
     <div className="relative flex gap-4 p-4">
-      {bg && (
-        // A poster standing in for a missing backdrop is blurred, so it reads as colour rather than a second poster.
-        <FadeImg {...sized(bg, 800)} alt="" aria-hidden loading="lazy" decoding="async" className={clsx("absolute inset-0 h-full w-full object-cover opacity-40", !item.backdrop && "scale-110 blur-2xl")} />
-      )}
-      <div className="absolute inset-0 bg-gradient-to-r from-panel via-panel/85 to-panel/40" />
+      {/* Faded out at the bottom (and the right), so it melts into the panel's blurred art instead of ending on a line. */}
+      <div aria-hidden className="absolute inset-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_40%,transparent),linear-gradient(to_left,transparent,black_15%)] [mask-composite:intersect]">
+        {bg && (
+          // A poster standing in for a missing backdrop is blurred, so it reads as colour rather than a second poster.
+          <FadeImg {...sized(bg, 800)} alt="" loading="lazy" decoding="async" className={clsx("absolute inset-0 h-full w-full object-cover opacity-40", !item.backdrop && "scale-110 blur-2xl")} />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-r from-panel via-panel/85 to-panel/40" />
+      </div>
       <div className="relative w-24 shrink-0 sm:w-28">
         <LibraryCard item={item} bare />
       </div>
