@@ -93,7 +93,6 @@ export function jellyfin(cfg: { url: string; apiKey: string }) {
     },
   };
 }
-export type JellyfinClient = ReturnType<typeof jellyfin>;
 
 /** Link into the Jellyfin web app (10.9+ hash routes). serverId keeps it working with several servers saved in the browser. */
 export function jellyfinWebUrl(base: string, itemId: string, serverId?: string) {

@@ -30,4 +30,3 @@ export function radarr(cfg: ArrConfig) {
     movieSearch: (movieIds: number[]) => api.command({ name: "MoviesSearch", movieIds }),
   };
 }
-export type RadarrClient = ReturnType<typeof radarr>;

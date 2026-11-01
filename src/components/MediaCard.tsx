@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import clsx from "clsx";
 import type { Card } from "@/lib/cards";
 import { ListBadge, StatusBadge } from "./StatusBadge";
 import { sized } from "@/lib/img";

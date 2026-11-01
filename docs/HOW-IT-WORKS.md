@@ -41,20 +41,26 @@ Manga works like anime, with [Mangarr](https://github.com/maia-kitty/mangarr) (a
 
 - **Browse → Manga** and the **Manga** tab in search list AniList manga (light novels are left out: there's nothing to
   download them from).
-- **Request** on a manga's page asks for every chapter, or, with a number in "from chapter", from that chapter on. It
-  goes through the same approval as everything else (auto-approve has its own "Manga" switch per user) and is then
-  sent to Mangarr, which finds the manga on its sources and keeps downloading new chapters.
+- **Request** on a manga's page asks for every chapter, or a range ("Pick chapters": from _ to _; no "to" keeps
+  following new chapters). The chapter list's "request from here" does the same from one chapter on. It goes through
+  the same approval as everything else (auto-approve has its own "Manga" switch per user) and is then sent to Mangarr,
+  which keeps each request as its own range (1–10 and 50–60 stay apart) and downloads them. A request that adds no
+  chapters to the ones already asked for is refused as a repeat (`src/lib/requestScope.ts`).
 - The availability sync reads Mangarr: some chapters on disk = partly available, every chapter asked for = available.
   A request for a finished manga completes once it's all there; one for a manga still coming out stays "processing",
   like a continuing show.
-- **The reader** (`/read/<anilist id>/<chapter>`) shows a chapter as one long strip. The pages come from Mangarr
+- **The reader** (`/read/<anilist id>/<chapter>`) shows a chapter as one long strip, or two pages side by side on a
+  wide screen (right to left for Japanese manga). The pages come from Mangarr
   through Jellyshelf (`/api/manga/...`), so the browser never needs to reach Mangarr.
 - **AniList progress:** when the end of a chapter scrolls into view, your AniList progress moves up to it (as the
   player does for episodes at 90%). Whole chapters only, as AniList counts them: 12.5 counts as 12. Only ever
   forward; it puts the manga on your list as Reading, and the last chapter of a finished manga completes it.
   Without AniList linked nothing is saved. Code: `src/lib/mangaProgress.ts`, `src/components/ChapterDone.tsx`.
-- **Continue reading** (Discover, under Continue watching): manga you're Reading on AniList that Mangarr has the next
+- **Continue reading** (Discover, beside Continue watching): manga you're Reading on AniList that Mangarr has the next
   chapter of. The manga page's button says "Continue ch. N" the same way.
+- **Offline (Android app):** inside the app, chapters, episodes and films get download buttons (`src/lib/app.ts`,
+  `src/components/DownloadButton.tsx`); a chapter comes down as its CBZ from `/api/manga/<id>/<chapter>/file`. See
+  `android/README.md`.
 
 ---
 
