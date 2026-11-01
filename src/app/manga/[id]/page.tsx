@@ -6,6 +6,8 @@ import { Hero } from "@/components/Hero";
 import { CommunityScore } from "@/components/Score";
 import { RequestManga } from "@/components/RequestButtons";
 import { ChapterList } from "@/components/Chapters";
+import { LibraryStatus } from "@/components/LibraryStatus";
+import type { Media, Request } from "@/db/schema";
 import { JellyfinButton } from "@/components/Episodes";
 import { AniListPanel } from "@/components/AniListPanel";
 import { CardRow } from "@/components/MediaCard";
@@ -19,6 +21,7 @@ import { aniDescription } from "@/lib/text";
 import { mangaStuck } from "@/lib/jobs/availability";
 import { anilistToken } from "@/lib/auth";
 import { nextChapter } from "@/lib/mangaProgress";
+import { chapterSpan } from "@/lib/requestScope";
 
 const STATUS: Record<string, string> = { RELEASING: "Releasing", FINISHED: "Finished", HIATUS: "On hiatus", CANCELLED: "Cancelled", NOT_YET_RELEASED: "Not out yet" };
 
@@ -27,26 +30,21 @@ async function MoreLikeThis({ id, user }: { id: number; user: Awaited<ReturnType
   return <CardRow title="More like this" cards={await decorate(recs.slice(0, 20).map(mangaCard), user)} />;
 }
 
-/** Where a request is up to, in a line under the buttons. */
-function StatusLine({ series, pending, approved }: { series: MangarrSeries | null; pending: boolean; approved: boolean }) {
-  if (series) {
-    const why = mangaStuck(series);
-    if (why) return <p className="text-sm text-warn">{why}</p>;
-    if (series.chaptersMissing)
-      return (
-        <p className="text-sm text-muted">
-          {series.chaptersOnDisk} chapters here, {series.chaptersMissing} on the way{series.sourceName ? ` from ${series.sourceName}` : ""}.
-        </p>
-      );
-    if (series.state === "matching") return <p className="text-sm text-muted">Mangarr is looking for a source…</p>;
-    if (!series.chaptersOnDisk) return null;
-    const all = series.chaptersOnDisk === 1 ? "The chapter is here" : `All ${series.chaptersOnDisk} chapters are here`;
-    // A finished manga gets no new chapters; only say so for one that's still coming out.
-    return <p className="text-sm text-muted">{all}.{series.anilistStatus === "FINISHED" ? "" : " New ones download as they come out."}</p>;
-  }
-  if (approved) return <p className="text-sm text-muted">Approved: Mangarr is on it.</p>;
-  if (pending) return <p className="text-sm text-muted">Requested: waiting for an admin to approve it.</p>;
-  return null;
+/**
+ * Where a request is up to, in a line under the buttons: the anime page's line (LibraryStatus), plus what only Mangarr
+ * knows: a series that's stuck, chapters still coming, a source being looked for.
+ */
+function StatusLine({ series, requests, media }: { series: MangarrSeries | null; requests: Request[]; media: Media | undefined }) {
+  const why = series && mangaStuck(series);
+  if (why) return <p className="text-sm text-warn">{why}</p>;
+  if (series?.chaptersMissing)
+    return (
+      <p className="text-sm text-muted">
+        {series.chaptersOnDisk} chapters here, {series.chaptersMissing} on the way{series.sourceName ? ` from ${series.sourceName}` : ""}.
+      </p>
+    );
+  if (series?.state === "matching") return <p className="text-sm text-muted">Mangarr is looking for a source…</p>;
+  return <LibraryStatus requests={requests} media={media} inLibrary={!!series?.chaptersOnDisk} />;
 }
 
 export default async function MangaPage({ params }: { params: Promise<{ id: string }> }) {
@@ -120,18 +118,15 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
           {!settings.url && user.role === "admin" && <p className="text-sm text-muted">Manga downloads aren&apos;t set up yet (Settings → Mangarr).</p>}
-          <StatusLine series={series} pending={active.some((r) => r.status === "pending")} approved={active.some((r) => r.status === "approved")} />
+          <StatusLine series={series} requests={requests} media={media} />
         </div>
       </Hero>
       <ChapterList
         mangaId={id}
         chapters={chapters}
         anilist={entry ? { progress: entry.progress } : null}
-        // The earliest chapter a request still waiting for approval asks for: those say "requested".
-        requestedFrom={(() => {
-          const pending = active.filter((r) => r.status === "pending");
-          return pending.length ? Math.min(...pending.map((r) => r.startChapter ?? 0)) : null;
-        })()}
+        // What requests still waiting for approval ask for: those chapters say "requested".
+        requested={chapterSpan(active.filter((r) => r.status === "pending"))}
       />
       <Suspense fallback={null}>
         <MoreLikeThis id={id} user={user} />

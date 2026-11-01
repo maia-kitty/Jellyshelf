@@ -43,6 +43,13 @@
       "when": 1793478754359,
       "tag": "0005_manga",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793527253121,
+      "tag": "0006_manga_end_chapter",
+      "breakpoints": true
     }
   ]
 }

@@ -575,23 +575,52 @@ export function TvRequestAll({ tmdbId, seasons }: { tmdbId: number; seasons: Sea
 }
 
 /**
- * Request a manga for Mangarr, the same dropdown as an anime's Request: every chapter, or from a chapter on (e.g.
- * where the anime stops). Then new chapters follow on their own.
+ * Request a manga for Mangarr, the same dropdown as an anime's Request: every chapter, or a range of them ("from"
+ * alone: from there on, following new chapters; "to" alone: from chapter 1 up to it).
  */
 export function RequestManga({ anilistId, done, have }: { anilistId: number; done?: string; have?: boolean }) {
   const { busy, sent, problem, run } = useSubmit();
   const [picking, setPicking] = useState(false);
   const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const { btn, menu, pos, open, measure, close } = useDropdown(() => {
     setPicking(false);
     setFrom("");
+    setTo("");
   });
-  const start = Number(from);
-  const ok = from !== "" && Number.isFinite(start) && start >= 0;
-  const request = (startChapter?: number) => {
+  const num = (v: string) => (v.trim() === "" ? null : Number(v));
+  const start = num(from);
+  const end = num(to);
+  const bad = [start, end].some((n) => n !== null && !(Number.isFinite(n) && n >= 0));
+  const backwards = !bad && start !== null && end !== null && end < start;
+  const ok = !bad && !backwards && (start !== null || end !== null);
+  const label = !ok
+    ? backwards
+      ? "“To” comes before “from”"
+      : "Type a chapter number"
+    : end === null
+      ? `Request from ch. ${start}`
+      : end === (start || 1)
+        ? `Request ch. ${end}`
+        : `Request ch. ${start || 1}–${end}`;
+  const request = (startChapter: number | null = null, endChapter: number | null = null) => {
     close();
-    run({ kind: "manga", anilistId, ...(startChapter ? { startChapter } : {}) });
+    run({ kind: "manga", anilistId, ...(startChapter ? { startChapter } : {}), ...(endChapter !== null ? { endChapter } : {}) });
   };
+  const field = (value: string, set: (v: string) => void, placeholder: string, aria: string, autoFocus = false) => (
+    <input
+      type="number"
+      min={0}
+      step="any"
+      inputMode="decimal"
+      placeholder={placeholder}
+      autoFocus={autoFocus}
+      value={value}
+      onChange={(e) => set(e.target.value)}
+      className="input w-full min-w-0"
+      aria-label={aria}
+    />
+  );
 
   return (
     <div>
@@ -614,10 +643,10 @@ export function RequestManga({ anilistId, done, have }: { anilistId: number; don
                   </button>
                   <button role="menuitem" className={OPTION} onClick={() => setPicking(true)}>
                     <span className="flex w-full items-center text-sm font-medium">
-                      From a chapter
+                      Pick chapters
                       <Chevron />
                     </span>
-                    <span className="text-xs text-muted">E.g. where the anime stops</span>
+                    <span className="text-xs text-muted">From one chapter to another, e.g. where the anime stops</span>
                   </button>
                 </>
               ) : (
@@ -625,29 +654,21 @@ export function RequestManga({ anilistId, done, have }: { anilistId: number; don
                   className="p-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    if (ok) request(start);
+                    if (ok) request(start, end);
                   }}
                 >
                   <div className="mb-2 flex items-center gap-2 text-sm">
                     <button type="button" className="-ml-1 rounded-md p-1 text-muted hover:text-fg" onClick={() => setPicking(false)} aria-label="Back">
                       <Chevron back />
                     </button>
-                    <span className="font-medium">From a chapter</span>
+                    <span className="font-medium">Pick chapters</span>
                   </div>
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    inputMode="decimal"
-                    placeholder="Chapter"
-                    autoFocus
-                    value={from}
-                    onChange={(e) => setFrom(e.target.value)}
-                    className="input w-full"
-                    aria-label="Start from chapter"
-                  />
+                  <div className="flex items-center gap-2 text-sm text-muted">
+                    from {field(from, setFrom, "1", "From chapter", true)}
+                    to {field(to, setTo, "latest", "To chapter (empty: keep following new ones)")}
+                  </div>
                   <button className="btn-primary mt-3 w-full" disabled={!ok}>
-                    {ok ? `Request from ch. ${start}` : "Type a chapter number"}
+                    {label}
                   </button>
                 </form>
               )}

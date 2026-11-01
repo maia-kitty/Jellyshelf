@@ -10,6 +10,7 @@ import { resolveAnime } from "@/lib/mapping";
 import { describeTarget, type EpisodeRange } from "@/lib/mapping/resolve";
 import { getSettings } from "@/lib/settings";
 import { upsertMedia } from "@/lib/media";
+import { chapterSpan, widens } from "@/lib/requestScope";
 import { notifyAdmins } from "@/lib/notify";
 import { decideRequest } from "./decide";
 
@@ -27,8 +28,15 @@ export const createRequestInput = z.discriminatedUnion("kind", [
   z
     .object({ kind: z.literal("anime"), anilistIds: z.array(z.number().int().positive()).min(1).max(25), episodes: episodes.optional(), dub: z.boolean().optional() })
     .refine((r) => !r.episodes || r.anilistIds.length === 1, "Pick episodes from one entry at a time"),
-  /** A manga for Mangarr: every chapter, or from `startChapter` on. */
-  z.object({ kind: z.literal("manga"), anilistId: z.number().int().positive(), startChapter: z.number().min(0).max(100_000).optional() }),
+  /** A manga for Mangarr: every chapter, from `startChapter` on, or up to `endChapter` (absent: keep following new ones). */
+  z
+    .object({
+      kind: z.literal("manga"),
+      anilistId: z.number().int().positive(),
+      startChapter: z.number().min(0).max(100_000).optional(),
+      endChapter: z.number().min(0).max(100_000).optional(),
+    })
+    .refine((r) => r.endChapter === undefined || r.endChapter >= (r.startChapter ?? 0), "The last chapter can't come before the first"),
 ]);
 export type CreateRequestInput = z.infer<typeof createRequestInput>;
 
@@ -109,13 +117,11 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
       { title: aniTitle(m.title), poster: m.coverImage.extraLarge ?? m.coverImage.large, format: m.format },
     );
     const startChapter = input.startChapter || null;
-    // Another request may reach further back (chapters before an earlier "from chapter N"); one that doesn't is a repeat.
-    const active = await activeRequests(media.id);
-    if (active.length && (startChapter ?? 0) >= Math.min(...active.map((r) => r.startChapter ?? 0))) {
-      throw new ApiError(409, "Already requested");
-    }
-    console.info(`[request] ${user.displayName} → ${media.title} (manga${startChapter ? `, from chapter ${startChapter}` : ""})`);
-    return { created: [await insertRequest(user, media, { target: "mangarr", targetId: m.id, startChapter })], skipped: [] };
+    const endChapter = input.endChapter ?? null;
+    // Another request may reach further back or further on than the ones before it; one that adds nothing is a repeat.
+    if (!widens(chapterSpan(await activeRequests(media.id)), { start: startChapter ?? 0, end: endChapter })) throw new ApiError(409, "Already requested");
+    console.info(`[request] ${user.displayName} → ${media.title} (manga, chapters ${startChapter ?? 0}–${endChapter ?? "…"})`);
+    return { created: [await insertRequest(user, media, { target: "mangarr", targetId: m.id, startChapter, endChapter })], skipped: [] };
   }
 
   // Anime: one request per AniList entry so each season/cour tracks its own status.

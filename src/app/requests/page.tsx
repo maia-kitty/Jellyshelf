@@ -63,6 +63,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Sea
           episodeRanges: r.request.episodeRanges,
           absolute: r.request.absolute,
           startChapter: r.request.startChapter,
+          endChapter: r.request.endChapter,
           download: queues && r.request.status === "approved" ? progressFor(r.request, r.media, queues) : null,
           subs: subs[i],
           media: {

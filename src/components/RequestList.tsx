@@ -26,6 +26,7 @@ export interface RequestRow {
   episodeRanges: { from: number; to: number | null }[] | null;
   absolute: boolean;
   startChapter: number | null;
+  endChapter: number | null;
   download: DownloadProgress | null;
   /** From Bazarr, once there are files. */
   subs: SubsSummary | null;

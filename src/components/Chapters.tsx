@@ -19,15 +19,15 @@ export function ChapterList({
   mangaId,
   chapters,
   anilist,
-  requestedFrom,
+  requested: pending,
 }: {
   mangaId: number;
   /** Everything Mangarr knows, including chapters that weren't requested (`wanted: false`). */
   chapters: MangarrChapter[];
   /** Your AniList progress, when AniList is linked. */
   anilist: { progress: number } | null;
-  /** The earliest chapter a request still waiting for approval asks for. */
-  requestedFrom: number | null;
+  /** The chapters requests still waiting for approval ask for. */
+  requested: { start: number; end: number | null } | null;
 }) {
   const router = useRouter();
   const [showMissing, setShowMissing] = useState(false);
@@ -90,7 +90,7 @@ export function ChapterList({
         <ul className="bounce-y divide-y divide-line">
           {shown.map((c) => {
             const read = !!anilist && c.number >= 1 && Math.floor(c.number) <= progress;
-            const requested = !c.wanted && requestedFrom !== null && requestedFrom <= c.number;
+            const requested = !c.wanted && !!pending && c.number >= pending.start && (pending.end === null || c.number <= pending.end);
             return (
               <li key={c.number}>
                 <div className={clsx("group flex items-center gap-3 py-2", !c.onDisk && "opacity-50")}>

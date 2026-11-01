@@ -89,6 +89,8 @@ export const requests = sqliteTable(
     dub: integer("dub", { mode: "boolean" }).notNull().default(false),
     /** Manga: download from this chapter on (null = the whole series). */
     startChapter: real("start_chapter"),
+    /** Manga: up to this chapter (null = keep following new ones). */
+    endChapter: real("end_chapter"),
     /** Episode-level monitoring still has to be applied (Sonarr hadn't populated episodes yet). */
     needsEpisodeSync: integer("needs_episode_sync", { mode: "boolean" }).notNull().default(false),
     error: text("error"),

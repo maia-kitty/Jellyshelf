@@ -12,6 +12,8 @@ export interface MangarrSeries {
   cover: string | null;
   monitored: boolean;
   startChapter: number;
+  /** The last chapter wanted; null = keeps following new ones. */
+  endChapter: number | null;
   sourceName: string | null;
   /** ok | no_match | error | matching */
   state: string;
@@ -28,7 +30,7 @@ export interface MangarrChapter {
   number: number;
   name: string | null;
   onDisk: boolean;
-  /** False for a chapter the source has that wasn't asked for (before the start chapter); only with `all`. */
+  /** False for a chapter the source has that wasn't asked for (outside the requested range); only with `all`. */
   wanted: boolean;
   imported: number | null;
 }
@@ -42,8 +44,9 @@ export function mangarr(cfg: MangarrConfig) {
     status: () => call<{ version: string; suwayomi: { ok: boolean } }>("/status"),
     allSeries: () => call<MangarrSeries[]>("/series", { timeoutMs: 15_000 }),
     series: (anilistId: number) => call<MangarrSeries>(`/series/${anilistId}`),
-    add: (anilistId: number, startChapter: number) => call<MangarrSeries>("/series", { method: "POST", body: { anilistId, startChapter } }),
-    update: (anilistId: number, patch: { monitored?: boolean; startChapter?: number }) =>
+    add: (anilistId: number, startChapter: number, endChapter: number | null) =>
+      call<MangarrSeries>("/series", { method: "POST", body: { anilistId, startChapter, endChapter } }),
+    update: (anilistId: number, patch: { monitored?: boolean; startChapter?: number; endChapter?: number | null }) =>
       call<MangarrSeries>(`/series/${anilistId}`, { method: "PATCH", body: patch }),
     remove: (anilistId: number, deleteFiles: boolean) => call(`/series/${anilistId}?deleteFiles=${deleteFiles}`, { method: "DELETE", timeoutMs: 60_000 }),
     /** `all`: also the source's chapters that weren't asked for (before the start chapter). */
