@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Card } from "@/lib/cards";
 import { ShelfHeader } from "../MediaCard";
 import { sized } from "@/lib/img";
+import { ArtGlow } from "../ArtGlow";
 
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 const KIND = { anime: "Anime", tv: "Series", manga: "Manga", movie: "Movie" } as Record<string, string>;
@@ -18,11 +19,7 @@ export function HomePanel({ title, note, href, art, children }: { title: string;
       <ShelfHeader title={title} note={note} href={href} />
       <div className="card relative flex flex-1 flex-col overflow-hidden">
         {/* The first item's art, blurred behind the whole panel, so a panel with one item isn't half empty. */}
-        {art && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(art, 48)} alt="" aria-hidden loading="lazy" decoding="async" className="absolute inset-0 h-full w-full scale-125 object-cover opacity-30 blur-2xl" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-br from-panel/40 via-panel/70 to-panel" />
+        <ArtGlow src={art} />
         <div className="relative flex flex-1 flex-col">{children}</div>
       </div>
     </section>
@@ -52,7 +49,7 @@ export function ContinueRow({ cards, title = "Continue watching" }: { cards: Car
       <Link prefetch={false} href={top.href} aria-label={top.title} className="group flex gap-4 p-4">
         {top.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(top.poster, 112)} alt="" loading="lazy" decoding="async" className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
+          <img {...sized(top.poster, 112)} alt="" decoding="async" className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg transition group-hover:scale-[1.03]" />
         ) : (
           <div className="h-36 w-24 shrink-0 rounded-lg bg-panel-2" />
         )}
@@ -72,7 +69,7 @@ export function ContinueRow({ cards, title = "Continue watching" }: { cards: Car
               <Link prefetch={false} href={c.href} className="flex items-center gap-3 rounded-lg p-2 transition hover:bg-panel-2">
                 {c.poster ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img {...sized(c.poster, 40)} alt="" loading="lazy" decoding="async" className="h-14 w-10 shrink-0 rounded-md object-cover" />
+                  <img {...sized(c.poster, 40)} alt="" decoding="async" className="h-14 w-10 shrink-0 rounded-md object-cover" />
                 ) : (
                   <div className="h-14 w-10 shrink-0 rounded-md bg-panel-2" />
                 )}

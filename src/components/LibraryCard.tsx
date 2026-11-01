@@ -7,6 +7,7 @@ import { ShelfHeader } from "./MediaCard";
 import { sized } from "@/lib/img";
 import { FadeImg } from "./FadeImg";
 import { JellyfinButton } from "./Episodes";
+import { ArtGlow } from "./ArtGlow";
 
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 
@@ -66,10 +67,11 @@ export function LibraryPanel({ title, href, items }: { title: string; href?: str
     // Stretched to its grid row, so the two panels side by side end level even when one has a single title.
     <section className="flex min-w-0 flex-col">
       <ShelfHeader title={title} href={href} />
-      <div className="card flex-1 overflow-hidden">
+      <div className="card relative flex-1 overflow-hidden">
+        <ArtGlow src={top.poster} />
         <Featured item={top} />
         {rest.length > 0 && (
-          <div className="scroll-row flex gap-3 overflow-x-auto px-4 pb-3 pt-1.5">
+          <div className="scroll-row relative flex gap-3 overflow-x-auto px-4 pb-3 pt-1.5">
             {rest.map((it, i) => (
               <div key={it.id} className="card-in w-24 shrink-0 sm:w-28" style={{ "--i": i } as React.CSSProperties}>
                 <LibraryCard item={it} />

@@ -12,13 +12,20 @@ export const dragOn = () => {
   }
 };
 
-/** What a press scrolls: a card row sideways, or a list (.bounce-y) up and down in whatever it scrolls in. */
+/**
+ * What a press scrolls: a card row sideways, a list (.bounce-y) up and down in whatever it scrolls in, or else, on a
+ * page's own content, the page. Text (paragraphs, headings) stays selectable, and the player is left alone.
+ */
 function grabbed(t: Element): { el: HTMLElement; across: boolean } | null {
   if (t.closest("input, textarea, select, [contenteditable]")) return null;
   // Not the tab rows (<nav>): they're for clicking.
   const row = t.closest(".scroll-row:not(nav)");
   if (row instanceof HTMLElement) return row.scrollWidth > row.clientWidth ? { el: row, across: true } : null;
-  if (!t.closest(".bounce-y")) return null;
+  if (!t.closest(".bounce-y")) {
+    if (!t.closest("main") || t.closest("p, h1, h2, h3, pre, code, label, video, [data-no-drag]")) return null;
+    const page = document.scrollingElement;
+    return page instanceof HTMLElement && page.scrollHeight > page.clientHeight ? { el: page, across: false } : null;
+  }
   for (let el = t.parentElement; el; el = el.parentElement) {
     const y = getComputedStyle(el).overflowY;
     if ((y === "auto" || y === "scroll") && el.scrollHeight > el.clientHeight) return { el, across: false };

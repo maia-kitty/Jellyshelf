@@ -7,6 +7,7 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { NavProgress } from "./NavProgress";
 import { DRAG_KEY, dragOn } from "./DragScroll";
+import { SMOOTH_KEY, smoothOn } from "./SmoothScroll";
 import { PhoneNotifications } from "./PhoneNotifications";
 import { unreachable } from "@/lib/unreachable";
 import { initial } from "@/lib/initial";
@@ -298,8 +299,10 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
   }, [open]);
 
   const [drag, setDrag] = useState(true);
+  const [smooth, setSmooth] = useState(false);
   useEffect(() => {
     if (open) setDrag(dragOn());
+    if (open) setSmooth(smoothOn());
   }, [open]);
   const [notifs, setNotifs] = useState(false);
   // Layout only; each item adds its own display and colours, so no two classes fight over one property.
@@ -366,6 +369,22 @@ function UserMenu({ user, path }: { user: NavUser; path: string }) {
             <MenuIcon d="M9 11V5.5a1.5 1.5 0 0 1 3 0V10m0-1.5a1.5 1.5 0 0 1 3 0V11m0-1a1.5 1.5 0 0 1 3 0v4.5a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4.5 15a1.6 1.6 0 0 1 2.4-2.1L9 15" />
             <span className="flex-1">Drag to scroll</span>
             <Switch on={drag} />
+          </button>
+          {/* For browsers whose mouse wheel steps (Helium); Zen and Firefox smooth it already. */}
+          <button
+            role="menuitemcheckbox"
+            aria-checked={smooth}
+            className={clsx(row, "hidden text-fg/85 hover:bg-panel-2 hover:text-fg pointer-fine:flex")}
+            onClick={() => {
+              try {
+                localStorage.setItem(SMOOTH_KEY, smooth ? "0" : "1");
+              } catch {}
+              setSmooth(!smooth);
+            }}
+          >
+            <MenuIcon d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
+            <span className="flex-1">Smooth scrolling</span>
+            <Switch on={smooth} />
           </button>
           {user.role === "admin" && (
             <Link prefetch={false} href="/settings" className={item}>

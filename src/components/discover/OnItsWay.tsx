@@ -33,7 +33,7 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
       <Link prefetch={false} href={top.href} className="group flex gap-4 p-4">
         {top.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img {...sized(top.poster, 112)} alt="" loading="lazy" decoding="async" className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg" />
+          <img {...sized(top.poster, 112)} alt="" decoding="async" className="h-36 w-24 shrink-0 rounded-lg object-cover shadow-lg" />
         ) : (
           <div className="h-36 w-24 shrink-0 rounded-lg bg-panel-2" />
         )}
@@ -52,7 +52,7 @@ export function OnItsWay({ items }: { items: InFlight[] }) {
               <Link prefetch={false} href={it.href} className="flex gap-3 rounded-lg p-2 transition hover:bg-panel-2">
                 {it.poster ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img {...sized(it.poster, 40)} alt="" loading="lazy" decoding="async" className="h-14 w-10 shrink-0 rounded-md object-cover" />
+                  <img {...sized(it.poster, 40)} alt="" decoding="async" className="h-14 w-10 shrink-0 rounded-md object-cover" />
                 ) : (
                   <div className="h-14 w-10 shrink-0 rounded-md bg-panel-2" />
                 )}

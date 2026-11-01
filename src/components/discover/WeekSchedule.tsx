@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { ShelfHeader } from "../MediaCard";
 import { Tabs } from "../PillTabs";
 import { sized } from "@/lib/img";
+import { ArtGlow } from "../ArtGlow";
 
 export interface ScheduleSlot {
   /** unix seconds */
@@ -93,7 +94,9 @@ export function WeekSchedule({ slots, hasList }: { slots: ScheduleSlot[]; hasLis
       />
       <div className="scroll-row -mx-1 grid auto-cols-[minmax(11rem,1fr)] grid-flow-col gap-3 overflow-x-auto px-1 pb-3">
         {(days ?? Array.from({ length: 7 }, () => null)).map((day, d) => (
-          <div key={d} className={clsx("min-h-64 rounded-xl border p-2", d === 0 ? "border-accent/50 bg-accent/5" : "border-line bg-panel")}>
+          <div key={d} className={clsx("relative min-h-64 overflow-hidden rounded-xl border p-2", d === 0 ? "border-accent/50 bg-accent/5" : "border-line bg-panel")}>
+            <ArtGlow src={day?.shown[0]?.cover} />
+            <div className="relative">
             <div className="mb-2 flex items-baseline justify-between px-1">
               <span className={clsx("text-sm font-semibold", d === 0 && "text-accent")}>{day?.label ?? " "}</span>
               <span className="text-xs text-muted">{day?.date}</span>
@@ -133,6 +136,7 @@ export function WeekSchedule({ slots, hasList }: { slots: ScheduleSlot[]; hasLis
               })}
             </ul>
             {day && day.more > 0 && <div className="mt-1.5 px-1 text-[11px] text-muted">+{day.more} more</div>}
+            </div>
           </div>
         ))}
       </div>
