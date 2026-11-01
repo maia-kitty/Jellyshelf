@@ -175,31 +175,12 @@ const runsLabel = (runs: { from: number; to: number }[]) => runs.map((r) => (r.f
  * The current entry's request button, at the top of its page. With more than one episode it opens a menu: all of it,
  * or pick episodes by number (each run of consecutive ones goes as one request). `have` are the downloaded ones.
  */
-export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; have?: number[] }) {
-  const { busy, sent, problem, run } = useSubmit();
+/** A menu that drops from a button: fixed to the window so the hero (which clips its backdrop) doesn't cut it off. */
+function useDropdown(onClose: () => void) {
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [eps, setEps] = useState<Set<number>>(new Set());
-  // null until the saved choice is read, so the jelly doesn't slide over to it on every visit.
-  const [dub, setDub] = useState<boolean | null>(null);
   const open = pos !== null;
-
-  // The last choice sticks, for whoever's browser this is.
-  useEffect(() => {
-    try {
-      setDub(localStorage.getItem("request:dub") === "1");
-    } catch {}
-  }, []);
-  const pickDub = (on: boolean) => {
-    setDub(on);
-    try {
-      localStorage.setItem("request:dub", on ? "1" : "0");
-    } catch {}
-  };
-
-  // Fixed to the window so the hero (which clips its backdrop) doesn't cut it off.
   const measure = () => {
     const r = btn.current!.getBoundingClientRect();
     const width = Math.min(320, innerWidth - 16);
@@ -207,15 +188,8 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
   };
   const close = () => {
     setPos(null);
-    setPicking(false);
-    setEps(new Set());
+    onClose();
   };
-  const request = (episodes?: { from: number; to: number }[]) => {
-    close();
-    const base = { kind: "anime", anilistIds: [entry.id], ...(entry.canDub && dub ? { dub: true } : {}) };
-    run(episodes ? episodes.map((r) => ({ ...base, episodes: r })) : base);
-  };
-
   useEffect(() => {
     if (!open) return;
     const away = (e: PointerEvent) => !btn.current?.contains(e.target as Node) && !menu.current?.contains(e.target as Node) && close();
@@ -232,13 +206,51 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+  return { btn, menu, pos, open, measure, close };
+}
+const OPTION = "flex w-full flex-col items-start rounded-lg px-3 py-2.5 text-left outline-none hover:bg-panel-2 focus-visible:bg-panel-2";
+const Chevron = ({ back }: { back?: boolean }) => (
+  <svg viewBox="0 0 24 24" aria-hidden className={back ? "h-4 w-4" : "ml-auto h-4 w-4 text-muted"} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+    <path d={back ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} />
+  </svg>
+);
+
+export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; have?: number[] }) {
+  const { busy, sent, problem, run } = useSubmit();
+  const [picking, setPicking] = useState(false);
+  const [eps, setEps] = useState<Set<number>>(new Set());
+  // null until the saved choice is read, so the jelly doesn't slide over to it on every visit.
+  const [dub, setDub] = useState<boolean | null>(null);
+  const { btn, menu, pos, open, measure, close } = useDropdown(() => {
+    setPicking(false);
+    setEps(new Set());
+  });
+
+  // The last choice sticks, for whoever's browser this is.
+  useEffect(() => {
+    try {
+      setDub(localStorage.getItem("request:dub") === "1");
+    } catch {}
+  }, []);
+  const pickDub = (on: boolean) => {
+    setDub(on);
+    try {
+      localStorage.setItem("request:dub", on ? "1" : "0");
+    } catch {}
+  };
+
+  const request = (episodes?: { from: number; to: number }[]) => {
+    close();
+    const base = { kind: "anime", anilistIds: [entry.id], ...(entry.canDub && dub ? { dub: true } : {}) };
+    run(episodes ? episodes.map((r) => ({ ...base, episodes: r })) : base);
+  };
 
   if (!entry.mapped) return <p className="text-sm text-bad">Can&apos;t request this yet: no TVDB/TMDB mapping.</p>;
   const total = entry.episodes ?? 0;
   const done = entry.status === "available" ? "Available" : entry.requested ? "Requested" : undefined;
   const runs = episodeRuns([...eps]);
   const toggle = (n: number) => setEps((s) => flip(s, n));
-  const option = "flex w-full flex-col items-start rounded-lg px-3 py-2.5 text-left outline-none hover:bg-panel-2 focus-visible:bg-panel-2";
+  const option = OPTION;
 
   return (
     <div>
@@ -265,7 +277,7 @@ export function RequestThis({ entry, have = [] }: { entry: AnimeEntryOption; hav
         )}
       </div>
       <Problem text={problem} />
-      {open &&
+      {pos &&
         createPortal(
           <div
             ref={menu}
@@ -562,41 +574,87 @@ export function TvRequestAll({ tmdbId, seasons }: { tmdbId: number; seasons: Sea
   );
 }
 
-/** Request a manga for Mangarr: every chapter, or from a chapter on (e.g. where the anime stops). */
-export function RequestManga({ anilistId, done }: { anilistId: number; done?: string }) {
+/**
+ * Request a manga for Mangarr, the same dropdown as an anime's Request: every chapter, or from a chapter on (e.g.
+ * where the anime stops). Then new chapters follow on their own.
+ */
+export function RequestManga({ anilistId, done, have }: { anilistId: number; done?: string; have?: boolean }) {
   const { busy, sent, problem, run } = useSubmit();
+  const [picking, setPicking] = useState(false);
   const [from, setFrom] = useState("");
+  const { btn, menu, pos, open, measure, close } = useDropdown(() => {
+    setPicking(false);
+    setFrom("");
+  });
   const start = Number(from);
-  const bad = from !== "" && !(start >= 0);
+  const ok = from !== "" && Number.isFinite(start) && start >= 0;
+  const request = (startChapter?: number) => {
+    close();
+    run({ kind: "manga", anilistId, ...(startChapter ? { startChapter } : {}) });
+  };
+
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-3">
-        <SendButton
-          label={from && start > 0 ? `Request from ch. ${start}` : "Request"}
-          done={done}
-          busy={busy}
-          sent={sent}
-          disabled={bad}
-          onClick={() => run({ kind: "manga", anilistId, ...(start > 0 ? { startChapter: start } : {}) })}
-        />
-        {!done && !busy && !sent && (
-          <label className="flex items-center gap-2 text-sm text-muted">
-            from chapter
-            <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
-              placeholder="1"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="input w-20 py-1"
-              aria-label="Start from chapter (empty for every chapter)"
-            />
-          </label>
-        )}
-      </div>
+      <SendButton label="Request" done={done} busy={busy} sent={sent} buttonRef={btn} expanded={open} onClick={() => (open ? close() : measure())} />
       <Problem text={problem} />
+      {pos &&
+        createPortal(
+          <div
+            ref={menu}
+            role="menu"
+            className="menu menu-in fixed z-[60] overflow-hidden"
+            style={{ left: pos.left, top: pos.top, width: pos.width, transformOrigin: "top left" }}
+          >
+            <div key={String(picking)} className={picking ? "menu-slide-l" : "menu-slide-r"}>
+              {!picking ? (
+                <>
+                  <button role="menuitem" className={OPTION} onClick={() => request()}>
+                    <span className="text-sm font-medium">All chapters</span>
+                    <span className="text-xs text-muted">{have ? "Also the ones before what's here" : "From chapter 1"}, then new ones as they come out</span>
+                  </button>
+                  <button role="menuitem" className={OPTION} onClick={() => setPicking(true)}>
+                    <span className="flex w-full items-center text-sm font-medium">
+                      From a chapter
+                      <Chevron />
+                    </span>
+                    <span className="text-xs text-muted">E.g. where the anime stops</span>
+                  </button>
+                </>
+              ) : (
+                <form
+                  className="p-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (ok) request(start);
+                  }}
+                >
+                  <div className="mb-2 flex items-center gap-2 text-sm">
+                    <button type="button" className="-ml-1 rounded-md p-1 text-muted hover:text-fg" onClick={() => setPicking(false)} aria-label="Back">
+                      <Chevron back />
+                    </button>
+                    <span className="font-medium">From a chapter</span>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    inputMode="decimal"
+                    placeholder="Chapter"
+                    autoFocus
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    className="input w-full"
+                    aria-label="Start from chapter"
+                  />
+                  <button className="btn-primary mt-3 w-full" disabled={!ok}>
+                    {ok ? `Request from ch. ${start}` : "Type a chapter number"}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

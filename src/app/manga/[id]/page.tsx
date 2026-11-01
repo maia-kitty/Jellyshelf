@@ -110,7 +110,14 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
         <div className="space-y-3">
           <div className="flex flex-wrap items-start gap-3">
             {first !== undefined && <JellyfinButton href={`/read/${id}/${first}`} label={resume !== null ? `Continue ch. ${resume}` : "Read"} />}
-            {!series && settings.url && <RequestManga anilistId={id} done={active.length ? "Requested" : undefined} />}
+            {/* Like an anime's: there until every chapter is asked for (Mangarr then follows new ones on its own). */}
+            {settings.url && (!series || chapters.some((c) => !c.wanted)) && (
+              <RequestManga
+                anilistId={id}
+                have={!!series}
+                done={(series ? active.some((r) => r.status === "pending") : active.length > 0) ? "Requested" : undefined}
+              />
+            )}
           </div>
           {!settings.url && user.role === "admin" && <p className="text-sm text-muted">Manga downloads aren&apos;t set up yet (Settings → Mangarr).</p>}
           <StatusLine series={series} pending={active.some((r) => r.status === "pending")} approved={active.some((r) => r.status === "approved")} />
