@@ -7,7 +7,7 @@ import { sonarr, type SonarrClient, type SonarrEpisode, type SonarrSeries } from
 import { setMediaStatus } from "@/lib/media";
 import { mangarr } from "@/lib/clients/mangarr";
 import { HttpError } from "@/lib/clients/http";
-import { mergeSpans } from "@/lib/requestScope";
+import { requestRange } from "@/lib/requestScope";
 
 /** Send an approved request to Sonarr/Radarr. Throws on failure; caller records the error. */
 export async function pushRequest(req: Request, media: Media) {
@@ -16,18 +16,15 @@ export async function pushRequest(req: Request, media: Media) {
   return pushSeries(req, media);
 }
 
-/** Add the manga to Mangarr, or if it's there already, switch it on and widen its chapter range to this request's. */
+/** Add the manga to Mangarr, or if it's there already, switch it on and add this request's chapters to the ones it wants. */
 async function pushManga(req: Request, media: Media) {
   const api = mangarr((await getSettings()).mangarr);
-  const want = { start: req.startChapter ?? 0, end: req.endChapter };
+  const range = requestRange(req);
   try {
-    await api.add(req.targetId, want.start, want.end);
+    await api.add(req.targetId, range);
   } catch (e) {
     if (!(e instanceof HttpError && e.status === 409)) throw e;
-    // Mangarr holds one range per series: widen it to cover this request too.
-    const s = await api.series(req.targetId);
-    const m = mergeSpans({ start: s.startChapter, end: s.endChapter ?? null }, want);
-    await api.update(req.targetId, { monitored: true, startChapter: m.start, endChapter: m.end });
+    await api.update(req.targetId, { monitored: true, addRange: range });
   }
   await setMediaStatus(media.id, "processing");
 }

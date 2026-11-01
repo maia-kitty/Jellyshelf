@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import clsx from "clsx";
 import type { LibraryItem } from "@/lib/library";
 import { ShelfHeader } from "./MediaCard";
 import { sized } from "@/lib/img";
 import { FadeImg } from "./FadeImg";
+import { JellyfinButton } from "./Episodes";
 
 const JELLY = "linear-gradient(90deg, #aa5cc3, #00a4dc)";
 
 /** A title you own: opens its page; the play button on hover starts it (or resumes, or the next episode). */
-export function LibraryCard({ item }: { item: LibraryItem }) {
+export function LibraryCard({ item, bare = false }: { item: LibraryItem; bare?: boolean }) {
   return (
     <div className="group relative">
       <Link prefetch={false} href={item.href} className="block" title={item.title}>
@@ -34,10 +36,10 @@ export function LibraryCard({ item }: { item: LibraryItem }) {
             </div>
           )}
         </div>
-        <div className="mt-2 line-clamp-2 text-sm font-medium leading-tight">{item.title}</div>
-        <div className="mt-0.5 text-xs text-muted">
+        {!bare && <div className="mt-2 line-clamp-2 text-sm font-medium leading-tight">{item.title}</div>}
+        {!bare && <div className="mt-0.5 text-xs text-muted">
           {item.episode ? <span className="text-accent">New · {item.episode}</span> : [item.year, item.type === "Series" ? "Series" : item.type === "Movie" ? "Movie" : item.type === "Manga" ? "Manga" : null].filter(Boolean).join(" · ")}
-        </div>
+        </div>}
       </Link>
       <Link prefetch={false}
         href={item.playHref}
@@ -53,19 +55,57 @@ export function LibraryCard({ item }: { item: LibraryItem }) {
   );
 }
 
-export function LibraryRow({ title, href, items }: { title: string; href?: string; items: LibraryItem[] }) {
+/**
+ * Library home: one library as a panel. Its newest title gets the room (backdrop, synopsis, Play), the ones after it
+ * sit small underneath.
+ */
+export function LibraryPanel({ title, href, items }: { title: string; href?: string; items: LibraryItem[] }) {
   if (!items.length) return null;
+  const [top, ...rest] = items;
   return (
-    <section className="mb-10">
+    <section className="min-w-0">
       <ShelfHeader title={title} href={href} />
-      <div className="scroll-row -mx-1 flex gap-4 overflow-x-auto px-1 pb-3 pt-1.5">
-        {items.map((it, i) => (
-          <div key={it.id} className="card-in w-36 shrink-0 sm:w-40" style={{ "--i": i } as React.CSSProperties}>
-            <LibraryCard item={it} />
+      <div className="card overflow-hidden">
+        <Featured item={top} />
+        {rest.length > 0 && (
+          <div className="scroll-row flex gap-3 overflow-x-auto px-4 pb-3 pt-1.5">
+            {rest.map((it, i) => (
+              <div key={it.id} className="card-in w-24 shrink-0 sm:w-28" style={{ "--i": i } as React.CSSProperties}>
+                <LibraryCard item={it} />
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </section>
+  );
+}
+
+function Featured({ item }: { item: LibraryItem }) {
+  const bg = item.backdrop ?? item.poster;
+  const kind = item.type === "Series" ? "Series" : item.type === "Movie" ? "Movie" : item.type === "Manga" ? "Manga" : null;
+  return (
+    <div className="relative flex gap-4 p-4">
+      {bg && (
+        // A poster standing in for a missing backdrop is blurred, so it reads as colour rather than a second poster.
+        <FadeImg {...sized(bg, 800)} alt="" aria-hidden loading="lazy" decoding="async" className={clsx("absolute inset-0 h-full w-full object-cover opacity-40", !item.backdrop && "scale-110 blur-2xl")} />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-r from-panel via-panel/85 to-panel/40" />
+      <div className="relative w-24 shrink-0 sm:w-28">
+        <LibraryCard item={item} bare />
+      </div>
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="text-xs font-medium text-accent">{item.episode ? `New · ${item.episode}` : "Just added"}</div>
+        <Link prefetch={false} href={item.href} className="mt-0.5 line-clamp-2 text-lg font-semibold leading-tight hover:underline">
+          {item.title}
+        </Link>
+        <div className="mt-0.5 text-xs text-muted">{[item.year, kind].filter(Boolean).join(" · ")}</div>
+        {item.overview && <p className="mt-2 line-clamp-3 text-sm text-fg/80">{item.overview}</p>}
+        <div className="mt-auto pt-3">
+          <JellyfinButton href={item.playHref} label={item.type === "Manga" ? "Read" : "Play"} />
+        </div>
+      </div>
+    </div>
   );
 }
 

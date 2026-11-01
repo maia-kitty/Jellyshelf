@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import type { MediaStatus, RequestStatus, ServiceTarget } from "@/db/schema";
 import type { DownloadProgress } from "@/lib/downloads";
-import { StatusBadge } from "./StatusBadge";
+import { PILL, StatusBadge } from "./StatusBadge";
 import { SubsChip } from "./Subtitles";
 import { DownloadBar } from "./DownloadBar";
 import { Modal } from "./Modal";
@@ -128,7 +128,7 @@ export function RequestList({ rows, isAdmin, userId, qbit }: { rows: RequestRow[
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-                <span className="rounded bg-panel-2 px-1.5 py-0.5 text-[10px] uppercase">{r.media.kind}</span>
+                <span className={clsx(PILL, "bg-panel-2 font-normal")}>{r.media.kind}</span>
                 <span>
                   {scope(r)} → {SERVICE[r.target]}
                 </span>

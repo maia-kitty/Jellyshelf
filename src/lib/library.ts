@@ -22,6 +22,9 @@ export interface LibraryItem {
   /** For a new episode or season shown as its series: "S1 E2" / "S3". */
   episode: string | null;
   rating: number | null;
+  /** Only filled where a card has room for it (Library home's newest title). */
+  overview?: string | null;
+  backdrop?: string | null;
 }
 
 export interface LibraryView {
@@ -42,10 +45,14 @@ interface JfLibItem {
   ParentIndexNumber?: number;
   IndexNumber?: number;
   CommunityRating?: number;
+  Overview?: string;
+  BackdropImageTags?: string[];
   UserData?: { Played?: boolean; PlayedPercentage?: number; UnplayedItemCount?: number };
 }
 
 const FIELDS = "Fields=ProviderIds,PrimaryImageAspectRatio&EnableImageTypes=Primary&ImageTypeLimit=1";
+// Library home also shows the newest title's synopsis over its backdrop.
+const LATEST_FIELDS = "Fields=ProviderIds,PrimaryImageAspectRatio,Overview&EnableImageTypes=Primary,Backdrop&ImageTypeLimit=1";
 
 export async function libraryViews(user: User): Promise<LibraryView[]> {
   const jf = await asUser(user);
@@ -59,13 +66,13 @@ export async function libraryViews(user: User): Promise<LibraryView[]> {
 
 export async function latestIn(user: User, viewId: string, limit = 20): Promise<LibraryItem[]> {
   const jf = await asUser(user);
-  const items = await jf.call<JfLibItem[]>(`/Items/Latest?userId=${jf.userId}&ParentId=${viewId}&Limit=${limit}&GroupItems=true&${FIELDS}`);
+  const items = await jf.call<JfLibItem[]>(`/Items/Latest?userId=${jf.userId}&ParentId=${viewId}&Limit=${limit}&GroupItems=true&${LATEST_FIELDS}`);
   // A lone new episode comes back as itself, several new episodes of one season as that season (no poster of its own,
   // named just "Season 3"): show either as its series (linked like the series), playing that episode / the series.
   const inSeries = (i: JfLibItem) => (i.Type === "Episode" || i.Type === "Season") && !!i.SeriesId;
   const seriesIds = [...new Set(items.filter(inSeries).map((i) => i.SeriesId!))];
   const series = seriesIds.length
-    ? new Map((await jf.call<{ Items: JfLibItem[] }>(`/Items?userId=${jf.userId}&Ids=${seriesIds.join(",")}&${FIELDS}`)).Items.map((s) => [s.Id, s]))
+    ? new Map((await jf.call<{ Items: JfLibItem[] }>(`/Items?userId=${jf.userId}&Ids=${seriesIds.join(",")}&${LATEST_FIELDS}`)).Items.map((s) => [s.Id, s]))
     : new Map<string, JfLibItem>();
   const shown = items.map((i) =>
     inSeries(i) && series.has(i.SeriesId!)
@@ -136,6 +143,8 @@ async function toCards(items: (JfLibItem & { episodeOf?: JfLibItem; seasonOf?: J
       progress: pct ? pct / 100 : null,
       unplayed: i.Type === "Series" ? (i.UserData?.UnplayedItemCount ?? null) : null,
       rating: i.CommunityRating ?? null,
+      overview: i.Overview ?? null,
+      backdrop: i.BackdropImageTags?.[0] ? relayUrl(`/Items/${i.Id}/Images/Backdrop?maxWidth=960&tag=${i.BackdropImageTags[0]}`) : null,
     };
   });
 }

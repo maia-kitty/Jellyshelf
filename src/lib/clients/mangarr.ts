@@ -1,4 +1,5 @@
 import { fetchJson, joinUrl } from "./http";
+import type { ChapterRange } from "@/lib/requestScope";
 
 export interface MangarrConfig {
   url: string;
@@ -10,10 +11,12 @@ export interface MangarrSeries {
   anilistId: number;
   title: string;
   cover: string | null;
+  banner: string | null;
+  /** AniList's synopsis (HTML). */
+  description: string | null;
   monitored: boolean;
-  startChapter: number;
-  /** The last chapter wanted; null = keeps following new ones. */
-  endChapter: number | null;
+  /** The chapters wanted (`to` null = keeps following new ones). */
+  ranges: ChapterRange[];
   sourceName: string | null;
   /** ok | no_match | error | matching */
   state: string;
@@ -44,9 +47,9 @@ export function mangarr(cfg: MangarrConfig) {
     status: () => call<{ version: string; suwayomi: { ok: boolean } }>("/status"),
     allSeries: () => call<MangarrSeries[]>("/series", { timeoutMs: 15_000 }),
     series: (anilistId: number) => call<MangarrSeries>(`/series/${anilistId}`),
-    add: (anilistId: number, startChapter: number, endChapter: number | null) =>
-      call<MangarrSeries>("/series", { method: "POST", body: { anilistId, startChapter, endChapter } }),
-    update: (anilistId: number, patch: { monitored?: boolean; startChapter?: number; endChapter?: number | null }) =>
+    add: (anilistId: number, range: ChapterRange) => call<MangarrSeries>("/series", { method: "POST", body: { anilistId, ranges: [range] } }),
+    /** `addRange`: one more range of chapters, next to the ones already wanted. */
+    update: (anilistId: number, patch: { monitored?: boolean; addRange?: ChapterRange }) =>
       call<MangarrSeries>(`/series/${anilistId}`, { method: "PATCH", body: patch }),
     remove: (anilistId: number, deleteFiles: boolean) => call(`/series/${anilistId}?deleteFiles=${deleteFiles}`, { method: "DELETE", timeoutMs: 60_000 }),
     /** `all`: also the source's chapters that weren't asked for (before the start chapter). */

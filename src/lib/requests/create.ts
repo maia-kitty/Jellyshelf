@@ -10,7 +10,7 @@ import { resolveAnime } from "@/lib/mapping";
 import { describeTarget, type EpisodeRange } from "@/lib/mapping/resolve";
 import { getSettings } from "@/lib/settings";
 import { upsertMedia } from "@/lib/media";
-import { chapterSpan, widens } from "@/lib/requestScope";
+import { covers, requestRange } from "@/lib/requestScope";
 import { notifyAdmins } from "@/lib/notify";
 import { decideRequest } from "./decide";
 
@@ -118,8 +118,8 @@ async function create(user: User, input: CreateRequestInput): Promise<CreateResu
     );
     const startChapter = input.startChapter || null;
     const endChapter = input.endChapter ?? null;
-    // Another request may reach further back or further on than the ones before it; one that adds nothing is a repeat.
-    if (!widens(chapterSpan(await activeRequests(media.id)), { start: startChapter ?? 0, end: endChapter })) throw new ApiError(409, "Already requested");
+    // Another request may ask for chapters the ones before it didn't; one that adds nothing is a repeat.
+    if (covers((await activeRequests(media.id)).map(requestRange), { from: startChapter ?? 0, to: endChapter })) throw new ApiError(409, "Already requested");
     console.info(`[request] ${user.displayName} → ${media.title} (manga, chapters ${startChapter ?? 0}–${endChapter ?? "…"})`);
     return { created: [await insertRequest(user, media, { target: "mangarr", targetId: m.id, startChapter, endChapter })], skipped: [] };
   }

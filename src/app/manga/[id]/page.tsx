@@ -21,7 +21,7 @@ import { aniDescription } from "@/lib/text";
 import { mangaStuck } from "@/lib/jobs/availability";
 import { anilistToken } from "@/lib/auth";
 import { nextChapter } from "@/lib/mangaProgress";
-import { chapterSpan } from "@/lib/requestScope";
+import { requestRange } from "@/lib/requestScope";
 
 const STATUS: Record<string, string> = { RELEASING: "Releasing", FINISHED: "Finished", HIATUS: "On hiatus", CANCELLED: "Cancelled", NOT_YET_RELEASED: "Not out yet" };
 
@@ -126,7 +126,7 @@ export default async function MangaPage({ params }: { params: Promise<{ id: stri
         chapters={chapters}
         anilist={entry ? { progress: entry.progress } : null}
         // What requests still waiting for approval ask for: those chapters say "requested".
-        requested={chapterSpan(active.filter((r) => r.status === "pending"))}
+        requested={active.filter((r) => r.status === "pending").map(requestRange)}
       />
       <Suspense fallback={null}>
         <MoreLikeThis id={id} user={user} />

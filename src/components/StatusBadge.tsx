@@ -10,10 +10,16 @@ const MEDIA: Record<MediaStatus, { label: string; cls: string } | null> = {
   available: { label: "Available", cls: "bg-ok text-black" },
 };
 
+/**
+ * A small uppercase pill. The text box is trimmed to the capitals (text-box), so the letters sit in the middle
+ * instead of riding low on room left for descenders capitals don't have.
+ */
+export const PILL = "inline-block rounded-md px-1.5 py-[5px] text-[10px] font-semibold uppercase leading-none tracking-wide [text-box:trim-both_cap_alphabetic]";
+
 export function StatusBadge({ status, className }: { status?: MediaStatus; className?: string }) {
   const s = status && MEDIA[status];
   if (!s) return null;
-  return <span className={clsx("rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", s.cls, className)}>{s.label}</span>;
+  return <span className={clsx(PILL, s.cls, className)}>{s.label}</span>;
 }
 
 export const LIST_LABEL: Record<AniListStatus, string> = {
@@ -38,7 +44,7 @@ export const LIST_COLOR: Record<AniListStatus, { solid: string; tint: string }> 
 export function ListBadge({ status, progress, total, className, reading }: { status: AniListStatus; progress?: number; total?: number | null; className?: string; reading?: boolean }) {
   const showProgress = (status === "CURRENT" || status === "PAUSED" || status === "REPEATING") && progress !== undefined;
   return (
-    <span className={clsx("rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide", LIST_COLOR[status].solid, className)}>
+    <span className={clsx(PILL, LIST_COLOR[status].solid, className)}>
       {reading && status === "CURRENT" ? "Reading" : reading && status === "REPEATING" ? "Rereading" : LIST_LABEL[status]}
       {showProgress && ` ${progress}${total ? `/${total}` : ""}`}
     </span>

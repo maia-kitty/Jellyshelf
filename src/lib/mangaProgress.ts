@@ -7,6 +7,7 @@ import type { LibraryItem } from "@/lib/library";
 import { listPatch } from "@/lib/listEntry";
 import { getSettings } from "@/lib/settings";
 import { viewerToday } from "@/lib/today";
+import { aniDescription } from "@/lib/text";
 
 /**
  * AniList counts manga progress in whole chapters, so finishing 12.5 counts as 12 (and an extra numbered 0 or below
@@ -114,6 +115,8 @@ export async function mangaShelf(user: User): Promise<(LibraryItem & { added: nu
         unplayed: list ? onDisk.filter((n) => Math.floor(n) > progress).length : null,
         episode: null,
         rating: null,
+        overview: aniDescription(m.description, { oneParagraph: true }) || null,
+        backdrop: m.banner,
         added: m.added,
       };
     }),

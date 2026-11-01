@@ -6,6 +6,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import type { MangarrChapter } from "@/lib/clients/mangarr";
 import { patchEntry } from "./ListEditor";
+import { inRanges, type ChapterRange } from "@/lib/requestScope";
 
 const PAGE = 60;
 const time = (ms: number | null) => (ms ? `downloaded ${new Date(ms).toLocaleDateString()}` : null);
@@ -27,7 +28,7 @@ export function ChapterList({
   /** Your AniList progress, when AniList is linked. */
   anilist: { progress: number } | null;
   /** The chapters requests still waiting for approval ask for. */
-  requested: { start: number; end: number | null } | null;
+  requested: ChapterRange[];
 }) {
   const router = useRouter();
   const [showMissing, setShowMissing] = useState(false);
@@ -90,7 +91,7 @@ export function ChapterList({
         <ul className="bounce-y divide-y divide-line">
           {shown.map((c) => {
             const read = !!anilist && c.number >= 1 && Math.floor(c.number) <= progress;
-            const requested = !c.wanted && !!pending && c.number >= pending.start && (pending.end === null || c.number <= pending.end);
+            const requested = !c.wanted && inRanges(c.number, pending);
             return (
               <li key={c.number}>
                 <div className={clsx("group flex items-center gap-3 py-2", !c.onDisk && "opacity-50")}>

@@ -26,22 +26,21 @@ export const wholeSeries = (r: Pick<Request, "seasons" | "episodeRanges" | "abso
 /** Removing one of these also deletes the title from Sonarr/Radarr (pending and declined ones never got there). */
 export const sentOn = (r: { status: string }) => r.status !== "pending" && r.status !== "declined";
 
-/** The chapters a manga's requests cover together: one range (Mangarr wants one per series); end null = ongoing. */
-export type ChapterSpan = { start: number; end: number | null };
-export function chapterSpan(reqs: { startChapter: number | null; endChapter: number | null }[]): ChapterSpan | null {
-  if (!reqs.length) return null;
-  return {
-    start: Math.min(...reqs.map((r) => r.startChapter ?? 0)),
-    end: reqs.some((r) => r.endChapter === null) ? null : Math.max(...reqs.map((r) => r.endChapter!)),
-  };
+/** Chapters `from` to `to` (both included); `to` null = every chapter after `from`, new ones too. */
+export type ChapterRange = { from: number; to: number | null };
+/** A manga request's chapters. */
+export const requestRange = (r: { startChapter: number | null; endChapter: number | null }): ChapterRange => ({ from: r.startChapter ?? 0, to: r.endChapter });
+/** Sorted, with overlapping ranges joined (1–10 + 5–20 = 1–20); separate ones stay separate, like Mangarr keeps them. */
+export function mergeRanges(ranges: ChapterRange[]): ChapterRange[] {
+  const out: ChapterRange[] = [];
+  for (const r of [...ranges].sort((a, b) => a.from - b.from)) {
+    const last = out.at(-1);
+    if (last && (last.to === null || r.from <= last.to)) last.to = last.to === null || r.to === null ? null : Math.max(last.to, r.to);
+    else out.push({ ...r });
+  }
+  return out;
 }
-/** Both ranges as one, the way Mangarr will hold them. */
-export const mergeSpans = (a: ChapterSpan, b: ChapterSpan): ChapterSpan => ({
-  start: Math.min(a.start, b.start),
-  end: a.end === null || b.end === null ? null : Math.max(a.end, b.end),
-});
-/** Does asking for `next` add chapters to what's already asked for? (Otherwise it's a repeat.) */
-export function widens(span: ChapterSpan | null, next: ChapterSpan) {
-  const m = span && mergeSpans(span, next);
-  return !span || m!.start < span.start || m!.end !== span.end;
-}
+export const inRanges = (n: number, ranges: ChapterRange[]) => ranges.some((r) => n >= r.from && (r.to === null || n <= r.to));
+/** Is every chapter of `r` already in `ranges`? (Then asking for it again adds nothing.) */
+export const covers = (ranges: ChapterRange[], r: ChapterRange) =>
+  mergeRanges(ranges).some((m) => m.from <= r.from && (m.to === null || (r.to !== null && r.to <= m.to)));
