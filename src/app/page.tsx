@@ -41,15 +41,18 @@ export default async function Home() {
       <Suspense fallback={<SpotlightSkeleton />}>
         <SpotlightSection user={user} />
       </Suspense>
-      <Suspense fallback={hasList || user.jellyfinUserId ? <WideRowSkeleton title="Continue watching" /> : null}>
-        <ContinueSection user={user} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <ContinueReadingSection user={user} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <RequestsSection user={user} part="inFlight" />
-      </Suspense>
+      {/* Side by side on wide screens, as many columns as there are panels (an empty one renders nothing). */}
+      <div className="mb-10 grid gap-x-6 gap-y-10 lg:auto-cols-fr lg:grid-flow-col">
+        <Suspense fallback={hasList || user.jellyfinUserId ? <WideRowSkeleton title="Continue watching" count={1} /> : null}>
+          <ContinueSection user={user} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ContinueReadingSection user={user} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <RequestsSection user={user} part="inFlight" />
+        </Suspense>
+      </div>
       <Suspense fallback={<ScheduleSkeleton />}>
         <ScheduleSection user={user} />
       </Suspense>
