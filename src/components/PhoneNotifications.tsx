@@ -26,7 +26,7 @@ export function PhoneNotifications({ topic, server, admin, onClose }: { topic: s
     <Modal title="Phone notifications" onClose={onClose} className="max-w-lg">
       <div className="space-y-4 p-5 text-sm">
         <p className="text-muted">
-          Get a notification when your requests are approved and when they&apos;re ready to watch{admin && ", and when someone requests something"}.
+          Get a notification when your requests are approved and when they&apos;re ready to watch or read{admin && ", and when someone requests something"}.
         </p>
         <ol className="list-decimal space-y-3 pl-5">
           <li>

@@ -72,6 +72,6 @@ export async function notifyCompleted(requestIds: number[]) {
   for (const { userId, media } of rows) {
     if (seen.has(`${userId}:${media.id}`)) continue;
     seen.add(`${userId}:${media.id}`);
-    await notify([userId], { title: "Ready to watch", message: media.title, path: mediaPath(media), tags: ["tada"] });
+    await notify([userId], { title: media.kind === "manga" ? "Ready to read" : "Ready to watch", message: media.title, path: mediaPath(media), tags: ["tada"] });
   }
 }
