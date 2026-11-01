@@ -1,6 +1,13 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
 }
+
+// Your own signing key, kept outside the repo (see README): ~/.local/share/jellyshelf-android/keystore.properties.
+val keystore = File(System.getProperty("user.home"), ".local/share/jellyshelf-android/keystore.properties")
+    .takeIf { it.exists() }
+    ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 
 android {
     namespace = "io.github.maiakitty.jellyshelf"
@@ -14,12 +21,21 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        if (keystore != null) create("release") {
+            storeFile = File(keystore.getProperty("storeFile"))
+            storePassword = keystore.getProperty("storePassword")
+            keyAlias = keystore.getProperty("keyAlias")
+            keyPassword = keystore.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            // shortcut: signed with the debug key so it installs as is; use a real keystore before publishing anywhere.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without a key of your own it falls back to the debug key, so a fresh clone still builds an installable APK.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

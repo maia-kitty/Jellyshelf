@@ -32,8 +32,17 @@ JAVA_HOME=/usr/lib/jvm/java-17-openjdk gradle assembleRelease
 The APK lands in `app/build/outputs/apk/release/app-release.apk`. Copy it to the phone and open it to install (allow
 installing from that app when Android asks), or `adb install app/build/outputs/apk/release/app-release.apk`.
 
-The release build is signed with the debug key so it installs as is. To publish it anywhere, sign it with your own
-keystore instead (`signingConfigs` in `app/build.gradle.kts`).
+**Signing:** release builds use your own key when `~/.local/share/jellyshelf-android/keystore.properties` exists
+(`storeFile`, `storePassword`, `keyAlias`, `keyPassword`), and the debug key otherwise, so a fresh clone still builds
+something installable. Make a key once:
+
+```sh
+keytool -genkeypair -keystore ~/.local/share/jellyshelf-android/release.jks -storetype PKCS12 \
+  -alias jellyshelf -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=Jellyshelf"
+```
+
+Keep a backup of it: Android only installs an update signed with the same key as the installed app, so a lost key means
+uninstalling (and signing in again) to update.
 
 ## Not (yet) in it
 
