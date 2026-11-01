@@ -39,6 +39,8 @@ You sign in with your Jellyfin account, then browse, request and watch, all in o
   [Mangarr](https://github.com/maia-kitty/mangarr), a Sonarr-style app for manga I built alongside this; set it up in
   Settings → Mangarr. With AniList linked, finishing a chapter moves your AniList progress, the manga's page picks up
   where you left off ("Continue ch. N"), and Discover gets a "Continue reading" row.
+- **Android app:** a small app that opens your server full screen, with full-screen video, Back, and links to other
+  sites opening in the browser. See [android/README.md](android/README.md).
 
 ## How anime mapping works
 
