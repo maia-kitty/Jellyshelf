@@ -20,6 +20,15 @@
 
 You sign in with your Jellyfin account, then browse, request and watch, all in one place.
 
+## Screenshots
+
+![Discover: trending spotlight and this week's airing schedule](docs/screenshots/discover.webp)
+
+| | |
+|---|---|
+| ![Discover: top 10 this season, trending and next season](docs/screenshots/discover-rows.webp) | ![Library home: latest anime, manga, shows and movies](docs/screenshots/library.webp) |
+| ![Browse: trending anime with availability badges](docs/screenshots/browse.webp) | ![Anime page: details, rating and episode list](docs/screenshots/anime.webp) |
+
 ## Features
 
 - **Watch:** your Jellyfin library, with continue watching and a built-in player. The player supports direct play or
