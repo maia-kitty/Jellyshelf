@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Noto_Sans } from "next/font/google";
 import "./globals.css";
 import { currentUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
@@ -13,6 +14,9 @@ import { SmoothScroll } from "@/components/SmoothScroll";
 // (which would also open the database during `next build`).
 export const dynamic = "force-dynamic";
 
+// Jellyfin's stock font, served by Jellyshelf itself so it doesn't fall back to whatever the device's system-ui is.
+const notoSans = Noto_Sans({ subsets: ["latin", "latin-ext"], variable: "--font-noto-sans" });
+
 export const metadata: Metadata = {
   title: "Jellyshelf",
   description: "Request movies, series and anime",
@@ -21,7 +25,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [user, settings] = await Promise.all([currentUser(), getSettings()]);
   return (
-    <html lang="en">
+    <html lang="en" className={notoSans.variable}>
       <body className="min-h-screen antialiased">
         {user && (
           <Nav user={{ displayName: user.displayName, avatar: user.avatar, role: user.role, hasAnilist: !!user.anilistId, canLinkAnilist: !!settings.anilist.clientId, canUnlinkAnilist: !!user.jellyfinUserId, ntfy: settings.ntfy.url ? { topic: topicFor(user.id), server: ntfyServer(settings.ntfy) } : null }} />
