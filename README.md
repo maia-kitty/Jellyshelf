@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/icon-mono-white.svg">
-    <img src="assets/icon-mono.svg" alt="Jellyshelf" width="96">
-  </picture>
+  <img src="src/app/icon.svg" alt="Jellyshelf" width="96">
 </p>
 
 <h1 align="center">Jellyshelf</h1>
